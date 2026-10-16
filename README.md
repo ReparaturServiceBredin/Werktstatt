@@ -21,7 +21,7 @@ Bankabgleich, Kassenbuch, Fixkosten, Finanzübersicht, DATEV-Export, Datenschutz
 
 1. Ordner anlegen, z. B. **`C:\Werkstatt-Sauter`**. Bitte nicht unter „Programme“ und nicht in OneDrive,
    denn das Programm muss dort seine Daten und Updates speichern dürfen.
-2. **[Werkstatt-Sauter.exe herunterladen](https://github.com/ReparaturServiceBredin/Werkstatt/releases/latest/download/Werkstatt-Sauter.exe)**
+2. **[Werkstatt-Sauter.exe herunterladen](https://github.com/ReparaturServiceBredin/Werktstatt/releases/latest/download/Werkstatt-Sauter.exe)**
    und in diesen Ordner legen.
 3. Doppelklick auf **Werkstatt-Sauter.exe**.
    - Beim allerersten Start meldet Windows evtl. „Der Computer wurde durch Windows geschützt“, weil die Datei

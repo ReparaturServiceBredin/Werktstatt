@@ -22,7 +22,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-REPO = os.environ.get("RSB_UPDATE_REPO", "ReparaturServiceBredin/Werkstatt")
+REPO = os.environ.get("RSB_UPDATE_REPO", "ReparaturServiceBredin/Werktstatt")
 API_URL = os.environ.get("RSB_UPDATE_API") or f"https://api.github.com/repos/{REPO}/releases/latest"
 EXE_NAME = "Werkstatt-Sauter.exe"
 TIMEOUT = 15

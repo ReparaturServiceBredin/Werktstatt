@@ -7,7 +7,7 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 - Aufbau: `Haupt.Funktion.Korrektur`. Die mittlere Zahl steigt bei neuen Funktionen, die letzte Zahl bei
   reinen Fehlerbehebungen.
 - Jede Version gibt es als `Werkstatt-Sauter.exe` unter
-  [GitHub → Releases](https://github.com/ReparaturServiceBredin/Werkstatt/releases).
+  [GitHub → Releases](https://github.com/ReparaturServiceBredin/Werktstatt/releases).
   Das Programm installiert neue Versionen selbst und erstellt vorher ein Backup.
 - Ihre Daten bleiben bei jedem Update erhalten. Neue Datenbankfelder ergänzt das Programm beim Start selbst.
 
