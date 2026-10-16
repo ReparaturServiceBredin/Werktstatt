@@ -93,6 +93,16 @@ jobs:
           "$h  Werkstatt-Sauter.exe" | Out-File -Encoding ascii -NoNewline dist\Werkstatt-Sauter.exe.sha256
           Get-Content dist\Werkstatt-Sauter.exe.sha256
 
+      - name: Ordner für den USB-Stick packen
+        shell: pwsh
+        run: |
+          $ordner = "dist\usb\Werkstatt Sauter"
+          New-Item -ItemType Directory -Force -Path $ordner | Out-Null
+          Copy-Item dist\Werkstatt-Sauter.exe $ordner
+          Copy-Item "bauen\usb\*" $ordner
+          Compress-Archive -Path $ordner -DestinationPath dist\Werkstatt-Sauter-USB.zip -Force
+          Get-ChildItem $ordner
+
       - name: EXE als Artefakt ablegen
         uses: actions/upload-artifact@v4
         with:
@@ -100,6 +110,7 @@ jobs:
           path: |
             dist/Werkstatt-Sauter.exe
             dist/Werkstatt-Sauter.exe.sha256
+            dist/Werkstatt-Sauter-USB.zip
 
       - name: Veröffentlichen (nur bei neuer Versionsnummer)
         if: steps.v.outputs.neu == 'ja'
@@ -109,5 +120,5 @@ jobs:
         run: |
           V="${{ steps.v.outputs.version }}"
           python bauen/release_notes.py "$V"
-          gh release create "v$V" dist/Werkstatt-Sauter.exe dist/Werkstatt-Sauter.exe.sha256 \
+          gh release create "v$V" dist/Werkstatt-Sauter.exe dist/Werkstatt-Sauter.exe.sha256 dist/Werkstatt-Sauter-USB.zip \
             --title "Version $V" --notes-file release_notes.md --target "${{ github.sha }}" --latest

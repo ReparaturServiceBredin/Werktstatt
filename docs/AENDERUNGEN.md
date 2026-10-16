@@ -13,11 +13,21 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 
 | Version | Datum | Schwerpunkt |
 |---|---|---|
+| 1.2.1 | 17.10.2026 | Fertiger Ordner für den USB-Stick mit Installation per Doppelklick |
 | 1.2.0 | 17.10.2026 | Schlank: nur Aufträge, Rechnungen, Belege, Kasse und Finanzen |
 | 1.1.1 | 16.10.2026 | Läuft störungsfrei neben der RSB-Buchhaltung auf demselben PC |
 | 1.1.0 | 16.10.2026 | Werkstattkalender: Aufträge per Ziehen einplanen |
 | 1.0.1 | 16.10.2026 | Updates kommen aus dem richtigen Projekt |
 | 1.0.0 | 16.10.2026 | Erste Version für die Kfz-Werkstatt |
+
+## 1.2.1 – 17.10.2026
+### Neu: Ordner für den USB-Stick
+- Jede Version gibt es zusätzlich als `Werkstatt-Sauter-USB.zip`. Darin liegt der Ordner **Werkstatt Sauter** mit
+  dem Programm, `Installieren.bat` und einer kurzen Anleitung `So geht's.txt`.
+- **Installieren.bat** richtet das Programm per Doppelklick ein: Es kopiert das Programm nach
+  `%LOCALAPPDATA%\Programs\Werkstatt-Sauter`, legt ein Symbol auf dem Desktop und im Startmenü an und startet es.
+
+---
 
 ## 1.2.0 – 17.10.2026
 Das Programm ist auf das Wesentliche reduziert. Es wurden keine Daten gelöscht, die ausgeblendeten Bereiche

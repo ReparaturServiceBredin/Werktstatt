@@ -1,0 +1,22 @@
+WERKSTATT SAUTER – Einrichtung auf einem neuen PC
+=================================================
+
+1. Diesen ganzen Ordner vom USB-Stick auf den PC ziehen (z. B. auf den Desktop).
+2. Im Ordner doppelt auf "Installieren.bat" klicken.
+   - Das Programm wird eingerichtet, auf dem Desktop erscheint "Werkstatt Sauter".
+   - Kommt "Der Computer wurde durch Windows geschützt": auf "Weitere Informationen"
+     und dann "Trotzdem ausführen" klicken. Das passiert nur beim ersten Mal.
+3. Das Programm startet und ist leer. Zuerst unter
+   Einstellungen -> Firmendaten die eigenen Daten eintragen.
+4. Im Kassenbuch einmal den Anfangsbestand buchen (Bargeld, das gerade in der Kasse liegt).
+
+Danach kann der Ordner wieder gelöscht werden. Das Programm startet ab jetzt
+über das Symbol "Werkstatt Sauter" auf dem Desktop.
+
+Wichtig zu wissen
+- Updates installiert das Programm selbst (vorher wird automatisch gesichert).
+- Alle Daten liegen nur auf diesem PC:
+  %LOCALAPPDATA%\Werkstatt-Sauter\Daten
+- Tägliche Sicherung: Einstellungen -> Backup. Bitte die Sicherungen ab und zu
+  zusätzlich auf einen USB-Stick kopieren.
+- Ohne Installation geht es auch: Werkstatt-Sauter.exe einfach doppelt anklicken.
