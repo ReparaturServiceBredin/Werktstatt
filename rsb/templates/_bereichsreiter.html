@@ -1,0 +1,7 @@
+{#- Reiter einer zusammengefassten Seite (Rechnungen bzw. Einkauf). Aufruf: set reiter = "rechnungen" + include -#}
+<nav class="bereichsreiter" aria-label="Bereiche">
+  {%- for t, ziel in nav.REITER[reiter] %}
+  <a href="{{ url_for(ziel) }}" class="{{ 'aktiv' if request.endpoint == ziel }}"{% if request.endpoint == ziel %} aria-current="page"{% endif %}>{{ t }}
+    {%- if ziel == 'main.offene_posten' and posten_ueberfaellig %} <span class="zaehler rot" title="überfällige Rechnungen">{{ posten_ueberfaellig }}</span>{% endif %}</a>
+  {%- endfor %}
+</nav>

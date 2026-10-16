@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titel %}QR-Code {{ a.auftragsnr }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>{{ zweck_text }} – Auftrag {{ a.auftragsnr }}</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.auftrag', aid=a.id) }}#{{ 'fotos' if zweck == 'fotos' else 'annahmeschein' }}">← Zum Auftrag</a></div></div>
+{% if not im_netz %}
+<div class="meldung warnung">Das Programm ist zurzeit nur an diesem PC erreichbar – das Handy kann den QR-Code noch nicht öffnen. Bitte unter <a href="{{ url_for('main.einstellungen', bereich='annahme') }}">Einstellungen → Annahme &amp; Abholung</a> „Programm im WLAN erreichbar machen“ einschalten und das Programm neu starten. Handy und PC müssen im selben WLAN sein.</div>
+{% endif %}
+<div class="karte qr-box">
+  {{ qr }}
+  <p>Mit der Handy-Kamera scannen{{ ' (Kunde unterschreibt auf dem Handy)' if zweck != 'fotos' }}.</p>
+  <p class="klein">Adresse: <code>{{ url }}</code><br>Gültig {{ minuten }} Minuten{{ ', nur für eine Unterschrift' if zweck != 'fotos' }}.</p>
+  <p id="qr-status" class="klein">Warte auf {{ 'Fotos' if zweck == 'fotos' else 'die Unterschrift' }} …</p>
+</div>
+{% endblock %}
+{% block skript %}
+<script>
+const start = {{ stand|tojson }}, zweck = {{ zweck|tojson }};
+const ziel = {{ (url_for('main.auftrag', aid=a.id) ~ ('#fotos' if zweck == 'fotos' else '#annahmeschein'))|tojson }};
+setInterval(async () => {
+  try {
+    const r = await fetch({{ url_for('main.auftrag_stand', aid=a.id)|tojson }});
+    if (!r.ok) return;
+    const j = await r.json(), el = document.getElementById('qr-status');
+    if (zweck === 'fotos' && j.fotos > start.fotos) {
+      el.innerHTML = `${j.fotos - start.fotos} Foto(s) eingegangen – <a href="${ziel}">zum Auftrag</a>`; el.style.color = 'var(--gruen)';
+    } else if (zweck !== 'fotos' && j.belege > start.belege) { window.location = ziel; }
+  } catch (e) {}
+}, 3000);
+</script>
+{% endblock %}

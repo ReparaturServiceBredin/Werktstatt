@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titel %}Leihgerät ausgeben{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Leihgerät ausgeben</h1><a class="knopf zweit" href="{{ url_for('main.leihgeraete') }}">Zu den Leihgeräten</a></div>
+<p class="klein">Ein Leihgerät wird immer zu einem Reparaturauftrag ausgegeben (für Protokoll, Abrechnung und Rückgabe). Bitte den Auftrag wählen. Verfügbare Leihgeräte: <b>{{ frei }}</b>.</p>
+<div class="karte"><table class="liste"><thead><tr><th>Auftrag</th><th>Kunde</th><th>Gerät</th><th>Eingang</th><th></th></tr></thead><tbody>
+{% for a in auftraege %}<tr><td><a href="{{ url_for('main.auftrag', aid=a.id) }}"><b>{{ a.auftragsnr }}</b></a></td><td>{{ a|kname }}</td><td>{{ a.geraet or '' }}</td><td>{{ a.eingang_am|datum }}</td>
+  <td><a class="knopf klein" href="{{ url_for('main.leihe_ausgeben', aid=a.id) }}">Leihgerät ausgeben</a></td></tr>
+{% else %}<tr><td colspan="5" class="klein">Keine offenen Aufträge. <a href="{{ url_for('main.auftrag_neu') }}">Neuen Auftrag anlegen</a></td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

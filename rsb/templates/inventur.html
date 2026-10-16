@@ -1,0 +1,35 @@
+{% extends "mobil_base.html" if mobil or druck else "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}{{ inv.bezeichnung }}{% endblock %}
+{% block inhalt %}
+{% set offen = inv.status == 'offen' %}
+<div class="kopf"><h1>{{ inv.bezeichnung }} <span class="klein">Stichtag {{ inv.stichtag|datum }}</span></h1>
+  {% if not mobil and not druck %}<div class="leiste"><a class="knopf zweit" href="{{ url_for('main.lager', ansicht='inventur') }}">← Inventuren</a>
+    {% if offen %}<a class="knopf zweit" href="{{ url_for('main.inventur', iid=inv.id, druck=1) }}" target="_blank">Zählliste drucken</a>
+    <form method="post" action="{{ url_for('main.inventur_handy', iid=inv.id) }}">{{ csrf() }}<button class="zweit">📱 Am Handy zählen (QR-Code)</button></form>{% endif %}
+    {% if inv.pdf_datei %}<a class="knopf" href="{{ url_for('main.inventur_protokoll', iid=inv.id) }}" target="_blank">Inventurprotokoll (PDF)</a>{% endif %}</div>{% endif %}
+  {% if druck %}<button onclick="window.print()" class="zweit">Drucken</button>{% endif %}
+</div>
+{% if not offen %}<div class="meldung ok">Abgeschlossen am {{ inv.abgeschlossen_am|zeit_sek }} von {{ inv.abgeschlossen_von }} · {{ inv.differenzen }} Differenz(en) gebucht · Lagerwert {{ inv.lagerwert|euro }}</div>{% endif %}
+{% if orte|length > 1 and not druck %}<div class="leiste" style="margin-bottom:8px">Lagerort:
+  <a href="?ort=" class="knopf klein {{ 'zweit' if ort }}">alle</a>{% for o in orte %}<a href="?ort={{ o|urlencode }}" class="knopf klein {{ 'zweit' if ort != o }}">{{ o or 'ohne' }}</a>{% endfor %}</div>{% endif %}
+<form method="post" action="{{ ziel }}{{ ('?ort=' ~ (ort|urlencode)) if ort }}" class="karte">{{ csrf() }}
+  <table class="liste"><thead><tr><th>Lagerort</th><th>Artikel</th>{% if not druck %}<th class="zahl">Soll</th>{% endif %}<th class="zahl" style="width:130px">Ist (gezählt)</th>{% if not druck %}<th class="zahl">Differenz</th>{% endif %}</tr></thead><tbody>
+  {% for p in positionen if not ort or (p.lagerort or '') == ort %}{% set diff = (p.ist - p.soll) if p.ist is not none else none %}
+  <tr><td>{{ p.lagerort or '' }}</td><td><b>{{ p.name }}</b><div class="klein">{{ [p.artikelnr, p.ean]|select|join(' · ') }}</div></td>
+    {% if not druck %}<td class="zahl">{{ p.soll|menge }} {{ p.einheit or '' }}</td>{% endif %}
+    <td class="zahl">{% if druck %}______ {{ p.einheit or '' }}{% elif offen %}<input type="text" inputmode="decimal" name="ist_{{ p.artikel_id }}" value="{{ p.ist|menge if p.ist is not none else '' }}" style="width:110px;text-align:right">{% else %}{{ p.ist|menge if p.ist is not none else '–' }}{% endif %}</td>
+    {% if not druck %}<td class="zahl" style="color:{{ 'var(--rot)' if diff and diff < 0 else 'var(--gruen)' }}">{{ (('+' if diff > 0 else '') ~ (diff|menge)) if diff else ('✓' if p.ist is not none else '') }}</td>{% endif %}</tr>
+  {% else %}<tr><td colspan="5" class="klein">Keine lagerführenden Artikel.</td></tr>{% endfor %}
+  </tbody></table>
+  {% if offen and not druck %}<br><button>Zählung speichern</button>{% endif %}
+</form>
+{% if offen and not mobil and not druck %}
+{% set ungezaehlt = positionen|selectattr('ist', 'none')|list|length %}
+<form method="post" action="{{ url_for('main.inventur_abschliessen', iid=inv.id) }}" class="karte" onsubmit="return confirm('Inventur abschließen? Differenzen werden gebucht, danach ist keine Änderung mehr möglich.')">{{ csrf() }}
+  <h2>Abschließen</h2>
+  {% if ungezaehlt %}<label class="check"><input type="checkbox" name="ungezaehlt_wie_soll" value="1"> {{ ungezaehlt }} ungezählte(r) Artikel bleibt/bleiben unverändert (Ist = Soll)</label><br>{% endif %}
+  <button>Inventur abschließen und Differenzen buchen</button>
+  <p class="klein">Gebucht wird die Differenz zwischen gezählter Menge und aktuellem Bestand. Das Inventurprotokoll (PDF) wird unverändert archiviert.</p>
+</form>{% endif %}
+{% endblock %}

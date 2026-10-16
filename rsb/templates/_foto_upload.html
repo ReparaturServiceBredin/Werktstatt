@@ -1,0 +1,18 @@
+{# Foto-Hochladen: mehrere Dateien, Ziehen & Ablegen, Handy-Kamera. neu_laden = Seite nach dem Hochladen neu laden #}
+{% macro hochladen(url, kategorien, token='', neu_laden=True) -%}
+<div class="foto-upload" data-url="{{ url }}" data-token="{{ token }}" data-neu-laden="{{ 1 if neu_laden else 0 }}">
+  <div class="leiste">
+    <label style="margin:0">Kategorie</label>
+    <select class="foto-kategorie" style="width:auto">{% for k in kategorien %}<option>{{ k }}</option>{% endfor %}</select>
+  </div>
+  <div class="foto-zone">
+    <div>📷 Fotos hierher ziehen</div>
+    <div class="leiste" style="justify-content:center;margin-top:8px">
+      <label class="knopf zweit">Dateien auswählen<input type="file" class="foto-datei" accept="image/*,.heic,.heif" multiple hidden></label>
+      <label class="knopf zweit">Kamera (Handy)<input type="file" class="foto-datei" accept="image/*" capture="environment" hidden></label>
+    </div>
+    <div class="klein">JPG, PNG, WEBP oder HEIC · Originale werden unverändert gespeichert</div>
+  </div>
+  <div class="foto-fortschritt klein"></div>
+</div>
+{%- endmacro %}

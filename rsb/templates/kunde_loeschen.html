@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Kunde löschen{% endblock %}
+{% block inhalt %}
+<h1>{{ k.kundennr }} · {{ k|kname }} löschen</h1>
+<div class="karte">
+  {% if bericht.anonymisieren %}
+  <h2>Der Kunde wird anonymisiert</h2>
+  <p>Für diesen Kunden gibt es Unterlagen, die gesetzlich aufbewahrt werden müssen. Name, Anschrift, E-Mail, Telefon und Notizen werden aus den Stammdaten entfernt. In den archivierten Belegen bleiben sie unverändert stehen (GoBD).</p>
+  <h3>Wird aufbewahrt</h3>
+  <table class="liste">{% for b in bericht.behalten %}<tr><td>{{ b.was }}</td><td style="white-space:nowrap">bis {{ b.bis|datum }}</td></tr>{% endfor %}</table>
+  {% else %}
+  <h2>Der Kunde wird vollständig gelöscht</h2>
+  <p>Es gibt keine aufbewahrungspflichtigen Unterlagen.</p>
+  {% endif %}
+  <h3>Wird gelöscht</h3>
+  {% if bericht.loeschen %}<ul>{% for l in bericht.loeschen %}<li>{{ l }}</li>{% endfor %}</ul>{% else %}<p class="klein">Keine weiteren Daten.</p>{% endif %}
+  <p class="klein">Ihr E-Mail-Postfach bleibt unverändert. Der Vorgang wird im Löschprotokoll festgehalten (Kundennummer und gekürzter Name, was gelöscht und was bis wann aufbewahrt wird).</p>
+  <form method="post" onsubmit="return confirm('{{ 'Kunden jetzt anonymisieren?' if bericht.anonymisieren else 'Kunden jetzt endgültig löschen?' }} Das kann nicht rückgängig gemacht werden.')">{{ csrf() }}
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" name="anfrage" value="1"> Der Kunde hat die Löschung verlangt (Art. 17 DSGVO) – Bestätigung für den Kunden erstellen</label>
+    <div class="leiste"><button class="gefahr">{{ 'Jetzt anonymisieren' if bericht.anonymisieren else 'Endgültig löschen' }}</button>
+    <a class="knopf zweit" href="{{ url_for('main.kunde', kid=k.id) }}">Abbrechen</a></div></form>
+</div>
+{% endblock %}

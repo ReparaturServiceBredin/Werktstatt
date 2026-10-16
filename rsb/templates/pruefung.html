@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titel %}Datenprüfung{% endblock %}
+{% block inhalt %}
+<h1>Datenprüfung</h1>
+<p class="klein">Prüft, ob archivierte PDFs unverändert sind, ob alle vergebenen Nummern lückenlos vorhanden sind und ob das Protokoll vollständig ist.</p>
+{% for titel, fehler in [('Archivierte PDFs (' ~ e.anzahl_dokumente ~ ' Dokumente)', e.pdf), ('Lückenlose Nummernfolge', e.nummern), ('Protokollkette', e.protokoll), ('Gespeicherte Dateipfade (relativ zum Datenordner, für Windows und Linux)', e.pfade or []), ('Lagerbestand und Kassenbuch', e.lager or [])] %}
+<div class="karte">
+  <h2>{{ titel }}</h2>
+  {% if fehler %}{% for f in fehler %}<div class="meldung fehler">{{ f }}</div>{% endfor %}
+  {% else %}<div class="meldung ok" style="margin:0">In Ordnung.</div>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

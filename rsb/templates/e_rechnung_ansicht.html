@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titel %}E-Rechnung {{ r.nummer or '' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>E-Rechnung {{ r.nummer or '' }} <span class="klein">({{ 'Gutschrift' if r.art in ('381', '261', '262', '296', '308', '396', '420', '458', '532') else 'Rechnung' }}, Art {{ r.art }})</span></h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.eingangsrechnung', eid=e.id) }}">← Eingangsrechnung {{ e.lfd_nr }}</a>
+    <a class="knopf" href="{{ url_for('main.eingangsrechnung_e', eid=e.id, pdf=1) }}">Als PDF speichern</a>
+    <a class="knopf zweit" href="{{ url_for('main.eingangsrechnung_datei', sha=e.datei_sha256) }}">Originaldatei</a></div></div>
+<p class="klein">Datum {{ r.datum|datum if r.datum else '–' }}{% if r.faellig %} · fällig {{ r.faellig|datum }}{% endif %}{% if r.leistungsdatum %} · Leistung {{ r.leistungsdatum|datum }}{% endif %}{% if r.leitweg %} · Käuferreferenz/Leitweg-ID {{ r.leitweg }}{% endif %} · Profil <code>{{ r.profil or '–' }}</code></p>
+<div class="zweispaltig">
+  <div class="karte"><h2>Verkäufer</h2>{% for z in r.verkaeufer %}<div>{{ z }}</div>{% endfor %}</div>
+  <div class="karte"><h2>Käufer</h2>{% for z in r.kaeufer %}<div>{{ z }}</div>{% endfor %}</div>
+</div>
+<div class="karte"><h2>Positionen</h2>
+  <table class="liste"><thead><tr><th>Nr.</th><th>Bezeichnung</th><th class="zahl">Menge</th><th class="zahl">Preis</th><th>USt</th><th class="zahl">Betrag</th></tr></thead><tbody>
+  {% for z in r.positionen %}<tr><td>{{ z.nr }}</td><td><b>{{ z.bezeichnung }}</b>{% if z.beschreibung %}<div class="klein" style="white-space:pre-wrap">{{ z.beschreibung }}</div>{% endif %}</td>
+    <td class="zahl">{{ z.menge }} {{ z.einheit or '' }}</td><td class="zahl">{{ z.preis|euro if z.preis is not none else '' }}</td><td>{{ z.kategorie }} {{ z.satz }} %</td><td class="zahl">{{ z.betrag|euro if z.betrag is not none else '' }}</td></tr>{% endfor %}
+  </tbody></table>
+  <table class="liste" style="max-width:520px;margin-left:auto;margin-top:10px">
+    {% for s in r.steuern %}<tr><td>USt {{ s.kategorie }} {{ s.satz }} % auf {{ (s.basis or 0)|euro }}{% if s.grund %}<div class="klein">{{ s.grund }}</div>{% endif %}</td><td class="zahl">{{ (s.steuer or 0)|euro }}</td></tr>{% endfor %}
+    <tr><td>Netto</td><td class="zahl">{{ (r.netto or 0)|euro }}</td></tr><tr><td>Umsatzsteuer</td><td class="zahl">{{ (r.steuer or 0)|euro }}</td></tr>
+    <tr><td><b>Brutto</b></td><td class="zahl"><b>{{ (r.brutto or 0)|euro }}</b></td></tr><tr><td>zu zahlen</td><td class="zahl">{{ (r.zahlbetrag or 0)|euro }}</td></tr>
+  </table>
+</div>
+<div class="karte"><h2>Zahlung</h2>
+  <p>{% if r.iban %}IBAN <b>{{ r.iban }}</b>{% if r.bic %} · BIC {{ r.bic }}{% endif %}{% if r.verwendungszweck %} · Verwendungszweck <b>{{ r.verwendungszweck }}</b>{% endif %}{% else %}keine Bankverbindung angegeben{% endif %}</p>
+  {% if r.zahlungsbedingungen %}<p>{{ r.zahlungsbedingungen }}</p>{% endif %}
+  {% for h in r.hinweise %}<p class="klein">{{ h }}</p>{% endfor %}
+</div>
+<p class="klein">Diese Ansicht wird aus der XML der E-Rechnung erzeugt. Maßgeblich (und archiviert) ist die Originaldatei.</p>
+{% endblock %}

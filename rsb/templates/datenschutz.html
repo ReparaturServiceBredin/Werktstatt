@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Datenschutz{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Datenschutz</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.datenschutz_verzeichnis') }}">Verzeichnis der Verarbeitungstätigkeiten</a>
+    <a class="knopf zweit" href="{{ url_for('main.einstellungen', bereich='datenschutz') }}">Löschfristen einstellen</a></div></div>
+<p class="klein">Aufbewahrungspflichten (GoBD) haben Vorrang: Kunden mit aufbewahrungspflichtigen Belegen werden anonymisiert statt gelöscht. Auskunft (Art. 15) und Löschung auf Anfrage (Art. 17) starten Sie beim jeweiligen Kunden.
+  Automatischer Löschlauf: <b>{{ 'täglich eingeschaltet' if einst.ds_auto else 'aus' }}</b>{% if einst.ds_letzter_lauf %} · zuletzt {{ einst.ds_letzter_lauf|zeit_sek }}{% endif %}.</p>
+<div class="karte" id="vorschau"><h2>Folgende Daten werden in den nächsten {{ einst.ds_vorschau_tage or 30 }} Tagen gelöscht</h2>
+  <p class="klein">Gesperrte Einträge (laufender Auftrag, offene Rechnung, offener Schadensfall, laufende Garantie oder laufender Vertrag) werden erst gelöscht, wenn die Sperre entfällt. Einzelne Einträge können Sie mit Begründung zurückstellen (z. B. laufender Streitfall).</p>
+  <table class="liste"><thead><tr><th>Löschung ab</th><th>Art</th><th>Betroffen</th><th>Frist</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for e in k.eintraege %}<tr>
+    <td>{{ e.faellig.isoformat()|datum }}</td><td>{{ e.art_text }}</td><td>{{ e.titel }}</td><td class="klein">{{ e.frist }}</td>
+    <td>{% if e.zurueck %}<span class="marke-status st-entwurf">zurückgestellt</span><div class="klein">{{ e.zurueck.grund }}{% if e.zurueck.bis %} (bis {{ e.zurueck.bis|datum }}){% endif %}</div>
+      {% elif e.sperre %}<span class="marke-status st-warnung">gesperrt</span><div class="klein">{{ e.sperre|unique|join(', ') }}</div>
+      {% elif e.faellig <= heute %}<span class="marke-status st-fehler">fällig</span>{% else %}<span class="marke-status st-gesendet">vorgemerkt</span>{% endif %}</td>
+    <td>{% if not e.zurueck %}<details><summary class="klein">Zurückstellen</summary>
+      <form method="post" action="{{ url_for('main.datenschutz_zurueckstellen') }}">{{ csrf() }}
+        <input type="hidden" name="art" value="{{ e.art }}"><input type="hidden" name="objekt_id" value="{{ e.id }}">
+        <input type="text" name="grund" required minlength="3" placeholder="Begründung, z. B. Streitfall">
+        <label class="klein">bis (optional)</label><input type="date" name="bis">
+        <button class="zweit klein">Zurückstellen</button></form></details>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="klein">In diesem Zeitraum wird nichts gelöscht.</td></tr>{% endfor %}</tbody></table>
+  {% if k.emails %}<p class="klein">Außerdem: {{ k.emails }} E-Mail(s) ohne Belegbezug älter als {{ einst.ds_email_jahre }} Jahre.</p>{% endif %}
+  <form method="post" style="margin-top:10px" onsubmit="return confirm('Löschlauf jetzt ausführen? Gelöscht werden nur fällige, nicht gesperrte und nicht zurückgestellte Einträge. Gelöschte Daten können nicht wiederhergestellt werden (außer aus einer Datensicherung).')">{{ csrf() }}<button class="gefahr">Fällige Löschungen jetzt ausführen</button></form>
+</div>
+{% if zurueck %}<div class="karte"><h2>Zurückgestellte Löschungen</h2>
+  <table class="liste"><thead><tr><th>Art</th><th>Nr.</th><th>Begründung</th><th>bis</th><th>seit</th><th></th></tr></thead><tbody>
+  {% for z in zurueck %}<tr><td>{{ arten.get(z.art, z.art) }}</td><td>{{ z.objekt_id }}</td><td>{{ z.grund }}</td><td>{{ z.bis|datum if z.bis else 'unbefristet' }}</td>
+    <td class="klein">{{ z.erstellt_am|zeit_sek }} · {{ z.benutzer }}</td>
+    <td><form method="post" action="{{ url_for('main.datenschutz_zurueckstellung_aufheben', zid=z.id) }}">{{ csrf() }}<button class="zweit klein">Aufheben</button></form></td></tr>{% endfor %}</tbody></table>
+</div>{% endif %}
+<div class="karte" id="protokolle"><h2>Löschprotokolle</h2>
+  <table class="liste"><thead><tr><th>Zeitpunkt</th><th>Anlass</th><th>Betroffen</th><th>Frist</th><th>Gelöscht</th><th>Aufbewahrt bis</th><th></th></tr></thead><tbody>
+  {% for p in protokolle %}<tr {% if p.id == gewaehlt %}class="gewaehlt"{% endif %}><td>{{ p.zeitpunkt|zeit_sek }}<div class="klein">{{ p.benutzer }}</div></td><td>{{ p.anlass }}</td><td>{{ p.betroffen }}</td><td class="klein">{{ p.frist or '–' }}</td>
+    <td class="klein">{{ json.loads(p.geloescht)|join('; ') }}</td>
+    <td class="klein">{% for b in json.loads(p.behalten) %}{{ b.was }} – bis {{ b.bis|datum }}<br>{% else %}–{% endfor %}</td>
+    <td><a class="knopf zweit klein" href="{{ url_for('main.datenschutz_protokoll', pid=p.id) }}" target="_blank">Bestätigung (PDF)</a></td></tr>
+  {% else %}<tr><td colspan="7" class="klein">Noch keine Löschungen.</td></tr>{% endfor %}</tbody></table>
+  <p class="klein">Löschprotokolle sind unveränderlich. Sie enthalten nur, was wann nach welcher Frist gelöscht wurde, mit Kunden- bzw. Vorgangsnummer und gekürztem Namen – nie die gelöschten Inhalte – als Nachweis, dass eine Löschung erfolgt ist (Rechenschaftspflicht).</p>
+</div>
+{% endblock %}

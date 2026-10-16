@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf, status %}
+{% from "_auftrag_formular.html" import felder, kva_auswahl %}
+{% from "_foto_upload.html" import hochladen %}
+{% from "_benachrichtigung.html" import vorschau %}
+{% block titel %}Auftrag {{ a.auftragsnr }}{% endblock %}
+{% block inhalt %}
+{% set gueltige_fotos = fotos|rejectattr('geloescht_am')|list %}
+<div class="kopf">
+  <div>
+    <h1>Auftrag {{ a.auftragsnr }} <span class="marke-status s-{{ tafel_status }}">{{ status_namen[tafel_status] }}</span>{% if a.auftragsart == 'garantie' %} <span class="marke-status st-warnung">Garantiefall{% if garantie_bezug %} zu {{ garantie_bezug.auftragsnr }}{% endif %}</span>{% endif %}</h1>
+    <div class="auftrag-kopf" style="margin-top:6px">
+      <span>Eingang: <b>{{ a.eingang_am|zeit }}</b></span>
+      <span>Kunde: <a href="{{ url_for('main.kunde', kid=a.kunde_id) }}"><b>{{ a.kundennr }} · {{ a.firma if a.ktyp == 'firma' and a.firma else (a.vorname or '') ~ ' ' ~ (a.nachname or '') }}</b></a>{% if a.ktelefon %} · <a href="tel:{{ a.ktelefon }}">{{ a.ktelefon }}</a>{% endif %}</span>
+      {% if a.begonnen_am %}<span>begonnen {{ a.begonnen_am|zeit }}</span>{% endif %}
+      {% if a.erledigt_am %}<span>erledigt {{ a.erledigt_am|zeit }}</span>{% endif %}
+      {% if a.fertig_bis and not a.erledigt_am %}<span>fertig bis <b>{{ a.fertig_bis|datum }}</b></span>{% endif %}
+      {% if a.abgeholt_am %}<span>abgeholt {{ a.abgeholt_am|zeit }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.auftraege') }}">← Zur Tafel</a></div>
+</div>
+{% if kva_kunde %}<div class="meldung warnung">Achtung: Der verknüpfte Kostenvoranschlag gehört zu einem anderen Kunden ({{ kva_kunde.kundennr }} · {{ kva_kunde|kname }}) als der Auftrag.</div>{% endif %}
+
+{% for b in benachrichtigungen %}{{ vorschau(b, anlaesse, url_for('main.auftrag', aid=a.id), True) }}{% endfor %}
+{% if vorbesuche %}
+<div class="meldung {{ 'warnung' if vorbesuche|selectattr('garantie.laeuft')|list else 'info' }}">
+  <b>Dieses Gerät (SN/IMEI {{ a.seriennummer }}) war schon {{ vorbesuche|length }}× hier.</b>
+  {% for v in vorbesuche %}<div style="margin-top:4px">· <a href="{{ url_for('main.auftrag', aid=v.a.id) }}">{{ v.a.auftragsnr }}</a> vom {{ v.a.eingang_am|datum }} – {{ v.a.fehler|truncate(60) if v.a.fehler else (v.a.geraet or '') }}
+    · Garantie: <b>{{ v.garantie.text }}</b>
+    {% if v.a.foto_anzahl %} · <a href="{{ url_for('main.auftrag', aid=v.a.id) }}#fotos">{{ v.a.foto_anzahl }} Foto(s)</a>{% endif %}
+    {% if v.a.rechnung_id %} · <a href="{{ url_for('main.dokument', did=v.a.rechnung_id) }}">Rechnung {{ v.a.re_nummer or 'Entwurf' }}</a>{% endif %}</div>{% endfor %}
+  {% if a.auftragsart != 'garantie' and vorbesuche|selectattr('garantie.laeuft')|list %}<div class="klein" style="margin-top:6px">Läuft die Garantie, unter „Auftragsdaten“ die Auftragsart „Garantiefall“ wählen.</div>{% endif %}
+</div>
+{% endif %}
+
+<nav class="reiter">
+  <a href="#auftragsdaten" data-reiter="auftragsdaten">Auftragsdaten</a>
+  <a href="#annahmeschein" data-reiter="annahmeschein">Annahme / Abholung {{ '✓' if belege|selectattr('art', 'equalto', 'annahme')|list else '' }}</a>
+  <a href="#kostenvoranschlag" data-reiter="kostenvoranschlag">Kostenvoranschlag {{ '✓' if a.kva_id else '' }}</a>
+  <a href="#material" data-reiter="material">Material {% set mat = material|selectattr('status', 'in', ['reserviert', 'ausgebucht'])|list %}{% if mat %}<span class="zahl">{{ mat|length }}</span>{% endif %}</a>
+  <a href="#leihgeraet" data-reiter="leihgeraet">Leihgerät{% if a.leihen_offen %} <span class="zahl" {% if a.leihe_bis and a.leihe_bis < heute %}style="background:var(--rot-hell);color:var(--rot)"{% endif %}>🔁 {{ a.leihen_offen }}</span>{% endif %}</a>
+  <a href="#fotos" data-reiter="fotos">Fotos <span class="zahl">{{ gueltige_fotos|length }}</span></a>
+  <a href="#verlauf" data-reiter="verlauf">Verlauf <span class="zahl">{{ verlauf|length }}</span></a>
+</nav>
+
+<section data-bereich="auftragsdaten">
+  <div class="zweispaltig">
+    <form method="post" class="karte" id="auftragsformular">{{ csrf() }}
+      <h2>Auftragsdaten</h2>
+      {{ felder(a, kunden, status_namen, leistungsarten) }}<br>
+      <button>Speichern</button>
+    </form>
+    <div>
+      <div class="karte">
+        <h2>Rechnung</h2>
+        {% if a.rechnung_id %}
+          <p><a href="{{ url_for('main.dokument', did=a.rechnung_id) }}"><b>{{ a.re_nummer or 'Entwurf' }}</b></a> {{ status(a.re_status) }} · {{ a.re_betrag|euro }}</p>
+          {% if a.re_status == 'entwurf' %}<p class="klein">Bitte prüfen und festschreiben – erst dann bekommt sie eine Rechnungsnummer.</p>{% endif %}
+          {% if a.re_status == 'storniert' %}<form method="post" action="{{ url_for('main.auftrag_rechnung', aid=a.id) }}">{{ csrf() }}<button class="zweit">Neue Rechnung erstellen</button></form>{% endif %}
+        {% else %}
+          <p class="klein">Wird automatisch erstellt, wenn der Auftrag auf „Erledigt“ gesetzt wird{{ ' (mit den Positionen aus dem KVA)' if a.kva_id }}.</p>
+          <form method="post" action="{{ url_for('main.auftrag_rechnung', aid=a.id) }}">{{ csrf() }}<button class="zweit">Rechnung jetzt erstellen</button></form>
+        {% endif %}
+      </div>
+      <div class="karte">
+        <h2>Garantie</h2>
+        <p>{{ garantie.text }}{% if garantie.beginn and a.auftragsart != 'garantie' %} <span class="klein">(ab {{ garantie.beginn.isoformat()|datum }})</span>{% endif %}</p>
+        {% if a.auftragsart == 'garantie' %}<p class="klein">Bezug: {% if garantie_bezug %}<a href="{{ url_for('main.auftrag', aid=garantie_bezug.id) }}">{{ garantie_bezug.auftragsnr }}</a>{% else %}–{% endif %} · Interne Kosten: <b>{{ interne_kosten|euro }}</b>{% if a.interne_kosten_notiz %} ({{ a.interne_kosten_notiz }}){% endif %}</p>{% endif %}
+        {% if garantiefaelle %}<p class="klein">Garantiefälle zu diesem Auftrag: {% for g in garantiefaelle %}<a href="{{ url_for('main.auftrag', aid=g.id) }}">{{ g.auftragsnr }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+        <p class="klein">Freiwillige Garantie der Werkstatt; die gesetzlichen Mängelrechte bleiben unberührt.</p>
+      </div>
+      <div class="karte">
+        <h2>Kunde benachrichtigen</h2>
+        <form method="post" action="{{ url_for('main.auftrag_benachrichtigen', aid=a.id) }}" class="leiste">{{ csrf() }}
+          <select name="anlass" style="width:auto">{% for k, n in anlaesse.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select>
+          <button class="zweit">Vorschau erstellen</button></form>
+        {% if a.status == 'erledigt' and not a.abgeholt_am %}
+        <form method="post" action="{{ url_for('main.auftrag_abgeholt', aid=a.id) }}" style="margin-top:8px" onsubmit="return confirm('Abholung ohne digitalen Abholschein vermerken?')">{{ csrf() }}<button class="zweit klein">Als abgeholt vermerken (ohne Abholschein)</button></form>{% endif %}
+        {% if ben_liste %}<table class="liste" style="margin-top:8px">{% for b in ben_liste %}<tr><td class="klein">{{ b.erstellt_am|zeit_sek }}</td><td>{{ anlaesse[b.anlass] }}</td><td class="klein">{{ {'offen':'wartet auf Freigabe','gesendet':'gesendet','verworfen':'nicht gesendet','fehler':'Fehler'}[b.status] }}</td></tr>{% endfor %}</table>{% endif %}
+      </div>
+      {% if anfrage %}<div class="karte"><h2>Ursprüngliche Anfrage</h2><p class="klein"><a href="{{ url_for('main.anfrage', aid=anfrage.id) }}">{{ anfrage.eingang_am|zeit }}</a></p><p style="white-space:pre-wrap">{{ anfrage.nachricht }}</p></div>{% endif %}
+      {% if not fotos and not belege and a.re_status not in ('festgeschrieben', 'storniert') %}
+      <form method="post" action="{{ url_for('main.auftrag_loeschen', aid=a.id) }}" onsubmit="return confirm('Auftrag wirklich löschen? Ein verknüpfter Kostenvoranschlag bleibt erhalten.')">{{ csrf() }}<button class="gefahr">Auftrag löschen</button></form>
+      {% else %}<p class="klein">Aufträge mit Fotodokumentation, unterschriebenem Schein oder festgeschriebener Rechnung können nicht gelöscht werden.</p>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section data-bereich="annahmeschein">
+  {% if geaendert_seit_unterschrift %}<div class="meldung warnung">Die Auftragsdaten wurden nach der letzten Unterschrift geändert. Der archivierte Annahmeschein bleibt unverändert – lassen Sie bei wichtigen Änderungen (z. B. Kosten-Obergrenze) einen neuen Annahmeschein unterschreiben.</div>{% endif %}
+  <div class="zweispaltig">
+    {% for art, titel in belegarten.items() %}
+    <div class="karte">
+      <h2>{{ titel }}</h2>
+      <p class="klein">{% if art == 'annahme' %}Bei der Geräteabgabe: Gerät, Fehler, Zustand, Zubehör, Kosten-Obergrenze, KVA-Wunsch, Datenschutz- und Abholbedingungen.{% else %}Bei der Abholung: Der Kunde bestätigt, das Gerät vollständig und funktionsfähig erhalten zu haben. Gespeicherte Zugangsdaten werden danach gelöscht.{% endif %}</p>
+      <div class="leiste">
+        <a class="knopf" href="{{ url_for('main.auftrag_unterschreiben', aid=a.id, art=art) }}">✍ Hier unterschreiben (PC/Tablet)</a>
+        <form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck=art) }}">{{ csrf() }}<button class="zweit">📱 Am Handy (QR-Code)</button></form>
+        <a class="knopf zweit" href="{{ url_for('main.auftrag_schein_vorschau', aid=a.id, art=art) }}" target="_blank">Vorschau / Papier zum Unterschreiben</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="karte">
+    <h2>Unterschriebene Scheine</h2>
+    {% if belege %}
+    <table class="liste"><thead><tr><th>Nummer</th><th>Art</th><th>Unterschrieben</th><th>von</th><th>Quelle</th><th></th></tr></thead><tbody>
+      {% for b in belege|reverse %}<tr {% if request.args.get('beleg')|int == b.id %}class="gewaehlt"{% endif %}>
+        <td><a href="{{ url_for('main.beleg_pdf', bid=b.id) }}" target="_blank"><b>{{ b.nummer }}</b></a></td>
+        <td>{{ belegarten[b.art] }}</td><td>{{ b.unterschrieben_am|zeit_sek }}</td><td>{{ b.unterzeichner }}</td><td>{{ b.quelle }}</td>
+        <td class="zahl"><a class="knopf zweit klein" href="{{ url_for('main.beleg_pdf', bid=b.id) }}" target="_blank">PDF / Drucken</a>
+          <a class="knopf zweit klein" href="{{ url_for('main.beleg_email', bid=b.id) }}">Per E-Mail</a></td></tr>
+      {% endfor %}</tbody></table>
+    <p class="klein">Unterschriebene Scheine werden unverändert archiviert (SHA-256) und können weder geändert noch gelöscht werden.</p>
+    {% else %}<p class="klein">Noch kein Schein unterschrieben.</p>{% endif %}
+    <p class="klein">Gerätezugang: {{ zugang_text }}</p>
+  </div>
+</section>
+
+<section data-bereich="kostenvoranschlag">
+  <div class="karte">
+    <h2>Kostenvoranschlag</h2>
+    {% if a.kva_id %}
+      <table class="liste" style="max-width:640px">
+        <tr><td>Nummer</td><td><a href="{{ url_for('main.dokument', did=a.kva_id) }}"><b>{{ a.kva_nummer or 'Entwurf (noch nicht festgeschrieben)' }}</b></a> {{ status(a.kva_status) }}</td></tr>
+        <tr><td>Datum</td><td>{{ a.kva_datum|datum }}</td></tr>
+        <tr><td>Betrag</td><td><b>{{ a.kva_betrag|euro }}</b></td></tr>
+        <tr><td>Status</td><td>
+          <form method="post" action="{{ url_for('main.kva_status', did=a.kva_id) }}" class="leiste">{{ csrf() }}
+            <select name="kva_status" style="width:auto">{% for s, n in kva_status_namen.items() %}<option value="{{ s }}" {{ 'selected' if (a.kva_entscheidung or 'offen') == s }}>{{ n }}</option>{% endfor %}</select>
+            <button class="zweit klein">Status speichern</button></form></td></tr>
+        {% if a.kva_versendet_am %}<tr><td>Versendet</td><td>{{ a.kva_versendet_am|zeit }}</td></tr>{% endif %}
+      </table><br>
+      <div class="leiste">
+        <a class="knopf" href="{{ url_for('main.dokument', did=a.kva_id) }}">{{ 'Öffnen' if a.kva_nummer else 'Bearbeiten' }}</a>
+        <a class="knopf zweit" href="{{ url_for('main.dokument_pdf', did=a.kva_id) }}" target="_blank">PDF</a>
+        {% if a.kva_nummer %}<a class="knopf zweit" href="{{ url_for('main.dokument_email', did=a.kva_id) }}">Per E-Mail senden</a>
+        {% else %}<span class="klein">Per E-Mail senden: erst nach dem Festschreiben möglich.</span>{% endif %}
+        <form method="post" action="{{ url_for('main.auftrag_kva_loesen', aid=a.id) }}" onsubmit="return confirm('Verknüpfung zwischen Auftrag und Kostenvoranschlag wirklich lösen? Der KVA selbst bleibt erhalten.')">{{ csrf() }}<button class="gefahr">Verknüpfung lösen</button></form>
+      </div>
+    {% else %}
+      <p>Mit diesem Auftrag ist noch kein Kostenvoranschlag verknüpft.</p>
+      <div class="leiste" style="margin-bottom:14px">
+        <form method="post" action="{{ url_for('main.auftrag_kva', aid=a.id) }}">{{ csrf() }}<button>Neuen KVA aus diesem Auftrag erstellen</button></form>
+      </div>
+      <h2>Bestehenden KVA verknüpfen</h2>
+      <p class="klein">Angezeigt werden Kostenvoranschläge, die noch keinem Auftrag zugeordnet sind – standardmäßig nur von diesem Kunden.</p>
+      {{ kva_auswahl('verknuepfen', a.kunde_id, url_for('main.auftrag_kva_verknuepfen', aid=a.id)) }}
+    {% endif %}
+  </div>
+</section>
+
+<section data-bereich="material">
+  <div class="karte">
+    <h2>Material / Ersatzteile aus dem Lager</h2>
+    <form method="post" action="{{ url_for('main.auftrag_material', aid=a.id) }}" class="leiste">{{ csrf() }}
+      <select name="artikel_id" style="flex:1;min-width:240px" required><option value="">– lagerführenden Artikel wählen –</option>
+        {% for x in lager_artikel %}<option value="{{ x.id }}">{{ x.name }} · Bestand {{ x.bestand|menge }}{{ (' · ' ~ x.lagerort) if x.lagerort }}{{ (' · passt: ' ~ x.kompatibilitaet|truncate(40)) if x.kompatibilitaet }}</option>{% endfor %}</select>
+      <input type="text" name="menge" value="1" style="width:70px" inputmode="decimal">
+      <button>Reservieren</button></form>
+    <div class="leiste" style="margin-top:6px"><a class="knopf zweit klein" href="{{ url_for('main.bestellung_neu', auftrag_id=a.id) }}">🛒 Teil für diesen Auftrag bestellen</a>
+      {% for b in bestellungen_auftrag %}<a class="klein" href="{{ url_for('main.bestellung', bid=b.id) }}">{{ b.nummer }} ({{ b.lieferant }}, {{ b.status }}{{ (', erwartet ' ~ (b.erwartet_am|datum)) if b.erwartet_am and b.status in ('bestellt', 'teilweise') }})</a>{% endfor %}</div>
+    {% if a.kva_id %}<form method="post" action="{{ url_for('main.auftrag_material', aid=a.id) }}" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="aus_kva" value="1"><button class="zweit klein">Lagerartikel aus dem KVA übernehmen</button></form>{% endif %}
+    <table class="liste" style="margin-top:10px"><thead><tr><th>Artikel</th><th class="zahl">Menge</th><th>Status</th><th class="zahl">EK</th><th></th></tr></thead><tbody>
+    {% for m in material %}<tr><td><a href="{{ url_for('main.artikel', aid=m.artikel_id) }}#lager">{{ m.name }}</a>{% if m.lagerort %} <span class="klein">({{ m.lagerort }})</span>{% endif %}<div class="klein">{{ m.erstellt_am|zeit_sek }} · {{ m.benutzer }}{{ (' · aus ' ~ m.quelle) if m.quelle and m.quelle != 'manuell' }}</div></td>
+      <td class="zahl">{{ m.menge|menge }} {{ m.einheit or '' }}</td>
+      <td>{{ res_status[m.status] }}{% if m.storno_grund %}<div class="klein">{{ m.storno_grund }}</div>{% endif %}{% set lg = lief_garantie.get(m.id) %}{% if lg %}<div class="klein">von {{ lg.lieferant }} ({{ lg.nummer }}){% if lg.garantie_bis %} · Lieferantengarantie bis {{ lg.garantie_bis|datum }}{% endif %}</div>{% endif %}</td>
+      <td class="zahl">{{ ((m.ek_buchung if m.ek_buchung is not none else m.teilekosten or 0) * m.menge)|round|int|euro }}</td>
+      <td class="zahl">{% if m.status in ('reserviert', 'ausgebucht') %}<details><summary class="klein">{{ 'freigeben' if m.status == 'reserviert' else 'zurückbuchen' }} …</summary>
+        <form method="post" action="{{ url_for('main.material_stornieren', rid=m.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund"><button class="gefahr klein">OK</button></form></details>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="klein">Noch kein Material reserviert.</td></tr>{% endfor %}</tbody></table>
+    <p class="klein">Reserviertes Material wird beim Erledigen automatisch aus dem Lager ausgebucht; beim Storno der Rechnung wird es wieder eingebucht. Die Rechnungspositionen legen Sie wie gewohnt im KVA bzw. in der Rechnung fest.</p>
+  </div>
+</section>
+
+<section data-bereich="leihgeraet">
+  {% for le in leihen if not le.rueckgabe_am and not le.storniert_am %}
+  <div class="karte" {% if le.ueberfaellig %}style="border-color:var(--rot)"{% endif %}>
+    <div class="kopf" style="margin-bottom:8px"><h2 style="margin:0">🔁 {{ le.bezeichnung }} <span class="marke-status lg-verliehen">verliehen</span>{% if le.ueberfaellig %} <span class="marke-status st-fehler">Rückgabe überfällig</span>{% endif %}</h2>
+      <a class="knopf" href="{{ url_for('main.leihe_rueckgabe', lid=le.id) }}">Leihgerät zurücknehmen</a></div>
+    <table class="liste" style="max-width:720px">
+      <tr><td>Leihvertrag</td><td><a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.leihnr }}</b></a></td></tr>
+      <tr><td>Ausgabe</td><td>{{ le.ausgabe_am|zeit_sek }}</td></tr>
+      <tr><td>Rückgabe bis</td><td {% if le.ueberfaellig %}style="color:var(--rot);font-weight:700"{% endif %}>{{ le.rueckgabe_geplant|datum if le.rueckgabe_geplant else 'offen' }}</td></tr>
+      <tr><td>Kaution</td><td>{{ (le.kaution_betrag|euro ~ ' (' ~ le.kaution_zahlart ~ ')') if le.kaution_erhalten else 'keine' }}</td></tr>
+    </table><br>
+    <div class="leiste">
+      <a class="knopf zweit" href="{{ url_for('main.leihe_pdf', lid=le.id, art='ausgabe') }}" target="_blank">Leihvertrag / Übergabeprotokoll (PDF)</a>
+      <a class="knopf zweit" href="{{ url_for('main.leihe_email', lid=le.id, art='ausgabe') }}">Per E-Mail senden</a>
+      <a class="knopf zweit" href="{{ url_for('main.leihe', lid=le.id) }}">Details &amp; Fotos</a>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="karte">
+    <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Leihgerät</h2>
+      {% if not a.intern %}<a class="knopf {{ 'zweit' if a.leihen_offen }}" href="{{ url_for('main.leihe_ausgeben', aid=a.id) }}">Leihgerät ausgeben</a>{% endif %}</div>
+    {% set fruehere = leihen|selectattr('rueckgabe_am')|list + leihen|selectattr('storniert_am')|list %}
+    {% if not leihen %}<p class="klein">Zu diesem Auftrag wurde noch kein Leihgerät ausgegeben.</p>{% endif %}
+    {% if fruehere %}
+    <table class="liste"><thead><tr><th>Leihvertrag</th><th>Gerät</th><th>Ausgabe – Rückgabe</th><th>Zustand</th><th class="zahl">Gebühr</th><th class="zahl">Schaden</th><th>Abrechnung</th></tr></thead><tbody>
+    {% for le in fruehere %}<tr>
+      <td><a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.leihnr }}</b></a>{% if le.storniert_am %} <span class="marke-status st-storniert">storniert</span>{% endif %}</td>
+      <td>{{ le.bezeichnung }}</td>
+      <td>{{ le.ausgabe_am|zeit }}{% if le.rueckgabe_am %} – {{ le.rueckgabe_am|zeit }}{% endif %}</td>
+      <td>{{ {'einwandfrei': 'einwandfrei', 'schaden': 'Schaden'}.get(le.zustand_rueckgabe, '–') }}</td>
+      <td class="zahl">{{ le.gebuehr_berechnet|euro if le.gebuehr_berechnet is not none else '' }}</td>
+      <td class="zahl">{{ (le.schaeden|sum(attribute='betrag'))|euro if le.schaeden else '' }}</td>
+      <td>{% if le.offen_abzurechnen %}<form method="post" action="{{ url_for('main.leihe_abrechnen', lid=le.id) }}">{{ csrf() }}<button class="zweit klein">abrechnen</button></form>{% elif le.rechnung_id %}<a href="{{ url_for('main.dokument', did=le.rechnung_id) }}">in Rechnung</a>{% endif %}</td></tr>
+    {% endfor %}</tbody></table>{% endif %}
+  </div>
+</section>
+
+<section data-bereich="fotos">
+  <div class="karte">
+    <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Fotos hochladen</h2>
+      <div class="leiste"><form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck='fotos') }}">{{ csrf() }}<button class="zweit">📱 Fotos mit dem Handy (QR-Code)</button></form>
+      {% if fotos %}<a class="knopf zweit" href="{{ url_for('main.auftrag_fotos_pdf', aid=a.id) }}" target="_blank">Fotodokumentation als PDF</a>{% endif %}</div></div>
+    {{ hochladen(url_for('main.auftrag_fotos_hochladen', aid=a.id), kategorien) }}
+  </div>
+  {% for kat in alle_kategorien %}{% set gruppe = fotos|selectattr('kategorie', 'equalto', kat)|list %}{% if gruppe %}
+  <div class="karte">
+    <h2>{{ kat }} <span class="klein">({{ gruppe|rejectattr('geloescht_am')|list|length }})</span></h2>
+    <div class="galerie">
+      {% for f in gruppe %}
+      <div class="foto {{ 'geloescht' if f.geloescht_am }}">
+        <a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt="{{ f.dateiname }}" loading="lazy"></a>
+        <div class="info">
+          <b title="{{ f.dateiname }}">{{ f.dateiname|truncate(28) }}</b><br>
+          Hochgeladen: {{ f.hochgeladen_am|zeit_sek }}<br>
+          Aufnahme (EXIF): {{ f.exif_zeit|zeit_sek if f.exif_zeit else '–' }}<br>
+          Benutzer: {{ f.benutzer }} · {{ (f.groesse / 1024)|round|int }} KB<br>
+          <span class="klein" title="SHA-256: {{ f.sha256 }}">SHA-256 {{ f.sha256[:12] }}…</span>
+          {% if f.geloescht_am %}
+            <div style="color:var(--rot);margin-top:4px"><b>Als gelöscht markiert</b> {{ f.geloescht_am|zeit_sek }} ({{ f.geloescht_von }})<br>Grund: {{ f.loeschgrund }}</div>
+          {% else %}
+            <details style="margin-top:4px"><summary>Löschen …</summary>
+              <form method="post" action="{{ url_for('main.foto_loeschen', fid=f.id) }}">{{ csrf() }}
+                <input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)">
+                <button class="gefahr klein" style="margin-top:4px">Als gelöscht markieren</button></form></details>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}{% endfor %}
+  {% if not fotos %}<p class="klein">Noch keine Fotos.</p>{% endif %}
+  <p class="klein">Originale werden unverändert gespeichert (SHA-256-Prüfsumme). Fotos lassen sich nicht löschen, sondern nur mit Begründung als gelöscht markieren – jede Änderung steht im Verlauf.</p>
+</section>
+
+<section data-bereich="verlauf">
+  <div class="karte">
+    <h2>Verlauf</h2>
+    <table class="liste verlauf"><thead><tr><th>Zeitpunkt</th><th>Benutzer</th><th>Ereignis</th><th>Details</th></tr></thead><tbody>
+      {% for v in verlauf|reverse %}<tr><td>{{ v.zeitpunkt|zeit_sek }}</td><td>{{ v.benutzer }}</td><td><b>{{ v.ereignis }}</b></td><td>{{ v.details or '' }}</td></tr>
+      {% else %}<tr><td colspan="4" class="klein">Noch keine Einträge.</td></tr>{% endfor %}
+    </tbody></table>
+    <p class="klein">Der Verlauf kann nicht bearbeitet oder gelöscht werden.</p>
+  </div>
+</section>
+{% include "_kein_kva_dialog.html" %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+reiterInit('auftragsdaten');
+const formular = document.getElementById('auftragsformular');
+const hatKva = {{ 'true' if a.kva_id or a.intern or a.auftragsart == 'garantie' else 'false' }}, warErledigt = {{ 'true' if a.status == 'erledigt' else 'false' }};
+const leiheDraussen = {{ 'true' if a.leihen_offen else 'false' }};
+formular.addEventListener('submit', async e => {
+  if (warErledigt || formular.status.value !== 'erledigt') return;
+  if (leiheDraussen && formular.leihe_spaeter.value !== '1') {
+    e.preventDefault();
+    const w = await leiheOffenFragen();
+    if (w === 'zuruecknehmen') { location.hash = 'leihgeraet'; return; }
+    if (w !== 'spaeter') return;
+    formular.leihe_spaeter.value = '1';
+  }
+  if (hatKva || formular.ohne_kva.value === '1') { if (e.defaultPrevented) formular.submit(); return; }
+  e.preventDefault();
+  const wahl = await keinKvaFragen();
+  if (wahl === 'leer') { formular.ohne_kva.value = '1'; formular.submit(); }
+  else if (wahl === 'verknuepfen') { location.hash = 'kostenvoranschlag'; }
+});
+</script>
+{% endblock %}

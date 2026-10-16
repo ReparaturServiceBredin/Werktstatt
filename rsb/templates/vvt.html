@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titel %}Verzeichnis der Verarbeitungstätigkeiten{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Verzeichnis der Verarbeitungstätigkeiten (Art. 30 DSGVO)</h1>
+  <div class="leiste">
+    <a class="knopf" href="{{ url_for('main.datenschutz_verzeichnis', pdf=1) }}" target="_blank">Als PDF öffnen</a>
+  </div>
+</div>
+<div class="meldung info">Vorlage, erzeugt aus den tatsächlich im Programm gespeicherten Daten und Ihren Löschfristen. Stellen mit <b>{{ ergaenzen }}</b> bitte ergänzen. Das Verzeichnis müssen Sie auf Verlangen der Aufsichtsbehörde vorlegen können – bei Unsicherheit mit einem Datenschutzberater durchgehen.</div>
+<div class="karte verfahrensdoku">
+{% for titel, bausteine in abschnitte %}
+  <h2>{{ titel }}</h2>
+  {% for b in bausteine %}
+    {% if b is not string and b[0] == 'liste' %}<ul>{% for x in b[1] %}<li>{{ markiert(x) }}</li>{% endfor %}</ul>
+    {% elif b is not string and b[0] == 'tabelle' %}<table class="liste" style="max-width:640px">{% for z in b[1] %}{% set zelle = 'th' if loop.first else 'td' %}<tr>{% for c in z %}<{{ zelle }}>{{ c }}</{{ zelle }}>{% endfor %}</tr>{% endfor %}</table>
+    {% else %}<p>{{ markiert(b) }}</p>{% endif %}
+  {% endfor %}
+{% endfor %}
+</div>
+{% endblock %}

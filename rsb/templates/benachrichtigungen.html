@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_benachrichtigung.html" import vorschau %}
+{% block titel %}Benachrichtigungen{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Kundenbenachrichtigungen</h1>
+  <a class="knopf zweit" href="{{ url_for('main.einstellungen', bereich='benachrichtigung') }}">Vorlagen &amp; Einstellungen</a></div>
+<p class="klein">Bei Statuswechseln schlägt das Programm eine Nachricht an den Kunden vor. Erst mit „Jetzt senden“ geht sie raus. Gesendete Nachrichten stehen in der E-Mail-Historie des Kunden und im Verlauf des Auftrags.</p>
+<h2>Warten auf Freigabe ({{ offene|length }})</h2>
+{% for b in offene %}{{ vorschau(b, anlaesse, url_for('main.benachrichtigungen'), loop.first) }}{% else %}<p class="klein">Keine offenen Benachrichtigungen.</p>{% endfor %}
+
+<div class="karte">
+  <h2>Fertig, aber noch nicht abgeholt ({{ nicht_abgeholt|length }})</h2>
+  {% if nicht_abgeholt %}
+  <table class="liste"><thead><tr><th>Auftrag</th><th>Kunde</th><th>Gerät</th><th>fertig seit</th><th></th></tr></thead><tbody>
+  {% for a in nicht_abgeholt %}<tr><td><a href="{{ url_for('main.auftrag', aid=a.id) }}">{{ a.auftragsnr }}</a></td><td>{{ a|kname }}</td><td>{{ a.geraet or '' }}</td>
+    <td>{{ a.erledigt_am|datum }} ({{ a.tage }} Tage)</td>
+    <td class="zahl"><form method="post" action="{{ url_for('main.auftrag_abgeholt', aid=a.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="weiter" value="{{ url_for('main.benachrichtigungen') }}"><button class="zweit klein">als abgeholt vermerken</button></form></td></tr>{% endfor %}
+  </tbody></table>
+  <p class="klein">Erinnerungen werden nach {{ einst.erinnerung_tage }} Tagen vorgeschlagen (Einstellungen).</p>
+  {% else %}<p class="klein">Alle fertigen Geräte sind abgeholt.</p>{% endif %}
+</div>
+
+<div class="karte">
+  <h2>Verlauf</h2>
+  <table class="liste"><thead><tr><th>Erstellt</th><th>Auftrag</th><th>Anlass</th><th>An</th><th>Status</th><th>Erledigt</th></tr></thead><tbody>
+  {% for b in liste %}<tr><td>{{ b.erstellt_am|zeit_sek }}</td><td><a href="{{ url_for('main.auftrag', aid=b.auftrag_id) }}">{{ b.auftragsnr }}</a></td>
+    <td>{{ anlaesse[b.anlass] }}{{ (' (' ~ b.stufe ~ ' Tg.)') if b.stufe }}</td><td>{{ kanaele.get(b.kanal, b.kanal) }}: {{ b.an }}</td>
+    <td>{{ status_namen[b.status] }}{% if b.hinweis %}<div class="klein">{{ b.hinweis }}</div>{% endif %}</td><td>{{ b.erledigt_am|zeit_sek if b.erledigt_am else '' }} {{ b.benutzer or '' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="klein">Noch keine Benachrichtigungen.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

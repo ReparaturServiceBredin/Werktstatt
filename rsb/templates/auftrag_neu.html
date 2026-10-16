@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_auftrag_formular.html" import felder, kva_auswahl %}
+{% from "_foto_upload.html" import hochladen %}
+{% block titel %}Neuer Reparaturauftrag{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Neuer Reparaturauftrag</h1>
+  <a class="knopf zweit" href="{{ url_for('main.auftraege') }}">← Zur Tafel</a>
+</div>
+<form method="post" id="auftragsformular">{{ csrf() }}
+  <input type="hidden" name="upload_token" value="{{ token }}">
+  <input type="hidden" name="kva_id" id="f_kva_id" value="{{ werte.kva_id or '' }}">
+  <div class="karte">
+    <h2>Auftragsdaten</h2>
+    {{ felder(werte, kunden, status_namen, leistungsarten) }}
+  </div>
+  <div class="karte">
+    <h2>Kostenvoranschlag verknüpfen <span class="klein">(optional)</span></h2>
+    <div id="kva-gewaehlt" class="meldung info" {{ '' if kva_vorauswahl else 'hidden' }}>Ausgewählt: <b id="kva-gewaehlt-text">{{ (kva_vorauswahl.nummer or 'Entwurf') ~ ' · ' ~ (kva_vorauswahl.datum|datum) ~ ' · ' ~ (kva_vorauswahl.summe_brutto|euro) if kva_vorauswahl }}</b>
+      <button type="button" class="zweit klein" onclick="document.getElementById('f_kva_id').value='';document.getElementById('kva-gewaehlt').hidden=true">Auswahl entfernen</button></div>
+    <p class="klein">Einen neuen KVA können Sie nach dem Speichern direkt aus dem Auftrag erstellen.</p>
+    {{ kva_auswahl('formular', werte.kunde_id) }}
+  </div>
+  <div class="karte">
+    <h2>Fotos <span class="klein">(optional)</span></h2>
+    <p class="klein">Fotos werden sofort sicher gespeichert und beim Anlegen dem Auftrag zugeordnet – sie gehen auch nicht verloren, wenn das Speichern einmal fehlschlägt.</p>
+    {{ hochladen(url_for('main.auftrag_neu_fotos'), kategorien, token=token, neu_laden=False) }}
+    <div class="galerie" id="galerie-neu">
+      {% for f in fotos %}<div class="foto"><a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt=""></a><div class="info"><b>{{ f.kategorie }}</b><br>{{ f.dateiname }}</div></div>{% endfor %}
+    </div>
+  </div>
+  <div class="leiste"><button>Auftrag anlegen</button><a class="knopf zweit" href="{{ url_for('main.auftraege') }}">Abbrechen</a></div>
+</form>
+{% include "_kein_kva_dialog.html" %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const formular = document.getElementById('auftragsformular');
+// Kundenwechsel: KVA-Liste auf den gewählten Kunden einschränken
+formular.kunde_id.addEventListener('change', () => {
+  const box = document.querySelector('.kva-auswahl');
+  box.dataset.kunde = formular.kunde_id.value;
+  box.laden();
+});
+formular.addEventListener('submit', async e => {
+  if (formular.status.value !== 'erledigt' || formular.kva_id.value || formular.ohne_kva.value === '1') return;
+  e.preventDefault();
+  const wahl = await keinKvaFragen();
+  if (wahl === 'leer') { formular.ohne_kva.value = '1'; formular.submit(); }
+  else if (wahl === 'verknuepfen') { document.querySelector('.kva-suche').focus(); }
+});
+</script>
+{% endblock %}

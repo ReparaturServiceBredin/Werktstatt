@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% block titel %}{{ einst.firma_name or "Werkstatt Sauter" }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body style="display:block">
+<div class="mobil-seite">
+  <div style="margin-bottom:10px"><b>{{ einst.firma_name or "Werkstatt Sauter" }}</b></div>
+  {% with meldungen = get_flashed_messages(with_categories=true) %}
+    {% for art, text in meldungen %}<div class="meldung {{ art }}">{{ text }}</div>{% endfor %}
+  {% endwith %}
+  {% block inhalt %}{% endblock %}
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block skript %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,9 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Kassenbuch {{ von }} – {{ bis }}</title>
+<style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:3px 5px;text-align:left}.z{text-align:right}h1{font-size:16px}@media print{button{display:none}}</style></head>
+<body><button onclick="window.print()">Drucken</button>
+<h1>Kassenbuch {{ einst.firma_name or '' }} – {{ von|datum }} bis {{ bis|datum }}</h1>
+<table><thead><tr><th>Nr.</th><th>Datum</th><th>Art</th><th>Text</th><th class="z">Einnahme</th><th class="z">Ausgabe</th><th class="z">Bestand</th><th>erfasst</th></tr></thead><tbody>
+{% for z in zeilen %}{% set b = z.b %}<tr><td>{{ b.lfd_nr }}</td><td>{{ b.datum|datum }}</td><td>{{ arten[b.art] }}</td><td>{{ b.text }}{{ (' (' ~ b.dok_nummer ~ ')') if b.dok_nummer }}</td><td class="z">{{ b.betrag|euro if b.betrag > 0 else '' }}</td><td class="z">{{ (-b.betrag)|euro if b.betrag < 0 else '' }}</td><td class="z">{{ z.saldo|euro }}</td><td>{{ b.erfasst_am|zeit_sek }} {{ b.benutzer }}</td></tr>{% endfor %}</tbody></table>
+{% if abschluesse %}<h2 style="font-size:13px">Tagesabschlüsse</h2><table>{% for a in abschluesse %}<tr><td>{{ a.datum|datum }}</td><td class="z">Soll {{ a.soll|euro }}</td><td class="z">Ist {{ a.ist|euro }}</td><td class="z">Differenz {{ a.differenz|euro }}</td><td>{{ a.begruendung or '' }}</td><td>{{ a.erstellt_am|zeit_sek }} {{ a.benutzer }}</td></tr>{% endfor %}</table>{% endif %}
+<p>Erstellt mit Werkstatt-Sauter. Kassenbuchungen sind unveränderlich gespeichert; Korrekturen erfolgen per Gegenbuchung.</p>
+</body></html>

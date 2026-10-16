@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Aus bisherigen Dokumenten übernehmen{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Aus bisherigen Dokumenten übernehmen</h1>
+  <a class="knopf zweit" href="{{ url_for('main.artikel_liste') }}">← Leistungen &amp; Artikel</a>
+</div>
+<p class="klein">Hier stehen alle Positionen, die in Kostenvoranschlägen und Rechnungen von Hand eingegeben wurden (nicht aus dem Katalog). Gleiche Bezeichnungen sind zusammengefasst; übernommen werden die neuesten Angaben. Haken Sie an, was in „Leistungen und Artikel“ aufgenommen werden soll.</p>
+{% set neue = vorschlaege|rejectattr('im_katalog')|list %}
+{% if not vorschlaege %}
+<div class="meldung info">Es gibt keine manuell eingegebenen Positionen in bisherigen Dokumenten.</div>
+{% else %}
+<form method="post" class="karte">{{ csrf() }}
+  <div class="leiste" style="margin-bottom:10px">
+    <label class="check"><input type="checkbox" id="alle" checked> alle neuen auswählen</label>
+    <span class="klein">{{ neue|length }} neu · {{ vorschlaege|length - neue|length }} bereits im Katalog</span>
+  </div>
+  <table class="liste">
+    <tr><th></th><th>Bezeichnung / Beschreibung</th><th>Typ</th><th>Einheit</th><th class="zahl">Einkauf</th><th class="zahl">Preis</th><th class="zahl">Marge</th><th>Vorkommen</th></tr>
+    {% for v in vorschlaege %}
+    <tr style="{{ 'opacity:.5' if v.im_katalog }}">
+      <td>{% if not v.im_katalog %}<input type="checkbox" name="schluessel" value="{{ v.schluessel }}" class="wahl" checked>{% endif %}</td>
+      <td><b>{{ v.bezeichnung }}</b>{% if v.beschreibung %}<div class="klein" style="white-space:pre-line">{{ v.beschreibung|truncate(160) }}</div>{% endif %}
+        {% if v.im_katalog %}<div class="klein">bereits in „Leistungen und Artikel“</div>{% endif %}</td>
+      <td>{{ 'Leistung' if v.typ == 'leistung' else 'Artikel' }}</td><td>{{ v.einheit }}</td>
+      <td class="zahl">{{ (v.teilekosten|euro) if v.teilekosten is not none else '–' }}</td>
+      <td class="zahl"><b>{{ v.preis|euro }}</b>{% if v.preise|length > 1 %}<div class="klein">früher auch {{ v.preise|map('euro')|join(', ') }}</div>{% endif %}</td>
+      <td class="zahl">{% if v.marge is not none %}<span class="marge {{ 'neg' if v.marge < 0 }}">{{ v.marge|euro }}{% if v.marge_prozent is not none %} ({{ v.marge_prozent|round|int }} %){% endif %}</span>{% else %}–{% endif %}</td>
+      <td class="klein">{{ v.anzahl }}× · zuletzt {{ v.zuletzt|datum }}<br>{{ v.beleg }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <br>
+  {% if neue %}<button>Ausgewählte übernehmen</button>{% endif %}
+</form>
+{% endif %}
+{% endblock %}
+{% block skript %}
+<script>
+const alle = document.getElementById('alle');
+if (alle) alle.onchange = () => document.querySelectorAll('.wahl').forEach(c => c.checked = alle.checked);
+</script>
+{% endblock %}

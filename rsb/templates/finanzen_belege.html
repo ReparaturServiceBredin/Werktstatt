@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block titel %}Belege zur Finanzübersicht{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Belege <span class="klein">{{ titel }}</span></h1><a class="knopf zweit" href="{{ zurueck }}">← zurück zur Übersicht</a></div>
+<p class="klein">Auswahl: <b>{{ {'umsatz': 'Umsatz', 'zufluss': 'Zahlungseingänge', 'ausgaben': 'Ausgaben', 'fixkosten': 'Fixkosten', 'wareneinsatz': 'Wareneinsatz', 'sonstige': 'sonstige Ausgaben', 'er': 'Eingangsrechnungen', 'kasse': 'Kassenausgaben', 'ust': 'Umsatzsteuer', 'vorsteuer': 'Vorsteuer', 'forderungen': 'offene Forderungen', 'verbindlichkeiten': 'offene Verbindlichkeiten', 'auftraege': 'abgeschlossene Aufträge'}.get(schluessel, schluessel.replace('monat:', 'Monat ').replace(':einnahme', ' – Einnahmen').replace(':', ' – ').replace('umsatz – ', 'Umsatz – ').replace('ausgabe – ', 'Ausgaben – ')) }}</b> · {{ liste|length }} Posten · Summe <b>{{ summe|euro }}</b></p>
+<div class="karte"><table class="liste"><thead><tr><th>Datum</th><th>Art</th><th>Beleg</th><th>Kategorie</th><th class="zahl">Betrag</th></tr></thead><tbody>
+{% for x in liste %}<tr><td>{{ x.datum.isoformat()|datum }}</td><td>{{ x.art }}</td><td><a href="{{ x.url }}">{{ x.text }}</a></td><td class="klein">{{ x.kategorie }}</td><td class="zahl">{{ x.wert|euro }}</td></tr>
+{% else %}<tr><td colspan="5" class="klein">Keine Belege.</td></tr>{% endfor %}
+{% if liste %}<tr class="summe"><td colspan="4"><b>Summe</b></td><td class="zahl"><b>{{ summe|euro }}</b></td></tr>{% endif %}</tbody></table>
+<p class="klein">Fixkosten erscheinen je Monat bzw. Fälligkeit; Beträge wie in der Übersicht (bei Kleinunternehmer Ausgaben brutto, sonst netto).</p></div>
+{% endblock %}

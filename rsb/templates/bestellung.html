@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Bestellung {{ b.nummer }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Bestellung {{ b.nummer }} <span class="marke-status st-{{ 'gesendet' if b.status == 'geliefert' else ('fehler' if b.status == 'storniert' else 'warnung') }}">{{ status_namen[b.status] }}</span></h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.bestellungen') }}">← Bestellungen</a>
+    <a class="knopf zweit" href="{{ url_for('main.bestellung_pdf', bid=b.id) }}" target="_blank">PDF / Drucken</a>
+    {% if b.status in ('entwurf', 'bestellt') %}<a class="knopf zweit" href="{{ url_for('main.bestellung_email', bid=b.id) }}">Per E-Mail an Lieferant</a>{% endif %}
+    {% if b.webshop %}<a class="knopf zweit" href="{{ b.webshop }}" target="_blank" rel="noopener">Webshop ↗</a>{% endif %}
+    {% if b.status in ('bestellt', 'teilweise', 'geliefert') %}<a class="knopf zweit" href="{{ url_for('main.eingangsrechnung_neu', bestellung_id=b.id, neu=1) }}">+ Eingangsrechnung</a>{% endif %}</div></div>
+<p>Lieferant: <a href="{{ url_for('main.lieferant', lid=b.lieferant_id) }}"><b>{{ b.lieferant }}</b></a>{% if b.kundennr_bei %} · Kd.-Nr. {{ b.kundennr_bei }}{% endif %}
+  · angelegt {{ b.erstellt_am|zeit_sek }}{% if b.bestellt_am %} · bestellt {{ b.bestellt_am|zeit_sek }}{% endif %}{% if b.erwartet_am %} · erwartet <b>{{ b.erwartet_am|datum }}</b>{% endif %}{% if b.versendet_an %} · gesendet an {{ b.versendet_an }}{% endif %}</p>
+{% if b.storno_grund %}<div class="meldung fehler">Storniert: {{ b.storno_grund }}</div>{% endif %}
+<form method="post" class="karte">{{ csrf() }}<input type="hidden" name="aktion" value="wareneingang">
+  <h2>Positionen{% if b.status in ('bestellt', 'teilweise', 'entwurf') %} &amp; Wareneingang{% endif %}</h2>
+  <table class="liste"><thead><tr><th>Bezeichnung</th><th>Lief.-Art.-Nr.</th><th>für Auftrag</th><th class="zahl">bestellt</th><th class="zahl">geliefert</th><th class="zahl">EK</th>{% if b.status in ('bestellt', 'teilweise', 'entwurf') %}<th class="zahl">jetzt erhalten</th><th class="zahl">EK lt. Lieferung</th>{% endif %}</tr></thead><tbody>
+  {% for p in positionen %}{% set offen = p.menge - p.geliefert %}<tr><td>{% if p.artikel_id %}<a href="{{ url_for('main.artikel', aid=p.artikel_id) }}">{{ p.bezeichnung }}</a>{% else %}{{ p.bezeichnung }}{% endif %}{% if p.artikel_id and not p.lagerfuehrend %} <span class="klein">(nicht lagerführend)</span>{% endif %}</td>
+    <td>{{ p.lieferanten_artnr or '' }}</td><td>{% if p.auftrag_id %}<a href="{{ url_for('main.auftrag', aid=p.auftrag_id) }}">{{ p.auftragsnr }}</a>{% endif %}</td>
+    <td class="zahl">{{ p.menge|menge }}</td><td class="zahl">{{ p.geliefert|menge }}</td><td class="zahl">{{ p.ek|euro if p.ek is not none else '' }}</td>
+    {% if b.status in ('bestellt', 'teilweise', 'entwurf') %}<td class="zahl">{% if offen > 0 %}<input type="text" name="menge_{{ p.id }}" value="{{ offen|menge }}" style="width:80px;text-align:right">{% endif %}</td>
+    <td class="zahl">{% if offen > 0 %}<input type="text" name="ek_{{ p.id }}" value="{{ p.ek|euro(false) if p.ek is not none else '' }}" style="width:90px;text-align:right">{% endif %}</td>{% endif %}</tr>{% endfor %}
+  </tbody></table>
+  {% if b.status in ('bestellt', 'teilweise', 'entwurf') %}
+  <div class="felder" style="margin-top:10px"><div class="s4"><label>Lieferschein-Nr.</label><input type="text" name="lieferschein"></div>
+    <div class="s8"><label>&nbsp;</label><label class="check"><input type="checkbox" name="auftrag_fortsetzen" value="1" checked> Aufträge, deren Teile vollständig da sind, von „Wartet auf Teil“ zurück nach „In Arbeit“</label></div></div><br>
+  <button>Wareneingang buchen</button>
+  <p class="klein">Lagerführende Artikel werden eingebucht, der Einkaufspreis aktualisiert (Margen-Warnung bei Unterschreitung) und Teile für Aufträge dort reserviert.</p>{% endif %}
+</form>
+{% if b.status == 'entwurf' %}
+<form method="post" class="karte leiste">{{ csrf() }}<input type="hidden" name="aktion" value="bestellt">
+  <label style="margin:0">Liefertermin</label><input type="date" name="erwartet_am" value="{{ b.erwartet_am or '' }}" style="width:auto">
+  <button>Als bestellt markieren</button><span class="klein">(z. B. nach Bestellung im Webshop oder per Telefon)</span></form>{% endif %}
+{% if eingaenge %}<div class="karte"><h2>Wareneingänge</h2><table class="liste">{% for w in eingaenge %}<tr><td>{{ w.zeitpunkt|zeit_sek }}</td><td>{{ w.bezeichnung }}</td><td class="zahl">{{ w.menge|menge }}</td><td class="zahl">{{ w.ek|euro if w.ek is not none else '' }}</td><td>{{ ('Lieferschein ' ~ w.lieferschein) if w.lieferschein else '' }}</td><td>{{ ('Lieferantengarantie bis ' ~ (w.garantie_bis|datum)) if w.garantie_bis else '' }}</td><td>{{ w.benutzer }}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if rechnungen %}<div class="karte"><h2>Eingangsrechnungen</h2><table class="liste">{% for e in rechnungen %}<tr><td><a href="{{ url_for('main.eingangsrechnung', eid=e.id) }}">{{ e.lfd_nr }}</a> {{ e.nummer or '' }}</td><td>{{ e.datum|datum }}</td><td>{{ e.status }}</td><td class="zahl">{{ e.brutto|euro }}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if b.status in ('entwurf', 'bestellt') %}
+<details class="karte"><summary>Bestellung stornieren …</summary><form method="post" class="leiste" style="margin-top:8px">{{ csrf() }}<input type="hidden" name="aktion" value="stornieren"><input type="text" name="grund" required minlength="3" placeholder="Grund" style="flex:1"><button class="gefahr">Stornieren</button></form></details>{% endif %}
+{% endblock %}

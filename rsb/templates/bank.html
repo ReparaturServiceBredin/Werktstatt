@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf, dokname %}
+{% block titel %}Bankabgleich{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Bankabgleich</h1><a class="knopf zweit" href="{{ url_for('main.offene_posten') }}">Offene Posten</a></div>
+<form method="post" enctype="multipart/form-data" class="karte">{{ csrf() }}
+  <h2>Kontoauszug einlesen</h2>
+  <p class="klein">CSV-Export Ihrer Bank (Sparkasse „CSV-CAMT“, Volksbank, N26, DKB, ING, Postbank, Commerzbank …) oder CAMT.053 (XML, auch als ZIP). Bereits eingelesene Umsätze werden erkannt und nicht doppelt übernommen – überlappende Zeiträume sind kein Problem.</p>
+  <div class="leiste"><input type="file" name="datei" accept=".csv,.txt,.xml,.zip" required style="max-width:420px"><button>Einlesen</button></div>
+  {% if importe %}<p class="klein" style="margin-top:8px">Zuletzt: {% for i in importe[:3] %}{{ i.dateiname }} ({{ i.format }}, {{ i.anzahl }} neu{{ ', ' ~ i.doppelt ~ ' doppelt' if i.doppelt }}) am {{ i.importiert_am|zeit }}{{ ' · ' if not loop.last }}{% endfor %}</p>{% endif %}
+</form>
+{% if fix_fehlt %}<div class="meldung warnung"><b>Fixkosten ohne passende Abbuchung:</b>
+  {% for f, s in fix_fehlt %}<a href="{{ url_for('main.fixkosten', fid=f.id) }}">{{ f.bezeichnung }}</a> {{ s.datum.strftime('%m/%Y') }} ({{ 'fehlt' if s.status == 'fehlt' else 'weicht ab: ' ~ (s.gezahlt|euro) ~ ' statt ' ~ (s.erwartet|euro) }}){{ ' · ' if not loop.last }}{% endfor %}</div>{% endif %}
+<div class="reiter">
+  {% for a, n in [('offen', 'Zuzuordnen'), ('zugeordnet', 'Zugeordnet'), ('ignoriert', 'Ignoriert')] %}<a href="{{ url_for('main.bank', ansicht=a) }}" class="{{ 'aktiv' if ansicht == a }}">{{ n }} <span class="zahl">{{ zahl[a] or 0 }}</span></a>{% endfor %}
+</div>
+<table class="liste">
+  <tr><th>Buchungstag</th><th>Name / Verwendungszweck</th><th class="zahl">Betrag</th><th>{{ 'Zuordnung' if ansicht == 'offen' else 'Status' }}</th></tr>
+  {% for u in umsaetze %}{% set v = vorschlaege.get(u.id) %}
+  <tr><td>{{ u.buchungstag|datum }}</td>
+    <td><b>{{ u.name or '–' }}</b>{% if u.iban %} <span class="klein">{{ u.iban }}</span>{% endif %}<div class="klein">{{ u.verwendungszweck }}</div></td>
+    <td class="zahl" style="color:{{ 'var(--gruen)' if u.betrag > 0 else 'var(--rot)' }}"><b>{{ u.betrag|euro }}</b></td>
+    <td style="min-width:320px">
+      {% if u.status == 'offen' and u.betrag > 0 %}
+        <form method="post" action="{{ url_for('main.bank_zuordnen', uid=u.id) }}" class="leiste">{{ csrf() }}
+          <select name="dokument_id" style="width:auto;max-width:260px"><option value="">– Rechnung wählen –</option>
+            {% for p in offene %}<option value="{{ p.d.id }}" {{ 'selected' if v and v.p.d.id == p.d.id }}>{{ p.d.nummer }} · {{ dokname(p.d) }} · offen {{ p.s.offen|euro }}</option>{% endfor %}</select>
+          <button class="klein">Bestätigen</button></form>
+        {% if v %}<div class="klein" style="color:{{ 'var(--gruen)' if v.sicher else 'var(--text-warnung)' }}">Vorschlag: {{ v.p.d.nummer }} – {{ v.grund }}</div>{% else %}<div class="klein">kein Vorschlag</div>{% endif %}
+        <form method="post" action="{{ url_for('main.bank_ignorieren', uid=u.id) }}">{{ csrf() }}<button class="zweit klein" style="margin-top:4px">Ignorieren (keine Rechnung)</button></form>
+      {% elif u.status == 'offen' %}{% set ve = er_vorschlaege.get(u.id) %}
+        <form method="post" action="{{ url_for('main.bank_er_zuordnen', uid=u.id) }}" class="leiste">{{ csrf() }}
+          <select name="eingangsrechnung_id" style="width:auto;max-width:260px"><option value="">– Eingangsrechnung wählen –</option>
+            {% for e in offene_er %}<option value="{{ e.id }}" {{ 'selected' if ve and ve.e.id == e.id }}>{{ e.lfd_nr }} · {{ e.lieferant or '' }} {{ e.nummer or '' }} · offen {{ (e.brutto - e.bezahlt)|euro }}</option>{% endfor %}</select>
+          <button class="klein">Bestätigen</button></form>
+        {% if ve %}<div class="klein" style="color:{{ 'var(--gruen)' if ve.sicher else 'var(--text-warnung)' }}">Vorschlag: {{ ve.e.lfd_nr }} – {{ ve.grund }}</div>{% elif not fix_vorschlaege.get(u.id) %}<div class="klein">kein Vorschlag – ggf. erst die <a href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">Eingangsrechnung erfassen</a></div>{% endif %}
+        {% set vf = fix_vorschlaege.get(u.id) %}{% if fix_liste %}
+        <form method="post" action="{{ url_for('main.bank_fixkosten', uid=u.id) }}" class="leiste" style="margin-top:6px">{{ csrf() }}
+          <select name="fixkosten_id" style="width:auto;max-width:260px"><option value="">– oder Fixkosten wählen –</option>
+            {% for f in fix_liste %}<option value="{{ f.id }}" {{ 'selected' if vf and vf.f.id == f.id }}>{{ f.bezeichnung }} · {{ f.kategorie }}</option>{% endfor %}</select>
+          <button class="klein {{ 'zweit' if not vf }}">Als Fixkosten bestätigen</button></form>
+        {% if vf %}<div class="klein" style="color:{{ 'var(--gruen)' if vf.sicher else 'var(--text-warnung)' }}">Fixkosten-Vorschlag: {{ vf.f.bezeichnung }} – {{ vf.grund }}</div>{% endif %}{% endif %}
+        <form method="post" action="{{ url_for('main.bank_ignorieren', uid=u.id) }}">{{ csrf() }}<button class="zweit klein" style="margin-top:4px">Ignorieren</button></form>
+      {% elif u.status == 'zugeordnet' %}<span class="marke-status zs-bezahlt">zugeordnet</span> <span class="klein">{{ u.bearbeitet_am|zeit }} ({{ u.bearbeitet_von }})</span>
+        {% if u.fixkosten_id %}<div class="klein">Fixkosten: <a href="{{ url_for('main.fixkosten', fid=u.fixkosten_id) }}">{{ fix_namen.get(u.fixkosten_id, '?') }}</a> (Fälligkeit {{ u.fixkosten_monat }})
+          <form method="post" action="{{ url_for('main.bank_fixkosten', uid=u.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="loesen" value="1"><input type="hidden" name="ansicht" value="zugeordnet"><button class="zweit klein">Zuordnung lösen</button></form></div>{% endif %}
+      {% else %}<span class="marke-status zs-storniert">ignoriert</span>
+        <form method="post" action="{{ url_for('main.bank_ignorieren', uid=u.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="oeffnen" value="1"><input type="hidden" name="ansicht" value="ignoriert"><button class="zweit klein">wieder öffnen</button></form>{% endif %}
+    </td></tr>
+  {% else %}<tr><td colspan="4" class="klein">{{ 'Keine offenen Umsätze. Lesen Sie einen Kontoauszug ein.' if ansicht == 'offen' else 'Keine Einträge.' }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

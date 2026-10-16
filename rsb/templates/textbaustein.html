@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Textbaustein{% endblock %}
+{% block inhalt %}
+<h1>{{ t.name if t else 'Neuer Textbaustein' }}</h1>
+<div class="zweispaltig">
+<form method="post" class="karte">
+  {{ csrf() }}
+  <div class="felder">
+    <div class="s12"><label>Name</label><input type="text" name="name" value="{{ (t.name or '') if t }}" required></div>
+    <div><label>Kategorie</label><select name="kategorie">{% for k, n in kategorien.items() %}<option value="{{ k }}" {{ 'selected' if t and t.kategorie == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div><label>Für Dokument</label><select name="dokumenttyp">{% for k, n in typen.items() %}<option value="{{ k }}" {{ 'selected' if t and t.dokumenttyp == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s12"><label>Text</label><textarea name="text" style="min-height:220px">{{ (t.text or '') if t }}</textarea></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="standard" {{ 'checked' if t and t.standard }}> Standard (automatisch verwenden)</label></div>
+  </div>
+  <br>
+  <div class="leiste">
+    <button>Speichern</button>
+    <a class="knopf zweit" href="{{ url_for('main.textbausteine') }}">Abbrechen</a>
+    {% if t %}<button name="loeschen" value="1" class="gefahr" onclick="return confirm('Textbaustein löschen?')">Löschen</button>{% endif %}
+  </div>
+</form>
+<div class="karte">
+  <h2>Platzhalter</h2>
+  <table class="liste">{% for p, b in platzhalter %}<tr><td><code>{{ p }}</code></td><td class="klein">{{ b }}</td></tr>{% endfor %}</table>
+</div>
+</div>
+{% endblock %}

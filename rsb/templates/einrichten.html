@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einrichtung</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body>
+<div class="anmeldung">
+  <img src="{{ url_for('static', filename='bilder/logo_standard.png') }}" alt="Logo">
+  <div class="karte">
+    <h1>Willkommen!</h1>
+    <p>Legen Sie ein Passwort fest. Es schützt das Programm vor fremdem Zugriff. <b>Bitte gut merken</b> – ohne Passwort kommen Sie nicht mehr hinein.</p>
+    {% with meldungen = get_flashed_messages(with_categories=true) %}{% for art, text in meldungen %}<div class="meldung {{ art }}">{{ text }}</div>{% endfor %}{% endwith %}
+    <form method="post">
+      <label>Neues Passwort (mind. 8 Zeichen)</label><input type="password" name="passwort" required minlength="8" autofocus>
+      <br><br><label>Passwort wiederholen</label><input type="password" name="passwort2" required minlength="8">
+      <br><br><button>Passwort speichern und starten</button>
+    </form>
+  </div>
+</div>
+</body></html>

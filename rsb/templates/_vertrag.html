@@ -1,0 +1,9 @@
+{% macro zustand(v) -%}
+<span class="marke-status {{ {'aktiv':'st-gesendet','laeuft_ab':'st-warnung','gekuendigt':'st-warnung','beendet':'st-entwurf','abgelaufen':'st-fehler'}[v.zustand] }}">{{ v.zustand_text }}</span>
+{%- endmacro %}
+{% macro abrechnung_text(v, abrechnung) -%}
+{%- if v.abrechnung == 'laufzeit' -%}{{ v.preis|euro }} je {{ v.laufzeit_monate }} Monate
+{%- elif v.abrechnung == 'keine' -%}<span class="klein">keine Rechnung</span>
+{%- else -%}{{ v.preis|euro }} {{ abrechnung[v.abrechnung][0] }}{%- endif -%}
+{%- if v.anzahl and v.anzahl != 1 %} × {{ v.anzahl|menge }}{% endif %}
+{%- endmacro %}

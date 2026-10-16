@@ -1,0 +1,112 @@
+name: Windows-EXE bauen und veröffentlichen
+
+# Läuft bei jeder Änderung am Programm. Eine neue Veröffentlichung (Release) entsteht nur,
+# wenn es zur Versionsnummer in rsb/__init__.py noch keine gibt – sonst wird nur getestet und gebaut.
+on:
+  push:
+    branches: [main, claude/zen-pascal-p0zb7k]
+    paths:
+      - "rsb/**"
+      - "start_exe.py"
+      - "Werkstatt-Sauter.spec"
+      - "requirements.txt"
+      - "bauen/**"
+      - "docs/AENDERUNGEN.md"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUTF8: "1"   # Umlaute/Sonderzeichen in Python-Ausgaben auch unter Windows
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  windows-exe:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Version ermitteln
+        id: v
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(python bauen/version_info.py)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" > /dev/null 2>&1; then echo "neu=nein" >> "$GITHUB_OUTPUT"; else echo "neu=ja" >> "$GITHUB_OUTPUT"; fi
+          echo "Version $V"
+
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+
+      - name: EXE bauen
+        run: pyinstaller --noconfirm --clean Werkstatt-Sauter.spec
+
+      - name: EXE testen (startet sie und fragt die Version ab)
+        shell: pwsh
+        run: |
+          $env:RSB_DATEN = "$env:RUNNER_TEMP\testdaten"
+          $env:RSB_KEIN_BROWSER = "1"
+          $env:RSB_KEIN_UPDATE = "1"
+          $env:RSB_PORT = "5077"
+          $p = Start-Process -FilePath "dist\Werkstatt-Sauter.exe" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-RestMethod -Uri "http://127.0.0.1:5077/version" -TimeoutSec 3
+              if ($r.version -eq "${{ steps.v.outputs.version }}") { $ok = $true; break }
+            } catch { }
+          }
+          $seite = (Invoke-WebRequest -Uri "http://127.0.0.1:5077/einrichten" -UseBasicParsing).StatusCode
+          Get-Process -Name "Werkstatt-Sauter" -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $ok -or $seite -ne 200) { Write-Error "EXE startet nicht korrekt"; exit 1 }
+          Write-Host "EXE läuft: Version ${{ steps.v.outputs.version }}, Startseite $seite"
+
+      - name: Prüfsumme
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\Werkstatt-Sauter.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  Werkstatt-Sauter.exe" | Out-File -Encoding ascii -NoNewline dist\Werkstatt-Sauter.exe.sha256
+          Get-Content dist\Werkstatt-Sauter.exe.sha256
+
+      - name: EXE als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Werkstatt-Sauter-${{ steps.v.outputs.version }}
+          path: |
+            dist/Werkstatt-Sauter.exe
+            dist/Werkstatt-Sauter.exe.sha256
+
+      - name: Veröffentlichen (nur bei neuer Versionsnummer)
+        if: steps.v.outputs.neu == 'ja'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.v.outputs.version }}"
+          python bauen/release_notes.py "$V"
+          gh release create "v$V" dist/Werkstatt-Sauter.exe dist/Werkstatt-Sauter.exe.sha256 \
+            --title "Version $V" --notes-file release_notes.md --target "${{ github.sha }}" --latest

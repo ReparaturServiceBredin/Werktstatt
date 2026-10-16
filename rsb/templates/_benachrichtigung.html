@@ -1,0 +1,22 @@
+{# Vorschau einer Kundenbenachrichtigung mit „Senden“ / „Diesmal nicht senden“ #}
+{% macro vorschau(b, anlaesse, weiter, offen=False) -%}
+<div class="karte benachrichtigung">
+  <details {{ 'open' if offen }}>
+    <summary><b>✉ {{ anlaesse[b.anlass] }}{{ (' (nach ' ~ b.stufe ~ ' Tagen)') if b.stufe }}</b> – {{ b.auftragsnr }} · {{ b|kname }} · {{ 'SMS an ' if b.kanal == 'sms' else '' }}{{ b.an or 'keine Adresse hinterlegt' }}
+      {% if b.status == 'fehler' %}<span class="marke-status st-fehler">Fehler: {{ b.hinweis }}</span>{% endif %}
+      <span class="klein">– Vorschau öffnen</span></summary>
+    <form method="post" action="{{ url_for('main.benachrichtigung_senden', bid=b.id) }}" style="margin-top:10px">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="weiter" value="{{ weiter }}">
+      <div class="felder">
+        <div class="s4"><label>An</label><input type="text" name="an" value="{{ b.an or '' }}" required></div>
+        <div class="s8"><label>Betreff</label><input type="text" name="betreff" value="{{ b.betreff }}"></div>
+        <div class="s12"><label>Text</label><textarea name="text" style="min-height:170px">{{ b.text }}</textarea></div>
+      </div>
+      <div class="leiste" style="margin-top:8px">
+        <button>Jetzt senden</button>
+        <button class="zweit" formaction="{{ url_for('main.benachrichtigung_verwerfen', bid=b.id) }}" formnovalidate>Diesmal nicht senden</button>
+      </div>
+    </form>
+  </details>
+</div>
+{%- endmacro %}

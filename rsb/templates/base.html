@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="de" data-design="{{ ui.design or 'auto' }}">
+{% from "_symbol.html" import symbol %}
+{% set ep = request.endpoint or "" %}
+{% set _nav_aktiv = nav.aktiver_schluessel(ep) %}
+{% set _nav_gruppe = nav.aktive_gruppe(ep) %}
+{% set _seitentitel = self.titel()|trim %}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf" content="{{ csrf_token() }}">
+  <title>{% block titel %}Buchhaltung{% endblock %} – {{ einst.firma_name or "Werkstatt Sauter" }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='bilder/favicon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=version) }}">
+  <script>
+    // Hell/Dunkel vor dem ersten Zeichnen setzen (kein Aufblitzen)
+    (function () {
+      var d = document.documentElement, w = d.dataset.design;
+      d.dataset.theme = w === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dunkel' : 'hell') : w;
+    })();
+  </script>
+</head>
+<body class="{{ 'nav-schmal' if ui.schmal }}">
+{% macro punkt(e) -%}
+<a href="{{ url_for(e.endpoint, **e.args) }}" class="nav-punkt{{ ' aktiv' if _nav_aktiv == e.schluessel }}" data-titel="{{ e.titel }}"{% if _nav_aktiv == e.schluessel %} aria-current="page"{% endif %}>
+  {{ symbol(e.symbol) }}<span class="nav-text">{{ e.titel }}</span>
+  {%- set n = zaehler.get(e.zaehler, 0) if e.zaehler else 0 %}
+  {%- if n %}<span class="zaehler{{ ' rot' if e.zaehler_rot }}" title="{{ e.zaehler_titel }}">{{ n }}</span>{% endif %}
+</a>
+{%- endmacro %}
+<aside class="seitenleiste" id="seitenleiste" aria-label="Hauptmenü">
+  <div class="marke">
+    <a href="{{ url_for('main.start') }}" class="marke-gross"><img src="{{ url_for('main.logo_anzeigen') }}" alt="{{ einst.firma_name or 'Logo' }}"></a>
+    <a href="{{ url_for('main.start') }}" class="marke-klein" title="Übersicht"><img src="{{ url_for('static', filename='bilder/favicon.png') }}" alt=""></a>
+  </div>
+  <nav class="nav">
+    {% for g in nav.SEITENLEISTE %}
+      {% if g.titel %}
+      {% set zu = g.schluessel in (ui.zu or []) and g.schluessel != _nav_gruppe %}
+      <div class="nav-gruppe{{ ' zu' if zu }}" data-gruppe="{{ g.schluessel }}">
+        <button type="button" class="gruppe-kopf" aria-expanded="{{ 'false' if zu else 'true' }}" aria-controls="gruppe-{{ g.schluessel }}">
+          <span>{{ g.titel }}</span>{{ symbol('chevron-down', 'pfeil') }}</button>
+        <div class="gruppe-inhalt" id="gruppe-{{ g.schluessel }}"><div>
+          {% for e in g.eintraege %}{{ punkt(e) }}{% endfor %}
+        </div></div>
+      </div>
+      {% else %}{% for e in g.eintraege %}{{ punkt(e) }}{% endfor %}{% endif %}
+    {% endfor %}
+  </nav>
+  <div class="nav-unten">
+    {{ punkt(nav.EINSTELLUNGEN) }}
+    <button type="button" class="nav-punkt nav-einklappen" id="nav-einklappen" data-titel="Seitenleiste ausklappen" aria-pressed="{{ 'true' if ui.schmal else 'false' }}">
+      {{ symbol('panel-left-close', 'zu-symbol') }}{{ symbol('panel-left-open', 'auf-symbol') }}<span class="nav-text">Seitenleiste einklappen</span></button>
+    <div class="fuss">
+      <a href="{{ url_for('main.versionen') }}" title="Versionsprotokoll">Version {{ version }}</a>
+      {% if einst.login_aktiv %}<form method="post" action="{{ url_for('main.abmelden') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="zweit klein" title="Abmelden">{{ symbol('log-out') }}<span class="nav-text">Abmelden</span></button>
+      </form>{% endif %}
+    </div>
+  </div>
+</aside>
+<div class="nav-schleier" id="nav-schleier" hidden></div>
+<div class="rahmen">
+  <header class="kopfzeile">
+    <button type="button" class="symbol-knopf nur-mobil" id="nav-oeffnen" aria-label="Menü öffnen" aria-controls="seitenleiste" aria-expanded="false">{{ symbol('menu') }}</button>
+    <nav class="brotkrumen" aria-label="Brotkrumen">
+      {%- set _nav_g, _nav_e = nav.eintrag(_nav_aktiv) %}
+      {%- if _nav_g and _nav_g.titel %}<span>{{ _nav_g.titel }}</span><span class="trenner">›</span>{% endif %}
+      {%- if _nav_e and _nav_e.schluessel != 'start' and _nav_e.titel != _seitentitel %}<a href="{{ url_for(_nav_e.endpoint, **_nav_e.args) }}">{{ _nav_e.titel }}</a><span class="trenner">›</span>{% endif %}
+      <b>{{ _seitentitel }}</b>
+    </nav>
+    <div class="kopf-rechts">
+      <button type="button" class="such-feld" id="such-oeffnen" aria-haspopup="dialog">{{ symbol('search') }}<span class="such-text">Suchen oder springen …</span><kbd>Strg K</kbd></button>
+      <div class="menue" id="neu-menue">
+        <button type="button" class="knopf menue-knopf" aria-haspopup="menu" aria-expanded="false">{{ symbol('plus') }}<span class="nur-breit">Neu</span></button>
+        <div class="menue-liste" role="menu" hidden>
+          {% for t, ziel, args, sym in nav.NEU %}<a role="menuitem" href="{{ url_for(ziel, **args) }}">{{ symbol(sym) }}{{ t|replace('Neuer ', '')|replace('Neue ', '') }}</a>{% endfor %}
+        </div>
+      </div>
+      <div class="menue" id="glocke">
+        <button type="button" class="symbol-knopf menue-knopf" aria-haspopup="menu" aria-expanded="false" aria-label="Benachrichtigungen{{ (' – ' ~ glocke_ungelesen ~ ' ungelesen') if glocke_ungelesen }}">
+          {{ symbol('bell') }}{% if glocke_ungelesen %}<span class="glocke-zahl">{{ glocke_ungelesen }}</span>{% endif %}</button>
+        <div class="menue-liste glocke-liste" hidden>
+          <div class="glocke-kopf"><b>Benachrichtigungen</b>
+            {% if glocke_ungelesen %}<form method="post" action="{{ url_for('main.benachrichtigungen_gelesen') }}" class="glocke-alle">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="weiter" value="{{ request.full_path }}">
+              <button class="zweit klein">{{ symbol('check-check') }}Alle als gelesen</button></form>{% endif %}</div>
+          {% for h in fix_hinweise %}
+          <a href="{{ url_for('main.fixkosten_hinweis', s=h.schluessel, fid=h.f.id) }}" class="glocke-eintrag neu">
+            <span class="punkt-neu" aria-hidden="true"></span>
+            <span><b>{{ h.text }}</b><span class="klein">Fixkosten · {{ h.f.kategorie }}</span></span>
+          </a>{% endfor %}
+          {% for b in glocke %}{% set neu = not b.gelesen_am and b.status in ('offen', 'fehler') %}
+          <a href="{{ url_for('main.benachrichtigung_oeffnen', bid=b.id) }}" class="glocke-eintrag{{ ' neu' if neu }}" data-id="{{ b.id }}">
+            <span class="punkt-neu" aria-hidden="true"></span>
+            <span><b>{{ b.betreff or b.anlass }}</b><span class="klein">{{ b.auftragsnr }}{{ (' · ' ~ b.geraet) if b.geraet }} · {{ {'offen': 'wartet auf Freigabe', 'gesendet': 'gesendet', 'fehler': 'Fehler'}.get(b.status, b.status) }} · {{ b.erstellt_am|zeit }}</span></span>
+          </a>
+          {% else %}{% if not fix_hinweise %}<div class="klein glocke-leer">Keine Benachrichtigungen.</div>{% endif %}{% endfor %}
+          <a class="glocke-fuss" href="{{ url_for('main.benachrichtigungen') }}">Alle Benachrichtigungen anzeigen{% if benachrichtigungen_offen %} ({{ benachrichtigungen_offen }} offen){% endif %}</a>
+        </div>
+      </div>
+      <button type="button" class="symbol-knopf" id="design-wechseln" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel umschalten">{{ symbol('moon', 'mond') }}{{ symbol('sun', 'sonne') }}</button>
+    </div>
+  </header>
+  <main>
+    {% if update_da and not ep.startswith('main.einstellungen') %}
+    <div class="meldung info">Neue Programmversion {{ update_da }} verfügbar – <a href="{{ url_for('main.einstellungen', bereich='programm') }}">{{ 'jetzt aktualisieren' if ist_exe else 'Details' }}</a>{{ ' (oder einfach beim nächsten Start automatisch)' if ist_exe and einst.update_auto }}</div>
+    {% endif %}
+    {% with meldungen = get_flashed_messages(with_categories=true) %}
+      {% for art, text in meldungen %}<div class="meldung {{ art }}">{{ text }}</div>{% endfor %}
+    {% endwith %}
+    {% block inhalt %}{% endblock %}
+  </main>
+</div>
+<dialog class="schnellsuche" id="schnellsuche" aria-label="Schnellsuche">
+  <div class="ss-eingabe">{{ symbol('search') }}<input type="search" id="ss-feld" placeholder="Seite, Einstellung, Kunde, Auftrag, Rechnung … suchen" autocomplete="off" aria-controls="ss-liste" aria-activedescendant=""><kbd>Esc</kbd></div>
+  <div class="ss-liste" id="ss-liste" role="listbox"></div>
+  <div class="ss-fuss klein"><span><kbd>↑</kbd><kbd>↓</kbd> auswählen</span><span><kbd>Enter</kbd> öffnen</span><span><kbd>Esc</kbd> schließen</span></div>
+</dialog>
+<div class="nav-tooltip" id="nav-tooltip" role="tooltip" hidden></div>
+<script src="{{ url_for('static', filename='navigation.js', v=version) }}"></script>
+{% block skript %}{% endblock %}
+</body>
+</html>

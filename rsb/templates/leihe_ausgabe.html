@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_foto_upload.html" import hochladen %}
+{% block titel %}Leihgerät ausgeben – {{ a.auftragsnr }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <div><h1>Leihgerät ausgeben</h1>
+    <div class="auftrag-kopf" style="margin-top:6px"><span>Auftrag <a href="{{ url_for('main.auftrag', aid=a.id) }}"><b>{{ a.auftragsnr }}</b></a></span>
+      <span>Kunde <b>{{ a.kundennr }} · {{ a.firma if a.ktyp == 'firma' and a.firma else (a.vorname or '') ~ ' ' ~ (a.nachname or '') }}</b></span>{% if a.geraet %}<span>Gerät des Kunden: {{ a.geraet }}</span>{% endif %}</div></div>
+  <a class="knopf zweit" href="{{ url_for('main.auftrag', aid=a.id) }}#leihgeraet">← Zum Auftrag</a>
+</div>
+{% if not geraete %}
+<div class="meldung warnung">Zurzeit ist kein Leihgerät verfügbar. <a href="{{ url_for('main.leihgeraete') }}">Leihgeräte ansehen</a> oder <a href="{{ url_for('main.leihgeraet') }}">neues Leihgerät anlegen</a>.</div>
+{% else %}
+<form method="post" id="ausgabeformular">{{ csrf() }}
+  <input type="hidden" name="upload_token" value="{{ token }}">
+  <div class="karte">
+    <h2>Gerät &amp; Zeitraum</h2>
+    <div class="felder">
+      <div class="s12"><label>Leihgerät (nur verfügbare)</label><select name="geraet_id" id="f_geraet" required><option value="">– bitte wählen –</option>
+        {% for g in geraete %}<option value="{{ g.id }}" {{ 'selected' if werte.geraet_id == g.id|string }}>{{ g.bezeichnung }}{{ ' · ' ~ g.inventarnr if g.inventarnr }}{{ ' · SN ' ~ g.seriennummer if g.seriennummer }}</option>{% endfor %}</select></div>
+      <div><label>Ausgabe (Datum/Uhrzeit)</label><input type="datetime-local" step="1" name="ausgabe_am" value="{{ werte.ausgabe_am or jetzt }}">
+        <div class="hilfe">vorbelegt mit der Server-Zeit (Europe/Berlin)</div></div>
+      <div><label>Voraussichtliche Rückgabe</label><input type="date" name="rueckgabe_geplant" value="{{ werte.rueckgabe_geplant or rueckgabe_vorschlag }}"></div>
+    </div>
+  </div>
+  <div class="karte">
+    <h2>Mitgegebenes Zubehör</h2>
+    <div class="checkliste" id="zubehoerliste"><span class="klein">Bitte zuerst ein Leihgerät wählen.</span></div>
+    <div class="leiste" style="margin-top:8px"><input type="text" id="zubehoer_neu" placeholder="weiteres Zubehör …" style="max-width:280px"><button type="button" class="zweit klein" id="zubehoer_dazu">+ hinzufügen</button></div>
+  </div>
+  <div class="karte">
+    <h2>Leihgebühr &amp; Kaution</h2>
+    <div class="felder">
+      <div class="s4"><label>Leihgebühr</label><select name="gebuehr_art" id="f_art">{% for k, n in gebuehr_arten.items() %}<option value="{{ k }}" {{ 'selected' if werte.gebuehr_art == k }}>{{ n }}</option>{% endfor %}</select>
+        <div class="hilfe">vorbelegt aus dem Gerät, für diesen Fall änderbar</div></div>
+      <div class="s4 nur-gebuehr"><label>Betrag (€)</label><input type="text" name="gebuehr_betrag" id="f_betrag" value="{{ werte.gebuehr_betrag or '' }}"></div>
+      <div class="s4 nur-tag"><label>Kostenlose Tage</label><input type="number" min="0" name="frei_tage" id="f_frei" value="{{ werte.frei_tage or 0 }}"></div>
+      <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="kaution_erhalten" id="f_kaution_ja" {{ 'checked' if werte.kaution_erhalten }}> Kaution erhalten</label></div>
+      <div class="s4 nur-kaution"><label>Kaution (€)</label><input type="text" name="kaution_betrag" id="f_kaution" value="{{ werte.kaution_betrag or '' }}"></div>
+      <div class="s4 nur-kaution"><label>Zahlungsart</label><select name="kaution_zahlart">{% for z in zahlarten %}<option {{ 'selected' if werte.kaution_zahlart == z }}>{{ z }}</option>{% endfor %}</select></div>
+    </div>
+  </div>
+  <div class="karte">
+    <h2>Zustand bei Ausgabe</h2>
+    <textarea name="zustand_ausgabe" id="f_zustand" placeholder="z. B. leichte Kratzer am Deckel, Akku 92 %">{{ werte.zustand_ausgabe or '' }}</textarea>
+    <p class="klein" style="margin-top:12px">Fotos (Kategorie „Leihgerät Ausgabe“) werden sofort mit Zeitstempel gespeichert und beim Ausgeben zugeordnet.</p>
+    {{ hochladen(url_for('main.leihe_fotos_vorab'), ['Leihgerät Ausgabe'], token=token, neu_laden=False) }}
+    <div class="galerie" id="galerie-neu">
+      {% for f in fotos %}<div class="foto"><a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt=""></a><div class="info"><b>{{ f.kategorie }}</b><br>{{ f.dateiname }}</div></div>{% endfor %}
+    </div>
+  </div>
+  <div class="leiste"><button>Leihgerät ausgeben</button><a class="knopf zweit" href="{{ url_for('main.auftrag', aid=a.id) }}#leihgeraet">Abbrechen</a></div>
+  <p class="klein">Danach können Sie den Leihvertrag / das Übergabeprotokoll als PDF drucken oder per E-Mail senden.</p>
+</form>
+{% endif %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% if geraete %}
+<script>
+const GERAETE = {{ geraete_json|tojson }};
+const VORAUSWAHL = {{ zubehoer_auswahl|tojson }};
+const wahl = document.getElementById('f_geraet'), art = document.getElementById('f_art'), liste = document.getElementById('zubehoerliste');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function zubehoerZeile(name, an) {
+  return `<label class="check"><input type="checkbox" name="zubehoer" value="${esc(name)}" ${an ? 'checked' : ''}> ${esc(name)}</label>`;
+}
+function geraetGewaehlt(ersterAufruf) {
+  const g = GERAETE[wahl.value];
+  if (!g) { liste.innerHTML = '<span class="klein">Bitte zuerst ein Leihgerät wählen.</span>'; return; }
+  const extra = ersterAufruf && VORAUSWAHL ? VORAUSWAHL.filter(z => !g.zubehoer.includes(z)) : [];
+  liste.innerHTML = g.zubehoer.concat(extra).map(z => zubehoerZeile(z, !(ersterAufruf && VORAUSWAHL) || VORAUSWAHL.includes(z))).join('')
+    || '<span class="klein">Für dieses Gerät ist kein Zubehör hinterlegt.</span>';
+  if (ersterAufruf && VORAUSWAHL) return;  // nach Fehler: eigene Eingaben behalten
+  art.value = g.gebuehr_art;
+  document.getElementById('f_betrag').value = g.gebuehr_betrag === '0,00' ? '' : g.gebuehr_betrag;
+  document.getElementById('f_frei').value = g.frei_tage;
+  document.getElementById('f_kaution').value = g.kaution === '0,00' ? '' : g.kaution;
+  document.getElementById('f_kaution_ja').checked = g.kaution !== '0,00';
+  if (!document.getElementById('f_zustand').value) document.getElementById('f_zustand').value = g.zustand;
+  sichtbar();
+}
+function sichtbar() {
+  document.querySelectorAll('.nur-gebuehr').forEach(e => e.hidden = ['kostenlos', 'kulanz'].includes(art.value));
+  document.querySelectorAll('.nur-tag').forEach(e => e.hidden = art.value !== 'tag');
+  document.querySelectorAll('.nur-kaution').forEach(e => e.hidden = !document.getElementById('f_kaution_ja').checked);
+}
+wahl.addEventListener('change', () => geraetGewaehlt(false));
+art.addEventListener('change', sichtbar);
+document.getElementById('f_kaution_ja').addEventListener('change', sichtbar);
+document.getElementById('zubehoer_dazu').onclick = () => {
+  const f = document.getElementById('zubehoer_neu');
+  if (!f.value.trim()) return;
+  if (liste.querySelector('.klein')) liste.innerHTML = '';
+  liste.insertAdjacentHTML('beforeend', zubehoerZeile(f.value.trim(), true)); f.value = '';
+};
+geraetGewaehlt(true); sichtbar();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block titel %}Versionsprotokoll{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Versionsprotokoll</h1>
+  <a class="knopf zweit" href="{{ url_for('main.einstellungen', bereich='programm') }}">Programm &amp; Updates</a>
+</div>
+<p class="klein">Installiert: <b>Version {{ version }}</b></p>
+<div class="karte versionsprotokoll">{{ inhalt|safe }}</div>
+{% endblock %}

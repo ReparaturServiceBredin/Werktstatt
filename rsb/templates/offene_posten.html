@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_status.html" import dokname %}
+{% block titel %}Offene Posten{% endblock %}
+{% block inhalt %}
+{% set reiter = "rechnungen" %}{% include "_bereichsreiter.html" %}
+<div class="kopf">
+  <h1>Offene Posten</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.bank') }}">Bankabgleich</a></div>
+</div>
+<div class="raster">
+  <div class="kachel"><div class="label">Offen gesamt</div><div class="wert">{{ summe|euro }}</div><div class="klein">{{ posten|length }} Rechnung(en)</div></div>
+  <div class="kachel"><div class="label">davon überfällig</div><div class="wert" style="color:var(--rot)">{{ summe_ueberfaellig|euro }}</div></div>
+  <div class="kachel"><div class="label">Mahngebühren/Zinsen offen</div><div class="wert">{{ summe_gebuehren|euro }}</div></div>
+</div>
+<form class="leiste" style="margin-bottom:12px">
+  <select name="filter" onchange="this.form.submit()" style="width:auto"><option value="">alle offenen</option><option value="ueberfaellig" {{ 'selected' if nur }}>nur überfällige</option></select>
+  <select name="kunde_id" onchange="this.form.submit()" style="width:auto"><option value="">alle Kunden</option>{% for k in kunden %}<option value="{{ k.id }}" {{ 'selected' if kunde_id == k.id }}>{{ k.kundennr }} · {{ k|kname }}</option>{% endfor %}</select>
+</form>
+<table class="liste">
+  <tr><th>Rechnung</th><th>Kunde</th><th>Datum</th><th>Fällig</th><th>Status</th><th class="zahl">Betrag</th><th class="zahl">Bezahlt</th><th class="zahl">Offen</th></tr>
+  {% for p in posten %}{% set d = p.d %}{% set s = p.s %}
+  <tr><td><a href="{{ url_for('main.dokument', did=d.id) }}#zahlungen"><b>{{ d.nummer }}</b></a></td>
+    <td><a href="{{ url_for('main.kunde', kid=d.kunde_id) }}">{{ dokname(d) }}</a></td>
+    <td>{{ d.datum|datum }}</td><td>{{ d.faellig_am|datum }}{% if s.tage_ueberfaellig %}<div class="klein" style="color:var(--rot)">{{ s.tage_ueberfaellig }} Tage</div>{% endif %}</td>
+    <td><span class="marke-status zs-{{ s.status }}">{{ s.status_text }}</span>{% if s.mahnstufe is not none %}<div class="klein">{{ ['Erinnerung', '1. Mahnung', '2. Mahnung'][s.mahnstufe] }} {{ s.letzte_mahnung.datum|datum }}</div>{% endif %}</td>
+    <td class="zahl">{{ s.forderung|euro }}</td><td class="zahl">{{ s.bezahlt|euro }}</td>
+    <td class="zahl"><b>{{ s.offen|euro }}</b>{% if s.gebuehren_offen %}<div class="klein">+ {{ s.gebuehren_offen|euro }} Geb.</div>{% endif %}{% if s.ueberzahlt %}<div class="klein">Guthaben {{ s.ueberzahlt|euro }}</div>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="8" class="klein">Keine offenen Posten – alles bezahlt.</td></tr>{% endfor %}
+</table>
+{% endblock %}

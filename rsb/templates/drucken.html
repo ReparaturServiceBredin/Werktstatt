@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Drucken {{ d.nummer or 'Entwurf' }}</title>
+<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style></head>
+<body>
+<iframe id="pdf" src="{{ url_for('main.dokument_pdf', did=d.id) }}"></iframe>
+<script>
+  // Druckdialog öffnen, sobald das PDF geladen ist (Edge/Chrome). Sonst: Drucker-Symbol im PDF-Fenster nutzen.
+  document.getElementById('pdf').addEventListener('load', function () {
+    setTimeout(() => { try { this.contentWindow.focus(); this.contentWindow.print(); } catch (e) {} }, 600);
+  });
+</script>
+</body></html>

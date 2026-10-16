@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Neue Bestellung{% endblock %}
+{% block inhalt %}
+<h1>Neue Bestellung{% if a %} – Teil für Auftrag {{ a.auftragsnr }}{% endif %}</h1>
+{% if not lieferanten %}<div class="meldung warnung">Bitte zuerst einen <a href="{{ url_for('main.lieferant') }}">Lieferanten anlegen</a>.</div>{% endif %}
+<form method="post" class="karte">{{ csrf() }}
+  {% if a %}<input type="hidden" name="auftrag_id" value="{{ a.id }}"><p class="klein">Gerät: {{ a.geraet or '' }} · Kunde: {{ a|kname }}. Nach „bestellt“ wandert der Auftrag in die Spalte „Wartet auf Teil“; beim Wareneingang wird er benachrichtigt.</p>{% endif %}
+  <div class="felder">
+    <div class="s6"><label>Lieferant</label><select name="lieferant_id" id="f_lieferant" required><option value="">– wählen –</option>{% for l in lieferanten %}<option value="{{ l.id }}" {{ 'selected' if lieferant_id == l.id }}>{{ l.name }}{{ (' · ' ~ l.lieferzeit_tage ~ ' Tg.') if l.lieferzeit_tage }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>Notiz (steht auf der Bestellung)</label><input type="text" name="notiz"></div>
+  </div>
+  <table class="liste" style="margin-top:10px"><thead><tr><th>Artikel</th><th>Bezeichnung</th><th>Lief.-Art.-Nr.</th><th style="width:80px">Menge</th><th style="width:110px">EK netto</th><th></th></tr></thead><tbody id="bpos"></tbody></table>
+  <button type="button" class="zweit klein" id="bpos_neu">+ Position</button>
+  <p class="klein" id="quelle_hinweis"></p>
+  <br><button>Bestellung anlegen</button>
+</form>
+{% endblock %}
+{% block skript %}
+<script>
+const ARTIKEL = {{ artikel|tojson }}, QUELLEN = {{ quellen|tojson }}, VORAUSWAHL = {{ vorauswahl|tojson }};
+const tbody = document.getElementById('bpos'), lief = document.getElementById('f_lieferant');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const euroT = c => c == null ? '' : (c / 100).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+function zeile(p) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><select name="p_artikel_id"><option value="">– frei –</option>${ARTIKEL.map(a => `<option value="${a.id}" ${a.id === p.artikel_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></td>
+    <td><input type="text" name="p_bezeichnung" value="${esc(p.bezeichnung)}" required></td><td><input type="text" name="p_artnr" value="${esc(p.lieferanten_artnr)}"></td>
+    <td><input type="text" name="p_menge" value="${esc(p.menge ?? 1)}"></td><td><input type="text" name="p_ek" value="${euroT(p.ek)}"></td>
+    <td><button type="button" class="gefahr klein">✕</button></td>`;
+  tr.querySelector('button').onclick = () => tr.remove();
+  tr.querySelector('select').onchange = e => {
+    const a = ARTIKEL.find(x => String(x.id) === e.target.value); if (!a) return;
+    tr.querySelector('[name=p_bezeichnung]').value = a.name;
+    const q = (QUELLEN[a.id] || []), passend = q.find(x => String(x.lieferant_id) === lief.value) || q[0];
+    tr.querySelector('[name=p_ek]').value = euroT(passend && passend.ek != null ? passend.ek : a.teilekosten);
+    tr.querySelector('[name=p_artnr]').value = passend ? (passend.lieferanten_artnr || '') : '';
+    if (q.length) document.getElementById('quelle_hinweis').textContent = `${a.name}: günstigster Lieferant ${q[0].name} (${euroT(q[0].ek)} €)` + (q.length > 1 ? `, ${q.length} Bezugsquellen` : '');
+    if (!lief.value && q.length) lief.value = q[0].lieferant_id;
+  };
+  tbody.appendChild(tr);
+}
+(VORAUSWAHL.length ? VORAUSWAHL : [{ menge: 1 }]).forEach(zeile);
+document.getElementById('bpos_neu').onclick = () => zeile({ menge: 1 });
+</script>
+{% endblock %}

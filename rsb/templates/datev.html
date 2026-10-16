@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}DATEV-Export{% endblock %}
+{% block inhalt %}
+<h1>DATEV-Export für den Steuerberater</h1>
+{% if fehlt %}<div class="meldung warnung">Bitte zuerst Berater- und Mandantennummer unter <a href="{{ url_for('main.einstellungen', bereich='datev') }}">Einstellungen → DATEV</a> eintragen (bekommen Sie vom Steuerberater).</div>{% endif %}
+<form method="get" class="karte leiste">
+  <label style="margin:0">Zeitraum</label><input type="date" name="von" value="{{ von }}" style="width:auto"><input type="date" name="bis" value="{{ bis }}" style="width:auto">
+  <label class="check" style="margin:0"><input type="checkbox" name="erneut" value="1" {{ 'checked' if erneut }}> bereits exportierte Buchungen erneut ausgeben</label>
+  <button class="zweit">Vorschau</button></form>
+<div class="karte"><h2>Vorschau: {{ vorschau|length }} Buchung(en)</h2>
+  <table class="liste"><thead><tr><th>Datum</th><th>Beleg</th><th>Text</th><th class="zahl">Umsatz</th><th>S/H</th><th>Konto</th><th>Gegenkonto</th><th>BU</th></tr></thead><tbody>
+  {% for z in vorschau[:300] %}<tr><td>{{ z.datum|datum }}</td><td>{{ z.beleg }}</td><td>{{ z.text }}</td><td class="zahl">{{ (z.betrag|abs)|euro }}</td><td>{{ 'S' if z.betrag >= 0 else 'H' }}</td><td>{{ z.konto }}</td><td>{{ z.gegenkonto }}</td><td>{{ z.bu }}</td></tr>
+  {% else %}<tr><td colspan="8" class="klein">Keine {{ '' if erneut else 'noch nicht exportierten ' }}Buchungen im Zeitraum.</td></tr>{% endfor %}</tbody></table>
+  {% if vorschau %}<form method="post" style="margin-top:10px">{{ csrf() }}<input type="hidden" name="von" value="{{ von }}"><input type="hidden" name="bis" value="{{ bis }}">{% if erneut %}<input type="hidden" name="erneut" value="1">{% endif %}
+    <button>Export erstellen (ZIP mit Buchungsstapel und Belegen)</button></form>{% endif %}
+  <p class="klein">Format: DATEV-Buchungsstapel (EXTF 700). Exportierte Buchungen werden vermerkt und beim nächsten Mal nicht erneut ausgegeben. Bitte den ersten Export gemeinsam mit dem Steuerberater prüfen (Kontenzuordnung).</p>
+</div>
+<div class="karte"><h2>Exportprotokoll</h2><table class="liste"><thead><tr><th>erstellt</th><th>Zeitraum</th><th class="zahl">Buchungen</th><th>Prüfsumme (SHA-256)</th><th></th></tr></thead><tbody>
+{% for e in exporte %}<tr {% if e.id == neu %}class="gewaehlt"{% endif %}><td>{{ e.erstellt_am|zeit_sek }} {{ e.benutzer }}</td><td>{{ e.von|datum }} – {{ e.bis|datum }}{{ ' (erneut)' if e.erneut }}</td><td class="zahl">{{ e.anzahl }}</td><td class="klein">{{ e.sha256[:16] }}…</td><td><a class="knopf zweit klein" href="{{ url_for('main.datev_download', eid=e.id) }}">ZIP herunterladen</a></td></tr>
+{% else %}<tr><td colspan="5" class="klein">Noch kein Export.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

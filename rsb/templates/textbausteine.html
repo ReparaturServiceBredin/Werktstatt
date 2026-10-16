@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titel %}Textbausteine{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Textbausteine</h1><a class="knopf" href="{{ url_for('main.textbaustein') }}">+ Neuer Textbaustein</a></div>
+<div class="meldung info">Textbausteine mit „Standard“ werden automatisch in neue Dokumente bzw. E-Mails übernommen. Alle anderen können Sie beim Bearbeiten einer Rechnung per Auswahlliste einfügen.</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Name</th><th>Kategorie</th><th>Dokument</th><th>Standard</th><th>Text</th></tr>
+  {% for t in liste %}
+  <tr><td><a href="{{ url_for('main.textbaustein', tid=t.id) }}"><b>{{ t.name }}</b></a></td>
+    <td>{{ {'einleitung':'Einleitung','schluss':'Schlusstext','hinweis':'Hinweis','email_betreff':'E-Mail-Betreff','email_text':'E-Mail-Text'}.get(t.kategorie, t.kategorie) }}</td>
+    <td>{{ {'alle':'Alle','rechnung':'Rechnung','storno':'Storno','kva':'Kostenvoranschlag'}.get(t.dokumenttyp, t.dokumenttyp) }}</td>
+    <td>{{ '✔' if t.standard }}</td>
+    <td class="klein">{{ t.text|truncate(110) }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

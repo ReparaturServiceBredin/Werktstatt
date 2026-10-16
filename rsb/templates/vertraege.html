@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_vertrag.html" import zustand, abrechnung_text %}
+{% block titel %}Verträge & Lizenzen{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Verträge &amp; Lizenzen</h1>
+  <div class="leiste">
+    <a class="knopf zweit" href="{{ url_for('main.vertragsarten') }}">Vertragsarten</a>
+    <form method="post" action="{{ url_for('main.vertraege_abrechnen') }}">{{ csrf() }}<button class="zweit">Jetzt abrechnen{{ (' (' ~ kennzahlen.faellig ~ ' fällig)') if kennzahlen.faellig }}</button></form>
+    <a class="knopf" href="{{ url_for('main.vertrag') }}">+ Neuer Vertrag</a>
+  </div>
+</div>
+{% if einst.abo_modus == 'automatisch' and not einst.smtp_host %}
+<div class="meldung warnung"><b>E-Mail-Zugang fehlt:</b> Vertragsrechnungen werden automatisch festgeschrieben, können aber nicht per E-Mail versendet werden. Bitte unter <a href="{{ url_for('main.einstellungen', bereich='email') }}">Einstellungen → E-Mail</a> einrichten.</div>
+{% endif %}
+<div class="raster">
+  <div class="kachel"><div class="label">Aktive Verträge</div><div class="wert">{{ kennzahlen.aktiv }}</div></div>
+  <div class="kachel"><div class="label">Regelmäßige Einnahmen</div><div class="wert">{{ kennzahlen.monatlich|euro }}</div><div class="klein">pro Monat (umgerechnet)</div></div>
+  <div class="kachel"><div class="label">Laufen bald ab</div><div class="wert">{{ kennzahlen.laeuft_ab }}</div><div class="klein">in den nächsten {{ einst.vertrag_erinnerung_tage }} Tagen</div></div>
+  <div class="kachel"><div class="label">Zur Abrechnung fällig</div><div class="wert">{{ kennzahlen.faellig }}</div><div class="klein">{{ 'automatisch: festschreiben & senden' if einst.abo_modus == 'automatisch' else 'als Entwurf' }} · <a href="{{ url_for('main.einstellungen', bereich='vertraege') }}">ändern</a></div></div>
+</div>
+<div class="reiter">
+  {% for k, t in [('aktiv','Laufend'),('laeuft_ab','Laufen bald ab'),('gekuendigt','Gekündigt / beendet'),('alle','Alle')] %}
+  <a href="{{ url_for('main.vertraege_liste', filter=k, kategorie=kategorie) }}" class="{{ 'aktiv' if filt == k }}">{{ t }} ({{ anzahl[k] }})</a>{% endfor %}
+  <form method="get" style="margin-left:auto"><input type="hidden" name="filter" value="{{ filt }}">
+    <select name="kategorie" onchange="this.form.submit()" style="width:auto"><option value="">Alle Kategorien</option>
+      {% for k in kategorien %}<option {{ 'selected' if kategorie == k }}>{{ k }}</option>{% endfor %}</select></form>
+</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Kunde</th><th>Vertrag / Lizenz</th><th>Kategorie</th><th>Abrechnung</th><th>Beginn</th><th>Ende</th><th>Status</th></tr>
+  {% for v in liste %}
+  <tr>
+    <td><a href="{{ url_for('main.kunde', kid=v.kunde_id) }}">{{ v.firma if v.ktyp == 'firma' and v.firma else (v.vorname or '') ~ ' ' ~ (v.nachname or '') }}</a></td>
+    <td><a href="{{ url_for('main.vertrag', vid=v.id) }}"><b>{{ v.bezeichnung }}</b></a>
+      {% if v.vertragsnummer %}<div class="klein">{{ v.vertragsnummer }}</div>{% endif %}{% if v.geraet %}<div class="klein">{{ v.geraet }}</div>{% endif %}</td>
+    <td>{{ v.kategorie }}</td>
+    <td>{{ abrechnung_text(v, abrechnung) }}</td>
+    <td>{{ v.beginn|datum }}</td>
+    <td>{{ v.ende|datum if v.ende else ('unbefristet' if not v.kuendigung_zum else '') }}{% if v.auto_verlaengern and v.ende %}<div class="klein">verlängert sich automatisch</div>{% endif %}</td>
+    <td>{{ zustand(v) }}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">Keine Verträge in dieser Ansicht.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

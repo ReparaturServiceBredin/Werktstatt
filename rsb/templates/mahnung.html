@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}{{ titel }} {{ m.nummer }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>{{ titel }} {{ m.nummer }}</h1>
+  <div class="leiste">
+    <a class="knopf zweit" href="{{ url_for('main.dokument', did=m.dokument_id) }}#zahlungen">← Rechnung {{ m.rechnung_nummer }}</a>
+    <a class="knopf" href="{{ url_for('main.mahnung_email', mid=m.id) }}">Per E-Mail senden</a>
+    <a class="knopf zweit" href="{{ url_for('main.mahnung_pdf', mid=m.id, download=1) }}">PDF herunterladen</a>
+  </div>
+</div>
+<div class="zweispaltig">
+  <div>
+    <div class="karte">
+      <table class="liste">
+        <tr><td>Datum</td><td>{{ m.datum|datum }}</td></tr>
+        <tr><td>Offener Rechnungsbetrag</td><td>{{ m.offen_rechnung|euro }}</td></tr>
+        {% if m.gebuehren_vorher %}<tr><td>Gebühren früherer Mahnungen</td><td>{{ m.gebuehren_vorher|euro }}</td></tr>{% endif %}
+        <tr><td>Mahngebühr</td><td>{{ m.gebuehr|euro }}</td></tr>
+        {% if m.zinsen %}<tr><td>Verzugszinsen</td><td>{{ m.zinsen|euro }}</td></tr>{% endif %}
+        <tr><td><b>Gesamt</b></td><td><b>{{ m.gesamt|euro }}</b></td></tr>
+        <tr><td>Zahlungsfrist</td><td>{{ m.frist_bis|datum }}</td></tr>
+        <tr><td>Erstellt</td><td>{{ m.erstellt_am|zeit_sek }} ({{ m.benutzer }})</td></tr>
+        <tr><td>Versand</td><td>{% if m.versendet_am %}{{ 'per E-Mail' if m.versandart == 'email' else 'per Post / ausgedruckt' }} am {{ m.versendet_am|zeit_sek }}{% else %}<span style="color:var(--rot)">noch nicht versendet</span>{% endif %}</td></tr>
+        <tr><td>Prüfsumme PDF</td><td class="klein" style="word-break:break-all">{{ m.pdf_sha256 }}</td></tr>
+      </table>
+      {% if not m.versendet_am %}<form method="post" action="{{ url_for('main.mahnung_versendet', mid=m.id) }}" style="margin-top:10px">{{ csrf() }}<button class="zweit">Ausgedruckt / per Post versendet</button></form>{% endif %}
+    </div>
+    {% if (m.gebuehr or m.zinsen) and not m.erledigt_am %}
+    <details class="karte"><summary style="cursor:pointer">Gebühren/Zinsen dieser Mahnung erlassen …</summary>
+      <form method="post" action="{{ url_for('main.mahnung_erlassen', mid=m.id) }}" style="margin-top:8px">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht), z. B. Kulanz"><button class="zweit" style="margin-top:6px">Erlassen</button></form></details>
+    {% elif m.erledigt_am %}<p class="klein">Gebühren/Zinsen erlassen am {{ m.erledigt_am|zeit }}.</p>{% endif %}
+  </div>
+  <div class="karte"><iframe class="pdfrahmen" src="{{ url_for('main.mahnung_pdf', mid=m.id) }}"></iframe></div>
+</div>
+{% endblock %}

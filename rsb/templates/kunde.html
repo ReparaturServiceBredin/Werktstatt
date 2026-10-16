@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "_status.html" import status, csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ k|kname if k else 'Neuer Kunde' }}{% endblock %}
+{% block inhalt %}
+{% if k and k.anonymisiert_am %}<div class="meldung warnung">Dieser Kunde wurde am {{ k.anonymisiert_am|zeit_sek }} auf Wunsch gelöscht und wegen gesetzlicher Aufbewahrungspflichten anonymisiert. Name und Anschrift stehen nur noch in den archivierten Belegen.</div>{% endif %}
+<div class="kopf">
+  <h1>{{ (k.kundennr ~ ' · ' ~ (k|kname)) if k else 'Neuer Kunde' }}</h1>
+  {% if k %}<div class="leiste">
+    <a class="knopf" href="{{ url_for('main.auftrag_neu', kunde_id=k.id) }}">+ Reparaturauftrag</a>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_neu', kunde_id=k.id, typ='kva') }}">+ KVA</a>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_neu', kunde_id=k.id) }}">+ Rechnung</a>
+  </div>{% endif %}
+</div>
+{% if k and k.archiviert %}<div class="meldung info">Dieser Kunde ist archiviert.</div>{% endif %}
+<form method="post" class="karte">
+  {{ csrf() }}
+  <div class="felder">
+    <div class="s3"><label>Kundenart</label>
+      <select name="typ" id="typ">
+        <option value="privat" {{ 'selected' if not k or k.typ == 'privat' }}>Privatkunde</option>
+        <option value="firma" {{ 'selected' if k and k.typ == 'firma' }}>Firmenkunde</option>
+      </select></div>
+    <div class="s9" style="grid-column: span 9"><label>Firma</label><input type="text" name="firma" value="{{ (k.firma or '') if k }}"></div>
+    <div class="s2"><label>Anrede</label>
+      <select name="anrede">{% for a in ['', 'Frau', 'Herr', 'Divers'] %}<option {{ 'selected' if k and k.anrede == a }}>{{ a }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Vorname</label><input type="text" name="vorname" value="{{ (k.vorname or '') if k }}"></div>
+    <div><label>Nachname</label><input type="text" name="nachname" value="{{ (k.nachname or '') if k }}"></div>
+    <div class="s12"><label>Straße und Hausnummer</label><input type="text" name="strasse" value="{{ (k.strasse or '') if k }}"></div>
+    <div class="s2"><label>PLZ</label><input type="text" name="plz" value="{{ (k.plz or '') if k }}"></div>
+    <div class="s4"><label>Ort</label><input type="text" name="ort" value="{{ (k.ort or '') if k }}"></div>
+    <div><label>Land</label><input type="text" name="land" value="{{ k.land if k else 'Deutschland' }}"></div>
+    <div><label>E-Mail</label><input type="email" name="email" value="{{ (k.email or '') if k }}"></div>
+    <div><label>Telefon</label><input type="tel" name="telefon" value="{{ (k.telefon or '') if k }}"></div>
+    <div><label>USt-IdNr. (nur Firmenkunden, optional)</label><input type="text" name="ust_idnr" value="{{ (k.ust_idnr or '') if k }}"></div>
+    <div><label>Rechnungsformat</label><select name="e_rechnung">{% for wert, text in [('auto', 'automatisch (Firma: ZUGFeRD, Privat: PDF)'), ('pdf', 'PDF'), ('zugferd', 'ZUGFeRD / Factur-X (PDF mit XML)'), ('xrechnung', 'XRechnung (z. B. Behörden)')] %}<option value="{{ wert }}" {{ 'selected' if (k.e_rechnung if k else 'auto') == wert or (k and not k.e_rechnung and wert == 'auto') }}>{{ text }}</option>{% endfor %}</select></div>
+    <div><label>Leitweg-ID (nur XRechnung)</label><input type="text" name="leitweg_id" value="{{ (k.leitweg_id or '') if k }}" placeholder="z. B. 04011000-12345-67"></div>
+    <div><label>Abweichendes Zahlungsziel (Tage)</label><input type="number" min="0" name="zahlungsziel_tage" value="{{ k.zahlungsziel_tage if k and k.zahlungsziel_tage is not none }}">
+      <div class="hilfe">Leer lassen = Standard ({{ einst.zahlungsziel_privat }} Tage privat / {{ einst.zahlungsziel_firma }} Tage Firma)</div></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="interessent" {{ 'checked' if k and k.interessent }}> Interessent (hat angefragt, noch keine Rechnung){% if k and k.quelle %} – Quelle: {{ k.quelle }}{% endif %}</label></div>
+    <div class="s12"><label>Weitere E-Mail-Adressen / Ansprechpartner (eine je Zeile, für die E-Mail-Historie)</label><textarea name="email_weitere" style="min-height:50px" placeholder="buchhaltung@firma.de&#10;Max Muster &lt;max@firma.de&gt;">{{ (k.email_weitere or '') if k }}</textarea></div>
+    <div class="s12"><label>Notizen (intern, erscheinen nicht auf Dokumenten)</label><textarea name="notizen">{{ (k.notizen or '') if k }}</textarea></div>
+  </div>
+  <br>
+  <div class="leiste">
+    <button>Speichern</button>
+    {% if not k %}<button class="zweit" name="danach" value="rechnung">Speichern und Rechnung schreiben</button>{% endif %}
+    <a class="knopf zweit" href="{{ url_for('main.kunden') }}">Abbrechen</a>
+  </div>
+</form>
+
+{% if k %}
+<div class="karte">
+  <h2>Dokumente</h2>
+  <table class="liste">
+    <tr><th>Nummer</th><th>Datum</th><th>Betreff</th><th>Status</th><th class="zahl">Betrag</th></tr>
+    {% for d in dokumente %}
+    <tr><td><a href="{{ url_for('main.dokument', did=d.id) }}">{{ d.nummer or 'Entwurf' }}</a></td><td>{{ d.datum|datum }}</td>
+      <td>{{ 'KVA · ' if d.typ == 'kva' }}{{ d.betreff }}</td><td>{{ status(d.status) }}</td><td class="zahl">{{ d.summe_brutto|euro }}</td></tr>
+    {% else %}<tr><td colspan="5" class="klein">Noch keine Dokumente.</td></tr>{% endfor %}
+  </table>
+</div>
+{% if k %}
+{% from "_vertrag.html" import zustand, abrechnung_text %}
+<div class="karte">
+  <div class="kopf" style="margin-bottom:8px"><h2 style="margin:0">Verträge, Lizenzen &amp; Garantien</h2>
+    <a class="knopf klein" href="{{ url_for('main.vertrag', kunde_id=k.id) }}">+ Vertrag / Lizenz</a></div>
+  <table class="liste">
+    <tr><th>Bezeichnung</th><th>Nummer / Gerät</th><th>Abrechnung</th><th>Ende</th><th>Status</th></tr>
+    {% for v in vertraege %}<tr><td><a href="{{ url_for('main.vertrag', vid=v.id) }}"><b>{{ v.bezeichnung }}</b></a><div class="klein">{{ v.kategorie }}</div></td>
+      <td class="klein">{{ v.vertragsnummer or '' }}{% if v.geraet %}<br>{{ v.geraet }}{% endif %}</td>
+      <td>{{ abrechnung_text(v, abrechnung) }}</td>
+      <td>{{ v.ende|datum if v.ende else 'unbefristet' }}</td><td>{{ zustand(v) }}</td></tr>
+    {% else %}<tr><td colspan="5" class="klein">Keine Verträge oder Lizenzen hinterlegt.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% if leihen %}{% set aktuell = leihen|rejectattr('rueckgabe_am')|rejectattr('storniert_am')|list %}
+<div class="karte" {% if aktuell %}style="border-left:5px solid var(--blau)"{% endif %}>
+  <h2>Leihgeräte</h2>
+  {% for le in aktuell %}{% set ueber = le.rueckgabe_geplant and le.rueckgabe_geplant < heute %}
+  <div class="meldung {{ 'fehler' if ueber else 'info' }}">🔁 Hat aktuell <a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.bezeichnung }}</b></a> ({{ le.leihnr }}) seit {{ le.ausgabe_am|zeit }} – Rückgabe {{ 'bis ' ~ (le.rueckgabe_geplant|datum) if le.rueckgabe_geplant else 'offen' }}{{ ' – ÜBERFÄLLIG' if ueber }}{% if le.auftragsnr %} · Auftrag <a href="{{ url_for('main.auftrag', aid=le.auftrag_id) }}#leihgeraet">{{ le.auftragsnr }}</a>{% endif %}</div>
+  {% endfor %}
+  <table class="liste">
+    <tr><th>Leihvertrag</th><th>Gerät</th><th>Ausgabe – Rückgabe</th><th>Zustand</th><th class="zahl">Gebühr</th><th>Schaden</th></tr>
+    {% for le in leihen %}<tr>
+      <td><a href="{{ url_for('main.leihe', lid=le.id) }}">{{ le.leihnr }}</a>{% if le.storniert_am %} <span class="marke-status st-storniert">storniert</span>{% endif %}<div class="klein">{{ le.auftragsnr or '' }}</div></td>
+      <td>{{ le.bezeichnung }}</td>
+      <td>{{ le.ausgabe_am|datum }} – {{ le.rueckgabe_am|datum if le.rueckgabe_am else ('läuft' if not le.storniert_am else '–') }}</td>
+      <td>{{ {'einwandfrei': 'einwandfrei', 'schaden': 'Schaden'}.get(le.zustand_rueckgabe, '–') }}</td>
+      <td class="zahl">{{ le.gebuehr_berechnet|euro if le.gebuehr_berechnet is not none else '' }}</td>
+      <td>{% if le.schaden_anzahl %}<a href="{{ url_for('main.leihe', lid=le.id) }}#schaden" class="marke-status st-fehler">{{ le.schaden_anzahl }} {{ 'Schadensfälle' if le.schaden_anzahl > 1 else 'Schadensfall' }} · {{ le.schaden_summe|euro }}</a>{% endif %}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% if auftraege %}
+<div class="karte">
+  <h2>Reparaturaufträge</h2>
+  <table class="liste">
+    <tr><th>Auftrag</th><th>Eingang</th><th>Gerät</th><th>Status</th></tr>
+    {% for a in auftraege %}<tr><td><a href="{{ url_for('main.auftrag', aid=a.id) }}">{{ a.auftragsnr }}</a></td><td>{{ a.eingang_am|datum }}</td><td>{{ a.geraet or '' }}</td><td><span class="marke-status s-{{ a.status }}">{{ {'offen':'Offen','in_arbeit':'In Arbeit','erledigt':'Erledigt'}[a.status] }}</span></td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+{% if offene or zahlungen %}
+<div class="karte" id="zahlungen">
+  <h2>Offene Beträge &amp; Zahlungen</h2>
+  {% if offene %}
+  <table class="liste"><tr><th>Rechnung</th><th>Fällig</th><th>Status</th><th class="zahl">Offen</th></tr>
+    {% for p in offene %}<tr><td><a href="{{ url_for('main.dokument', did=p.d.id) }}#zahlungen">{{ p.d.nummer }}</a></td><td>{{ p.d.faellig_am|datum }}</td>
+      <td><span class="marke-status zs-{{ p.s.status }}">{{ p.s.status_text }}</span>{% if p.s.mahnstufe is not none %} <span class="klein">Mahnstufe {{ p.s.mahnstufe }}</span>{% endif %}</td>
+      <td class="zahl">{{ p.s.offen|euro }}{% if p.s.gebuehren_offen %}<div class="klein">+ {{ p.s.gebuehren_offen|euro }} Gebühren</div>{% endif %}</td></tr>{% endfor %}
+    <tr><td colspan="3"><b>Summe offen</b></td><td class="zahl"><b>{{ offene|sum(attribute='s.offen')|euro }}</b></td></tr>
+  </table>
+  {% else %}<p class="klein">Keine offenen Beträge.</p>{% endif %}
+  {% if zahlungen %}
+  <h3 style="margin:14px 0 6px">Zahlungshistorie</h3>
+  <table class="liste"><tr><th>Datum</th><th>Rechnung</th><th>Art</th><th class="zahl">Betrag</th></tr>
+    {% for z in zahlungen %}<tr class="{{ 'storniert' if z.storniert_am }}"><td>{{ z.datum|datum }}</td><td><a href="{{ url_for('main.dokument', did=z.dokument_id) }}#zahlungen">{{ z.nummer }}</a></td><td>{{ zahlarten[z.zahlart] }}{% if z.storniert_am %} <span class="klein">(storniert)</span>{% endif %}</td><td class="zahl">{{ z.betrag|euro }}</td></tr>{% endfor %}
+  </table>{% endif %}
+</div>
+{% endif %}
+<div class="karte" id="emails">
+  <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">E-Mail-Verlauf <span class="klein">({{ email_anzahl }})</span></h2>
+    {% if email_anzahl > emails|length %}<a href="{{ url_for('main.kunde', kid=k.id, mails='alle') }}#emails">alle {{ email_anzahl }} anzeigen</a>{% endif %}</div>
+  {% if not einst.historie_aktiv %}<p class="klein">Die E-Mail-Historie ist ausgeschaltet – <a href="{{ url_for('main.einstellungen', bereich='anfragen') }}#historie">einschalten unter Einstellungen → Anfragen</a>.</p>{% endif %}
+  {% for m in emails %}
+  <details class="mail">
+    <summary><span class="mail-richtung {{ m.richtung }}" title="{{ m.richtung }}">{{ '↗' if m.richtung == 'gesendet' else '↙' }}</span>
+      <span class="mail-datum">{{ m.datum|zeit }}</span>
+      <b>{{ m.betreff or '(ohne Betreff)' }}</b>
+      <span class="klein">{{ ('an ' ~ m.an) if m.richtung == 'gesendet' else ('von ' ~ m.von) }}</span>
+      {% if m.anhaenge %}<span class="klein" title="{{ m.anhaenge|map(attribute='name')|join(', ') }}">📎 {{ m.anhaenge|length }}</span>{% endif %}
+      {% if m.quelle == 'programm' %}<span class="marke-status st-festgeschrieben">aus dem Programm</span>{% endif %}
+    </summary>
+    <div class="mail-inhalt">
+      <div class="klein">Von: {{ m.von }}<br>An: {{ m.an }}{% if m.cc %}<br>Cc: {{ m.cc }}{% endif %}<br>Datum: {{ m.datum|zeit }}{% if m.ordner %} · Ordner: {{ m.ordner }}{% endif %}
+        {% if m.dokument_id %}<br>Dokument: <a href="{{ url_for('main.dokument', did=m.dokument_id) }}">öffnen</a>{% endif %}
+        {% if m.anfrage_id %}<br>Kontaktformular: <a href="{{ url_for('main.anfrage', aid=m.anfrage_id) }}">Anfrage öffnen</a>{% endif %}
+        {% if m.anhaenge %}<br>Anhänge: {% for a in m.anhaenge %}{{ a.name }} ({{ (a.groesse / 1024)|round|int }} KB){{ ', ' if not loop.last }}{% endfor %} – nur im Postfach gespeichert{% endif %}</div>
+      <div class="mail-text">{{ m.text or '' }}</div>
+    </div>
+  </details>
+  {% else %}<p class="klein">Noch keine E-Mails mit diesem Kunden{{ ' gefunden' if einst.historie_aktiv }}.</p>{% endfor %}
+</div>
+{% if anfragen %}
+<div class="karte">
+  <h2>Anfragen</h2>
+  <table class="liste">
+    <tr><th>Eingang</th><th>Gerät</th><th>Nachricht</th></tr>
+    {% for a in anfragen %}<tr><td><a href="{{ url_for('main.anfrage', aid=a.id) }}">{{ a.eingang_am|zeit }}</a></td><td>{{ a.geraet }}</td><td class="klein">{{ (a.nachricht or '')|truncate(120) }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+<div class="karte">
+  <h2>Datenschutz</h2>
+  <p class="klein">Beim Löschen prüft das Programm die Aufbewahrungsfristen ({{ einst.aufbewahrung_belege_jahre }} Jahre für Rechnungen/Buchungsbelege, {{ einst.aufbewahrung_briefe_jahre }} Jahre für Geschäftsbriefe). Gibt es aufbewahrungspflichtige Unterlagen, werden die Stammdaten anonymisiert – Name und Anschrift bleiben dann nur in den archivierten Belegen. Sonst wird der Kunde vollständig gelöscht. Vorher sehen Sie genau, was gelöscht und was behalten wird.</p>
+  <div class="leiste">
+    <form method="post" action="{{ url_for('main.kunde_archivieren', kid=k.id) }}" class="inline">{{ csrf() }}
+      {% if k.archiviert %}<input type="hidden" name="zurueck" value="1"><button class="zweit">Wieder aktivieren</button>
+      {% else %}<button class="zweit">Archivieren</button>{% endif %}
+    </form>
+    <a class="knopf zweit" href="{{ url_for('main.kunde_auskunft', kid=k.id) }}">Auskunft (Art. 15 DSGVO) herunterladen</a>
+    {% if not k.anonymisiert_am %}<a class="knopf gefahr" href="{{ url_for('main.kunde_loeschen', kid=k.id) }}">Löschen …</a>{% endif %}
+  </div>
+</div>
+{{ aenderungen_karte(aenderungen) }}
+{% endif %}
+{% endblock %}

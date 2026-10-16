@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Rechnungen aus dem Postfach{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Eingangsrechnungen aus dem Postfach</h1><a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen') }}">← Eingangsrechnungen</a></div>
+<p class="klein">Ordner „{{ ordner }}“ (änderbar unter <a href="{{ url_for('main.einstellungen', bereich='einkauf') }}">Einstellungen → Einkauf</a>). Angezeigt werden die letzten 30 Mails mit PDF- oder XML-Anhang. Das Postfach wird nur gelesen – nichts wird verschoben oder gelöscht.</p>
+{% if fehler %}<div class="meldung fehler">{{ fehler }}</div>{% endif %}
+<div class="karte"><table class="liste"><thead><tr><th>Datum</th><th>Von</th><th>Betreff</th><th>Anhänge</th></tr></thead><tbody>
+{% for m in liste %}<tr><td>{{ m.datum|datum if m.datum else '' }}</td><td>{{ m.von }}<div class="klein">{{ m.von_adresse }}</div></td><td>{{ m.betreff }}</td>
+  <td>{% for a in m.anhaenge %}<form method="post" style="margin-bottom:4px">{{ csrf() }}<input type="hidden" name="uid" value="{{ m.uid }}"><input type="hidden" name="index" value="{{ a.index }}">
+    {{ a.name }} <span class="klein">({{ (a.groesse / 1024)|round|int }} KB)</span>
+    {% if a.erfasst %}<span class="marke-status st-gesendet">bereits erfasst</span>{% else %}<button class="klein">übernehmen</button>{% endif %}</form>{% endfor %}</td></tr>
+{% else %}{% if not fehler %}<tr><td colspan="4" class="klein">Keine Mails mit Rechnungsanhang gefunden.</td></tr>{% endif %}{% endfor %}</tbody></table></div>
+{% endblock %}

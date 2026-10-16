@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Lager{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Lager</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.artikel') }}">+ Neuer Artikel</a>
+    <a class="knopf {{ 'zweit' if not unter_min }}" href="{{ url_for('main.lager_bestellvorschlag') }}">Bestellvorschlag erstellen{{ (' (' ~ unter_min ~ ')') if unter_min }}</a></div></div>
+<nav class="reiter">
+  {% for k, n in [('bestand','Bestand'),('mindest','Unter Mindestbestand'),('bewegungen','Lagerbewegungen'),('wert','Lagerwert'),('inventur','Inventur')] %}
+  <a href="{{ url_for('main.lager', ansicht=k) }}" class="{{ 'aktiv' if ansicht == k }}">{{ n }}{% if k == 'mindest' and unter_min %} <span class="zahl" style="background:var(--rot-hell);color:var(--rot)">{{ unter_min }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+{% if ansicht in ('bestand', 'mindest') %}
+<form class="leiste" method="get"><input type="hidden" name="ansicht" value="{{ ansicht }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Suchen: Name, Art.-Nr., EAN, Herstellernr., Kompatibilität (z. B. „iPhone 13“), Lagerort" style="flex:1"><button class="zweit">Suchen</button></form>
+<div class="karte" style="margin-top:10px">
+  <table class="liste"><thead><tr><th>Lagerort</th><th>Artikel</th><th>Kompatibel mit</th><th class="zahl">Bestand</th><th class="zahl">reserviert</th><th class="zahl">verfügbar</th><th class="zahl">Mindest</th><th class="zahl">Wert (EK)</th></tr></thead><tbody>
+  {% for z in zeilen %}{% set a = z.a %}<tr {% if z.unter_min %}style="background:var(--rot-hell)"{% endif %}>
+    <td>{{ a.lagerort or '' }}</td><td><a href="{{ url_for('main.artikel', aid=a.id) }}#lager"><b>{{ a.name }}</b></a><div class="klein">{{ [a.artikelnr, a.herstellernr, a.ean]|select|join(' · ') }}</div></td>
+    <td class="klein">{{ a.kompatibilitaet or '' }}</td>
+    <td class="zahl">{{ a.bestand|menge }} {{ a.einheit or '' }}</td><td class="zahl">{{ a.reserviert|menge if a.reserviert else '' }}</td>
+    <td class="zahl"><b>{{ z.verfuegbar|menge }}</b>{% if z.unter_min %} <span class="marke-status st-fehler">unter Mindestbestand</span>{% endif %}</td>
+    <td class="zahl">{{ a.mindestbestand|menge if a.mindestbestand is not none else '' }}</td>
+    <td class="zahl">{{ z.wert|euro if not a.ek_unbekannt else 'EK unbekannt' }}</td></tr>
+  {% else %}<tr><td colspan="8" class="klein">{% if ansicht == 'mindest' %}Kein Artikel unter Mindestbestand.{% else %}Keine lagerführenden Artikel{{ ' gefunden' if q }}. Unter <a href="{{ url_for('main.artikel_liste') }}">Leistungen &amp; Artikel</a> bei einem Artikel „lagerführend“ anhaken.{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  <p class="klein">Bestand ändern Sie über den Artikel (Zugang, Abgang, Korrektur – immer mit Grund) oder per Inventur. Material für Aufträge wird reserviert und beim Erledigen ausgebucht.</p>
+</div>
+
+{% elif ansicht == 'bewegungen' %}
+<div class="karte"><table class="liste"><thead><tr><th>Zeitpunkt</th><th>Artikel</th><th>Art</th><th class="zahl">Menge</th><th class="zahl">Bestand danach</th><th>Grund</th><th>Auftrag</th><th>Benutzer</th></tr></thead><tbody>
+  {% for b in bewegungen %}<tr><td>{{ b.zeitpunkt|zeit_sek }}</td><td><a href="{{ url_for('main.artikel', aid=b.artikel_id) }}#lager">{{ b.name }}</a></td><td>{{ arten[b.art] }}</td>
+    <td class="zahl" style="color:{{ 'var(--gruen)' if b.menge > 0 else 'var(--rot)' }}">{{ '+' if b.menge > 0 }}{{ b.menge|menge }}</td><td class="zahl">{{ b.bestand_danach|menge }}</td>
+    <td>{{ b.grund }}</td><td>{% if b.auftrag_id %}<a href="{{ url_for('main.auftrag', aid=b.auftrag_id) }}">{{ b.auftragsnr }}</a>{% endif %}</td><td>{{ b.benutzer }}</td></tr>
+  {% else %}<tr><td colspan="8" class="klein">Noch keine Lagerbewegungen.</td></tr>{% endfor %}
+</tbody></table><p class="klein">Lagerbewegungen können nicht geändert oder gelöscht werden.</p></div>
+
+{% elif ansicht == 'wert' %}
+<form class="leiste" method="get"><input type="hidden" name="ansicht" value="wert"><label style="margin:0">Stichtag</label><input type="date" name="stichtag" value="{{ stichtag }}" style="width:auto"><button class="zweit">Berechnen</button></form>
+<div class="karte" style="margin-top:10px">
+  <h2>Lagerwert zum {{ stichtag|datum }}: {{ wert_summe|euro }}</h2>
+  <table class="liste"><thead><tr><th>Artikel</th><th>Lagerort</th><th class="zahl">Bestand</th><th class="zahl">EK</th><th class="zahl">Wert</th></tr></thead><tbody>
+  {% for z in wert_zeilen %}<tr><td>{{ z.a.name }}</td><td>{{ z.a.lagerort or '' }}</td><td class="zahl">{{ z.bestand|menge }} {{ z.a.einheit or '' }}</td><td class="zahl">{{ z.ek|euro }}{% if z.ek_unbekannt %} <span class="klein">(unbekannt)</span>{% endif %}</td><td class="zahl">{{ z.wert|euro }}</td></tr>
+  {% else %}<tr><td colspan="5" class="klein">Kein Bestand zum Stichtag.</td></tr>{% endfor %}</tbody></table>
+  <p class="klein">Bestand laut Lagerbewegungen bis einschließlich Stichtag, bewertet mit dem aktuellen Einkaufspreis des Artikels.</p>
+</div>
+
+{% elif ansicht == 'inventur' %}
+<form method="post" action="{{ url_for('main.inventur_neu') }}" class="karte">{{ csrf() }}
+  <h2>Neue Inventur</h2>
+  <div class="felder"><div class="s3"><label>Stichtag</label><input type="date" name="stichtag" value="{{ heute }}"></div>
+    <div class="s6"><label>Bezeichnung</label><input type="text" name="bezeichnung" placeholder="z. B. Jahresinventur {{ heute[:4] }}"></div></div><br>
+  <button>Inventur anlegen</button>
+  <p class="klein">Übernimmt alle lagerführenden Artikel mit dem aktuellen Bestand als Soll. Dann zählen (am PC, auf Papier oder per Handy), Differenzen buchen und abschließen.</p>
+</form>
+<div class="karte"><h2>Inventuren</h2><table class="liste"><thead><tr><th>Stichtag</th><th>Bezeichnung</th><th>Status</th><th class="zahl">Differenzen</th><th class="zahl">Lagerwert</th><th></th></tr></thead><tbody>
+  {% for i in inventuren %}<tr><td>{{ i.stichtag|datum }}</td><td><a href="{{ url_for('main.inventur', iid=i.id) }}">{{ i.bezeichnung }}</a></td><td>{{ i.status }}</td><td class="zahl">{{ i.differenzen if i.differenzen is not none else '' }}</td><td class="zahl">{{ i.lagerwert|euro if i.lagerwert is not none else '' }}</td>
+    <td>{% if i.pdf_datei %}<a href="{{ url_for('main.inventur_protokoll', iid=i.id) }}" target="_blank">Protokoll (PDF)</a>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="klein">Noch keine Inventur.</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% endblock %}

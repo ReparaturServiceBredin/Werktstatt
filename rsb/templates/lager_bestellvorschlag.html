@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titel %}Bestellvorschlag{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Bestellvorschlag vom {{ heute|datum }}</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.lager', ansicht='mindest') }}">← Lager</a>
+    <a class="knopf zweit" href="{{ url_for('main.lager_bestellvorschlag', format='csv') }}">Als CSV (Excel)</a>
+    <button class="zweit" onclick="window.print()">Drucken</button></div></div>
+<form method="post" action="{{ url_for('main.bestellungen_aus_vorschlag') }}" class="karte"><input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <table class="liste"><thead><tr><th></th><th>Artikel</th><th>Herstellernr. / EAN</th><th>Lagerort</th><th class="zahl">verfügbar</th><th class="zahl">Mindest</th><th class="zahl">Bestellmenge</th><th class="zahl">EK</th><th class="zahl">Summe</th></tr></thead><tbody>
+  {% for z in vorschlag %}{% set a = z.a %}<tr><td><input type="checkbox" name="artikel_id" value="{{ a.id }}" checked></td><td><a href="{{ url_for('main.artikel', aid=a.id) }}#lager">{{ a.name }}</a></td><td class="klein">{{ [a.herstellernr, a.ean]|select|join(' / ') }}</td><td>{{ a.lagerort or '' }}</td>
+    <td class="zahl">{{ z.verfuegbar|menge }}</td><td class="zahl">{{ a.mindestbestand|menge }}</td><td class="zahl"><input type="text" name="menge_{{ a.id }}" value="{{ z.menge }}" style="width:70px;text-align:right"> {{ a.einheit or '' }}</td><td class="zahl">{{ (a.teilekosten or 0)|euro }}</td><td class="zahl">{{ z.summe|euro }}</td></tr>
+  {% else %}<tr><td colspan="9" class="klein">Alle Artikel sind über dem Mindestbestand.</td></tr>{% endfor %}
+  </tbody>{% if vorschlag %}<tfoot><tr><td colspan="8" class="zahl"><b>Summe (EK)</b></td><td class="zahl"><b>{{ summe|euro }}</b></td></tr></tfoot>{% endif %}</table>
+  {% if vorschlag %}<br><button>Bestellungen anlegen (je Lieferant der günstigste)</button>{% endif %}
+  <p class="klein">Vorschlag: auffüllen auf das Doppelte des Mindestbestands (verfügbar = Bestand − reserviert). Je Lieferant entsteht ein Bestellentwurf; Artikel ohne Bezugsquelle werden gemeldet.</p>
+</form>
+{% endblock %}

@@ -1,0 +1,5 @@
+Mitgelieferte Schriften (alle unter der SIL Open Font License 1.1, frei nutzbar auch gewerblich):
+- Montserrat – Copyright The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+- Open Sans – Copyright The Open Sans Project Authors (https://github.com/googlefonts/opensans)
+- Lato – Copyright Łukasz Dziedzic (https://www.latofonts.com)
+Lizenztext: https://openfontlicense.org

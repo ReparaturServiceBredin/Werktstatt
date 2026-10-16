@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf, dokname %}
+{% block titel %}Mahnwesen{% endblock %}
+{% block inhalt %}
+{% set reiter = "rechnungen" %}{% include "_bereichsreiter.html" %}
+<div class="kopf">
+  <h1>Mahnwesen</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.einstellungen', bereich='mahnwesen') }}">Fristen, Gebühren &amp; Texte</a></div>
+</div>
+<form method="post" action="{{ url_for('main.mahnungen_erstellen') }}" class="karte">{{ csrf() }}
+  <h2>Fällige Schreiben (Vorschlag)</h2>
+  {% if vorschlaege %}
+  <p class="klein">Bitte vor dem Erstellen den Kontoauszug abgleichen – vielleicht ist schon gezahlt worden. Erstellte Schreiben werden mit Nummer archiviert; danach per E-Mail senden oder ausdrucken.</p>
+  <table class="liste"><tr><th></th><th>Rechnung</th><th>Kunde</th><th>Fällig</th><th class="zahl">Offen</th><th>Nächster Schritt</th></tr>
+  {% for v in vorschlaege %}<tr><td><input type="checkbox" name="auswahl" value="{{ v.d.id }}:{{ v.stufe }}" checked></td>
+    <td><a href="{{ url_for('main.dokument', did=v.d.id) }}#zahlungen">{{ v.d.nummer }}</a></td><td>{{ dokname(v.d) }}{% if not v.d.kemail %} <span class="klein">(keine E-Mail)</span>{% endif %}</td>
+    <td>{{ v.d.faellig_am|datum }} <span class="klein">({{ v.s.tage_ueberfaellig }} Tage)</span></td><td class="zahl">{{ v.s.offen|euro }}</td>
+    <td><b>{{ v.titel }}</b></td></tr>{% endfor %}
+  </table><br><button>Ausgewählte Schreiben erstellen</button>
+  {% else %}<p class="klein">Zurzeit ist keine Erinnerung oder Mahnung fällig.</p>{% endif %}
+</form>
+{% if ausgeschoepft %}
+<div class="karte"><h2>Nach der 2. Mahnung weiterhin offen</h2>
+  <p class="klein">Hier helfen nur noch persönlicher Kontakt, ein Inkassobüro oder das gerichtliche Mahnverfahren (online-mahnantrag.de).</p>
+  <table class="liste">{% for p in ausgeschoepft %}<tr><td><a href="{{ url_for('main.dokument', did=p.d.id) }}#zahlungen">{{ p.d.nummer }}</a></td><td>{{ dokname(p.d) }}</td><td class="zahl">{{ p.s.offen|euro }}</td><td>Frist abgelaufen {{ p.s.letzte_mahnung.frist_bis|datum }}</td></tr>{% endfor %}</table></div>
+{% endif %}
+<div class="karte"><h2>Zuletzt erstellt</h2>
+  <table class="liste"><tr><th>Nummer</th><th>Art</th><th>Rechnung</th><th>Kunde</th><th>Datum</th><th class="zahl">Betrag</th><th>Versand</th></tr>
+  {% for m in letzte %}<tr><td><a href="{{ url_for('main.mahnung', mid=m.id) }}"><b>{{ m.nummer }}</b></a></td><td>{{ titel[m.stufe] }}</td>
+    <td><a href="{{ url_for('main.dokument', did=m.did) }}#zahlungen">{{ m.rechnung_nummer }}</a></td><td>{{ dokname(m) }}</td><td>{{ m.datum|datum }}</td><td class="zahl">{{ m.gesamt|euro }}</td>
+    <td>{% if m.versendet_am %}<span class="klein">{{ 'E-Mail' if m.versandart == 'email' else 'Post' }} {{ m.versendet_am|zeit }}</span>{% else %}<a href="{{ url_for('main.mahnung', mid=m.id) }}" style="color:var(--rot)">noch senden</a>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="klein">Noch keine Mahnungen.</td></tr>{% endfor %}</table></div>
+{% endblock %}

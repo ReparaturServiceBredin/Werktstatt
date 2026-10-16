@@ -1,0 +1,10 @@
+{# Galerie mit Metadaten und „Als gelöscht markieren“. Erwartet: fotos, optional galerie_kategorien, zurueck #}
+{% for kat in (galerie_kategorien or fotos|map(attribute='kategorie')|unique|list) %}{% set gruppe = fotos|selectattr('kategorie', 'equalto', kat)|list %}{% if gruppe %}
+<div class="karte">
+  <h2>{{ kat }} <span class="klein">({{ gruppe|rejectattr('geloescht_am')|list|length }})</span></h2>
+  <div class="galerie">
+    {% for f in gruppe %}{% include "_foto_kachel.html" %}{% endfor %}
+  </div>
+</div>
+{% endif %}{% endfor %}
+{% if not fotos %}<p class="klein">Noch keine Fotos.</p>{% endif %}

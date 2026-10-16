@@ -1,0 +1,19 @@
+<div class="foto {{ 'geloescht' if f.geloescht_am }}">
+  <a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt="{{ f.dateiname }}" loading="lazy"></a>
+  <div class="info">
+    <b title="{{ f.dateiname }}">{{ f.dateiname|truncate(28) }}</b><br>
+    Hochgeladen: {{ f.hochgeladen_am|zeit_sek }}<br>
+    Aufnahme (EXIF): {{ f.exif_zeit|zeit_sek if f.exif_zeit else '–' }}<br>
+    Benutzer: {{ f.benutzer }} · {{ (f.groesse / 1024)|round|int }} KB<br>
+    <span class="klein" title="SHA-256: {{ f.sha256 }}">SHA-256 {{ f.sha256[:12] }}…</span>
+    {% if f.geloescht_am %}
+      <div style="color:var(--rot);margin-top:4px"><b>Als gelöscht markiert</b> {{ f.geloescht_am|zeit_sek }} ({{ f.geloescht_von }})<br>Grund: {{ f.loeschgrund }}</div>
+    {% else %}
+      <details style="margin-top:4px"><summary>Löschen …</summary>
+        <form method="post" action="{{ url_for('main.foto_loeschen', fid=f.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          {% if zurueck %}<input type="hidden" name="zurueck" value="{{ zurueck }}">{% endif %}
+          <input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)">
+          <button class="gefahr klein" style="margin-top:4px">Als gelöscht markieren</button></form></details>
+    {% endif %}
+  </div>
+</div>

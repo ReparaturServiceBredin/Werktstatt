@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Vertragsarten{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Vertragsarten</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.vertraege_liste') }}">← Verträge</a><a class="knopf" href="{{ url_for('main.vertragsarten', neu=1) }}">+ Neue Vertragsart</a></div>
+</div>
+<p class="klein">Vorlagen für neue Verträge – z. B. weitere Lizenzen, Garantien oder MSP-Pakete. Änderungen hier wirken nur auf <b>neue</b> Verträge.</p>
+{% if neu %}
+<form method="post" class="karte" action="{{ url_for('main.vertragsarten', aid=art.id) if art else url_for('main.vertragsarten') }}">{{ csrf() }}
+  <h2>{{ 'Vertragsart bearbeiten' if art else 'Neue Vertragsart' }}</h2>
+  <div class="felder">
+    <div class="s8"><label>Name</label><input type="text" name="name" required value="{{ art.name if art }}" placeholder="z. B. ESET Internet Security – 3 Geräte, 1 Jahr"></div>
+    <div class="s4"><label>Kategorie</label><select name="kategorie">{% for k in kategorien %}<option {{ 'selected' if art and art.kategorie == k }}>{{ k }}</option>{% endfor %}</select></div>
+    <div class="s12"><label>Beschreibung</label><input type="text" name="beschreibung" value="{{ art.beschreibung or '' if art }}"></div>
+    <div class="s6"><label>Abrechnung</label><select name="abrechnung">{% for k, (t, _) in abrechnung.items() %}<option value="{{ k }}" {{ 'selected' if art and art.abrechnung == k }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="s3"><label>Laufzeit (Monate)</label><input type="number" min="0" name="laufzeit_monate" value="{{ art.laufzeit_monate or '' if art }}"></div>
+    <div class="s3"><label>Mindestlaufzeit (Monate)</label><input type="number" min="0" name="mindestlaufzeit_monate" value="{{ art.mindestlaufzeit_monate or '' if art }}"></div>
+    <div class="s4"><label>Preis je Abrechnung (€)</label><input type="text" name="preis" value="{{ (art.preis|euro(false)) if art else '0,00' }}"></div>
+    <div class="s4"><label>Einkauf (€)</label><input type="text" name="einkauf" value="{{ (art.einkauf|euro(false)) if art else '0,00' }}"></div>
+    <div class="s4" style="align-self:center"><label class="check"><input type="checkbox" name="auto_verlaengern" {{ 'checked' if art and art.auto_verlaengern }}> verlängert sich automatisch</label>
+      <label class="check"><input type="checkbox" name="aktiv" {{ 'checked' if not art or art.aktiv }}> aktiv</label></div>
+  </div><br>
+  <div class="leiste"><button>Speichern</button><a class="knopf zweit" href="{{ url_for('main.vertragsarten') }}">Abbrechen</a>
+    {% if art %}<button name="loeschen" value="1" class="gefahr" onclick="return confirm('Vertragsart löschen?')">Löschen</button>{% endif %}</div>
+</form>
+{% endif %}
+<div class="karte">
+<table class="liste">
+  <tr><th>Name</th><th>Kategorie</th><th>Abrechnung</th><th>Laufzeit</th><th class="zahl">Preis</th><th class="zahl">Einkauf</th></tr>
+  {% for a in liste %}
+  <tr style="{{ 'opacity:.5' if not a.aktiv }}"><td><a href="{{ url_for('main.vertragsarten', aid=a.id) }}"><b>{{ a.name }}</b></a><div class="klein">{{ a.beschreibung or '' }}</div></td>
+    <td>{{ a.kategorie }}</td><td>{{ abrechnung[a.abrechnung][0] }}{{ ' · verlängert automatisch' if a.auto_verlaengern }}</td>
+    <td>{{ (a.laufzeit_monate ~ ' Monate') if a.laufzeit_monate else 'unbefristet' }}{{ (' · mind. ' ~ a.mindestlaufzeit_monate) if a.mindestlaufzeit_monate }}</td>
+    <td class="zahl">{{ a.preis|euro }}</td><td class="zahl">{{ a.einkauf|euro }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

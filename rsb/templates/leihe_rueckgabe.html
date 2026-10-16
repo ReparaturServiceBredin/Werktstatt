@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_foto_upload.html" import hochladen %}
+{% block titel %}Rücknahme {{ le.leihnr }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <div><h1>Leihgerät zurücknehmen</h1>
+    <div class="auftrag-kopf" style="margin-top:6px"><span><b>{{ le.bezeichnung }}</b> · {{ le.leihnr }}</span>
+      <span>Kunde <b>{{ le.kundennr }} · {{ le.firma if le.ktyp == 'firma' and le.firma else (le.vorname or '') ~ ' ' ~ (le.nachname or '') }}</b></span>
+      <span>Ausgabe {{ le.ausgabe_am|zeit_sek }}</span><span>Gebühr: {{ gebuehr }}</span></div></div>
+  <a class="knopf zweit" href="{{ url_for('main.leihe', lid=le.id) }}">← Zum Leihvorgang</a>
+</div>
+<form method="post" id="rueckgabeformular">{{ csrf() }}
+  <input type="hidden" name="upload_token" value="{{ token }}">
+  <div class="zweispaltig">
+    <div class="karte">
+      <h2>Rückgabe</h2>
+      <div class="felder">
+        <div class="s12"><label>Rückgabe (Datum/Uhrzeit)</label><input type="datetime-local" step="1" name="rueckgabe_am" id="f_rueckgabe" value="{{ werte.rueckgabe_am or jetzt }}">
+          <div class="hilfe">vorbelegt mit der Server-Zeit (Europe/Berlin)</div></div>
+      </div>
+      <h2 style="margin-top:14px">Zubehör zurück?</h2>
+      <div class="checkliste" id="zubehoer">
+        {% for z in zubehoer_aus %}<label class="check"><input type="checkbox" name="zubehoer" value="{{ z }}" {{ 'checked' if zubehoer_auswahl is none or z in zubehoer_auswahl }}> {{ z }}</label>
+        {% else %}<span class="klein">Es wurde kein Zubehör mitgegeben.</span>{% endfor %}
+      </div>
+      <div class="meldung warnung" id="fehlt_hinweis" hidden style="margin-top:10px">Es fehlt Zubehör – bitte unten einen Schadensfall erfassen.</div>
+      <h2 style="margin-top:14px">Zustand</h2>
+      <div class="leiste">
+        <label class="check"><input type="radio" name="zustand" value="einwandfrei" {{ 'checked' if werte.zustand != 'schaden' }}> einwandfrei</label>
+        <label class="check"><input type="radio" name="zustand" value="schaden" {{ 'checked' if werte.zustand == 'schaden' }}> Schaden festgestellt</label>
+      </div>
+      <label style="margin-top:10px">Notiz</label><textarea name="rueckgabe_notiz" placeholder="z. B. Gerät zurückgesetzt, Kundendaten gelöscht">{{ werte.rueckgabe_notiz or '' }}</textarea>
+    </div>
+    <div class="karte">
+      <h2>Leihgebühr</h2>
+      <table class="liste">
+        <tr><td>Ausgabe</td><td>{{ le.ausgabe_am|zeit_sek }}</td></tr>
+        <tr><td>Leihtage</td><td id="anz_tage">{{ tage }}</td></tr>
+        <tr><td>Berechnung</td><td id="anz_text">{{ text }}</td></tr>
+      </table>
+      <label style="margin-top:10px">Leihgebühr (€) – vor Übernahme änderbar</label>
+      <input type="text" name="gebuehr" id="f_gebuehr" value="{{ werte.gebuehr or (vorschlag|euro)[:-2] }}">
+      <div class="hilfe" id="gebuehr_hinweis"></div>
+      {% if le.kaution_erhalten %}<p class="klein" style="margin-top:12px">Kaution: {{ le.kaution_betrag|euro }} ({{ le.kaution_zahlart }}). Ohne Schaden wird sie als „zurückzuzahlen“ markiert, bei einem Schaden verrechnet.</p>{% endif %}
+      {% if ziel == 'warten' %}
+      <p class="klein" style="margin-top:12px">Leihgebühr und ggf. Schadenersatz werden automatisch in die Rechnung übernommen, sobald der Auftrag auf „Erledigt“ gezogen wird.</p>
+      {% else %}
+      <label class="check" style="margin-top:12px"><input type="checkbox" name="abrechnen" {{ 'checked' if werte.abrechnen or (not werte and ziel == 'separat') }}> {{ 'gleich in den Rechnungsentwurf des Auftrags übernehmen' if ziel == 'entwurf' else 'gleich eine eigene Rechnung erstellen' }}</label>
+      <div class="hilfe">{{ 'Der Auftrag ist bereits erledigt bzw. wird separat abgerechnet.' if ziel == 'separat' else 'Die Positionen werden an den vorhandenen Entwurf angehängt.' }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="karte" id="schadenbereich" hidden>
+    <h2>Schadensfall</h2>
+    <div class="felder">
+      <div class="s12"><label>Beschreibung</label><textarea name="schaden_beschreibung" id="f_schaden_text">{{ werte.schaden_beschreibung or '' }}</textarea></div>
+      <div class="s4"><label>Kostenart</label><select name="kostenart" id="f_kostenart">{% for k, n in kostenarten.items() %}<option value="{{ k }}" {{ 'selected' if werte.kostenart == k }}>{{ n }}</option>{% endfor %}</select></div>
+      <div class="s4"><label>Betrag (€)</label><input type="text" name="schaden_betrag" id="f_schaden_betrag" value="{{ werte.schaden_betrag or '' }}" data-zeitwert="{{ (le.zeitwert|euro)[:-2] }}">
+        <div class="hilfe">bei Totalschaden/Verlust mit dem Zeitwert ({{ le.zeitwert|euro }}) vorbelegt</div></div>
+      <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag" {{ 'checked' if werte.interner_auftrag }}> internen Reparaturauftrag für das Leihgerät anlegen</label></div>
+    </div>
+    <div id="verrechnung" class="klein" style="margin-top:10px"></div>
+    <p class="klein" style="margin-top:12px">Schadensfotos (Kategorie „Leihgerät Schaden“):</p>
+    {{ hochladen(url_for('main.leihe_fotos_vorab'), ['Leihgerät Schaden'], token=token, neu_laden=False) }}
+  </div>
+  <div class="karte">
+    <h2>Fotos bei Rückgabe</h2>
+    <div class="vergleich">
+      <div><h3>Bei Ausgabe</h3><div class="galerie">{% for f in ausgabe_fotos %}<div class="foto"><a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt=""></a><div class="info">{{ f.hochgeladen_am|zeit_sek }}<br>{{ f.dateiname }}</div></div>{% else %}<span class="klein">keine Fotos</span>{% endfor %}</div></div>
+      <div><h3>Jetzt (Rückgabe)</h3>
+        {{ hochladen(url_for('main.leihe_fotos_vorab'), ['Leihgerät Rückgabe'], token=token, neu_laden=False) }}
+        <div class="galerie" id="galerie-neu">{% for f in fotos %}<div class="foto"><a href="{{ url_for('main.foto_original', fid=f.id) }}" target="_blank"><img src="{{ url_for('main.foto_vorschau', fid=f.id) }}" alt=""></a><div class="info"><b>{{ f.kategorie }}</b><br>{{ f.dateiname }}</div></div>{% endfor %}</div></div>
+    </div>
+  </div>
+  <div class="leiste"><button>Rücknahme speichern</button><a class="knopf zweit" href="{{ url_for('main.leihe', lid=le.id) }}">Abbrechen</a></div>
+  <p class="klein">Danach können Sie das Rückgabeprotokoll als PDF drucken oder per E-Mail senden.</p>
+</form>
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const L = {{ {'ausgabe': le.ausgabe_am[:10], 'art': le.gebuehr_art, 'betrag': le.gebuehr_betrag, 'frei': le.frei_tage, 'kaution': le.kaution_betrag if le.kaution_erhalten else 0}|tojson }};
+const f = document.getElementById('rueckgabeformular');
+const euroT = c => (c / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let letzterVorschlag = document.getElementById('f_gebuehr').value;
+function gebuehrRechnen() {
+  const rueck = (f.rueckgabe_am.value || '').slice(0, 10);
+  if (!rueck) return;
+  const tage = Math.max(1, Math.round((new Date(rueck) - new Date(L.ausgabe)) / 86400000));
+  let betrag = 0, text = `${tage} Tag(e)`;
+  if (L.art === 'tag') {
+    const b = Math.max(0, tage - L.frei); betrag = b * L.betrag;
+    text += (L.frei ? ` − ${L.frei} kostenlose Tag(e)` : '') + ` = ${b} Tag(e) à ${euroT(L.betrag)} € = ${euroT(betrag)} €`;
+  } else if (L.art === 'pauschal') { betrag = L.betrag; text += `, pauschal ${euroT(betrag)} €`; }
+  else text += L.art === 'kulanz' ? ', kostenlos (Kulanz)' : ', kostenlos';
+  document.getElementById('anz_tage').textContent = tage;
+  document.getElementById('anz_text').textContent = text;
+  const feld = document.getElementById('f_gebuehr');
+  if (feld.value === letzterVorschlag) { feld.value = euroT(betrag); letzterVorschlag = feld.value; }
+  document.getElementById('gebuehr_hinweis').textContent = feld.value !== euroT(betrag) ? `Berechnet wären ${euroT(betrag)} € – Ihr Betrag wird übernommen.` : '';
+}
+function schadenPruefen() {
+  const fehlt = [...f.querySelectorAll('[name=zubehoer]')].filter(c => !c.checked).map(c => c.value);
+  const schaden = f.querySelector('[name=zustand]:checked').value === 'schaden';
+  document.getElementById('fehlt_hinweis').hidden = !fehlt.length;
+  document.getElementById('schadenbereich').hidden = !(schaden || fehlt.length);
+  const text = document.getElementById('f_schaden_text');
+  if (fehlt.length && (!text.value || text.dataset.auto === '1')) {
+    text.value = 'Fehlendes Zubehör: ' + fehlt.join(', '); text.dataset.auto = '1';
+    if (!schaden) document.getElementById('f_kostenart').value = 'zubehoer';
+  }
+  verrechnungZeigen();
+}
+function verrechnungZeigen() {
+  const s = Math.round(zahl(document.getElementById('f_schaden_betrag').value) * 100);
+  const el = document.getElementById('verrechnung');
+  if (!L.kaution || !s) { el.textContent = ''; return; }
+  const ang = Math.min(L.kaution, s);
+  el.innerHTML = `Verrechnung mit Kaution: Schaden ${euroT(s)} € − Kaution ${euroT(L.kaution)} € → ` +
+    (s > L.kaution ? `<b>noch zu zahlen ${euroT(s - ang)} €</b>` : `<b>Erstattung an Kunden ${euroT(L.kaution - ang)} €</b>`);
+}
+document.getElementById('f_schaden_text').addEventListener('input', e => e.target.dataset.auto = '0');
+document.getElementById('f_kostenart').addEventListener('change', e => {
+  const b = document.getElementById('f_schaden_betrag');
+  if (e.target.value === 'totalschaden' && !b.value) { b.value = b.dataset.zeitwert; verrechnungZeigen(); }
+});
+document.getElementById('f_schaden_betrag').addEventListener('input', verrechnungZeigen);
+f.rueckgabe_am.addEventListener('change', gebuehrRechnen);
+document.getElementById('f_gebuehr').addEventListener('input', gebuehrRechnen);
+f.querySelectorAll('[name=zubehoer], [name=zustand]').forEach(e => e.addEventListener('change', schadenPruefen));
+schadenPruefen(); gebuehrRechnen();
+</script>
+{% endblock %}

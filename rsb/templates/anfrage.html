@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Anfrage{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Anfrage von {{ anzeigename(a) }}</h1>
+  <a class="knopf zweit" href="{{ url_for('main.anfragen_liste') }}">Zurück zur Liste</a>
+</div>
+<div class="zweispaltig">
+<div>
+  <div class="karte">
+    <h2>Angaben</h2>
+    <table class="liste">
+      <tr><td>Eingang</td><td>{{ a.eingang_am|zeit }} ({{ 'E-Mail' if a.quelle == 'email' else 'manuell eingefügt' }})</td></tr>
+      <tr><td>Name</td><td>{{ a.name or '–' }}</td></tr>
+      <tr><td>Telefon</td><td>{% if a.telefon %}<a href="tel:{{ a.telefon }}">{{ a.telefon }}</a>{% else %}–{% endif %}</td></tr>
+      <tr><td>E-Mail</td><td>{% if a.email %}<a href="mailto:{{ a.email }}">{{ a.email }}</a>{% else %}–{% endif %}</td></tr>
+      <tr><td>Gerät</td><td>{{ a.geraet or '–' }}{% if leistungsart %} <span class="klein">→ {{ leistungsart }}</span>{% endif %}</td></tr>
+      {% for k, v in felder.items() if k not in ('name','telefon','email','geraet','nachricht') %}<tr><td>{{ k|capitalize }}</td><td>{{ v }}</td></tr>{% endfor %}
+      <tr><td>Nachricht</td><td style="white-space:pre-wrap">{{ a.nachricht or '–' }}</td></tr>
+    </table>
+  </div>
+  <div class="karte">
+    <h2>Bewertung: {{ {'echt':'echte Anfrage','unsicher':'unsicher','spam':'Spam'}[a.einstufung] }} ({{ a.spam_punkte }} Punkte)</h2>
+    <p class="klein">Ab {{ einst.anfrage_schwelle_unsicher }} Punkten „unsicher“, ab {{ einst.anfrage_schwelle_spam }} Punkten „Spam“. Negative Punkte sprechen für eine echte Anfrage.</p>
+    <ul>{% for g in gruende %}<li class="klein">{{ g }}</li>{% else %}<li class="klein">keine Auffälligkeiten</li>{% endfor %}</ul>
+  </div>
+</div>
+<div>
+  <div class="karte">
+    <h2>Kunde</h2>
+    {% if kunde %}
+      <p>{{ 'Angelegt als' if a.status == 'kunde_angelegt' else 'Zugeordnet zu' }}: <a href="{{ url_for('main.kunde', kid=kunde.id) }}"><b>{{ kunde.kundennr }} · {{ kunde|kname }}</b></a>
+        {% if kunde.interessent %}<span class="marke-status st-entwurf">Interessent</span>{% endif %}</p>
+      {% if g.auftrag %}
+        <a class="knopf" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">Zum Reparaturauftrag {{ g.auftrag.auftragsnr }}</a>
+      {% else %}
+      <form method="post" action="{{ url_for('main.auftrag_neu') }}">{{ csrf() }}
+        <input type="hidden" name="kunde_id" value="{{ kunde.id }}"><input type="hidden" name="anfrage_id" value="{{ a.id }}">
+        <input type="hidden" name="geraet" value="{{ a.geraet or '' }}"><input type="hidden" name="leistungsart" value="{{ leistungsart or '' }}">
+        <input type="hidden" name="fehler" value="{{ a.nachricht or '' }}">
+        <button>Reparaturauftrag anlegen</button>
+      </form>
+      {% endif %}
+    {% elif a.status == 'verworfen' %}
+      <p class="klein">Anfrage wurde verworfen.</p>
+    {% else %}
+      {% if vorhanden %}<div class="meldung info">Es gibt bereits den Kunden <a href="{{ url_for('main.kunde', kid=vorhanden.id) }}">{{ vorhanden.kundennr }} · {{ vorhanden|kname }}</a> mit gleicher E-Mail/Telefonnummer. Die Anfrage wird ihm zugeordnet.</div>{% endif %}
+      <form method="post" action="{{ url_for('main.anfrage_aktion', aid=a.id) }}">{{ csrf() }}
+        <div class="felder">
+          <div><label>Vorname</label><input type="text" name="vorname" value="{{ a.vorname or '' }}"></div>
+          <div><label>Nachname</label><input type="text" name="nachname" value="{{ a.nachname or '' }}"></div>
+        </div>
+        <p class="hilfe">Bitte kurz prüfen, ob Vor- und Nachname richtig erkannt wurden.</p>
+        <div class="leiste">
+          <button name="aktion" value="kunde">{{ 'Zuordnen' if vorhanden else 'Als Kunde (Interessent) anlegen' }}</button>
+          <input type="hidden" name="danach" value="kunde">
+        </div>
+      </form>
+    {% endif %}
+  </div>
+  {% if not kunde %}
+  <div class="karte">
+    <h2>Weitere Aktionen</h2>
+    <form method="post" action="{{ url_for('main.anfrage_aktion', aid=a.id) }}" class="leiste">{{ csrf() }}
+      {% if a.einstufung == 'spam' %}<button name="aktion" value="kein_spam" class="zweit">Kein Spam</button>
+      {% elif not kunde %}<button name="aktion" value="spam" class="zweit">Ist Spam</button>{% endif %}
+      {% if not kunde and a.status != 'verworfen' %}<button name="aktion" value="verwerfen" class="gefahr">Verwerfen</button>{% endif %}
+    </form>
+  </div>
+  {% endif %}
+  <div class="karte">
+    <h2>Original</h2>
+    <p class="klein">Von: {{ a.absender or '–' }} · Betreff: {{ a.betreff or '–' }}</p>
+    <pre class="klein" style="white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--grau-hell);padding:10px;border-radius:6px">{{ a.rohtext }}</pre>
+  </div>
+</div>
+</div>
+{% endblock %}

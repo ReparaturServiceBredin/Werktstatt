@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_status.html" import status, csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ snap.titel }} {{ d.nummer }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>{{ snap.titel }} {{ d.nummer }} {{ status(d.status) }}</h1>
+  <div class="leiste">
+    {% if g.auftrag %}<a class="knopf zweit" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">← Auftrag {{ g.auftrag.auftragsnr }}</a>{% endif %}
+    <a class="knopf" href="{{ url_for('main.dokument_email', did=d.id) }}">Per E-Mail senden</a>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_drucken', did=d.id) }}" target="_blank">Drucken</a>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_pdf', did=d.id, download=1) }}">PDF herunterladen</a>
+  </div>
+</div>
+{% if storno %}<div class="meldung warnung">Diese Rechnung wurde durch <a href="{{ url_for('main.dokument', did=storno.id) }}">{{ storno.nummer }}</a> storniert.</div>{% endif %}
+{% if bezug %}<div class="meldung info">Stornorechnung zu <a href="{{ url_for('main.dokument', did=bezug.id) }}">{{ bezug.nummer }}</a>.</div>{% endif %}
+<div class="zweispaltig">
+  <div>
+    <div class="karte">
+      <h2>Angaben</h2>
+      <table class="liste">
+        <tr><td>Kunde</td><td>{% if kunde %}<a href="{{ url_for('main.kunde', kid=kunde.id) }}">{{ snap.kunde.name }}</a>{% endif %}</td></tr>
+        <tr><td>Datum</td><td>{{ snap.datum|datum }}</td></tr>
+        {% if snap.leistungsdatum %}<tr><td>Leistungsdatum</td><td>{{ snap.leistungsdatum|datum }}{% if snap.leistungsdatum_bis %} – {{ snap.leistungsdatum_bis|datum }}{% endif %}</td></tr>{% endif %}
+        {% if d.typ == 'kva' %}<tr><td>Gültig bis</td><td>{{ snap.faellig_am|datum }}</td></tr>{% endif %}
+        {% if d.typ == 'kva' %}
+        <tr><td>Reparaturauftrag</td><td>{% if g.auftrag %}<a href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}"><b>{{ g.auftrag.auftragsnr }}</b></a>{% if g.auftrag.kunde_id != d.kunde_id %} <span class="marke-status st-warnung">anderer Kunde</span>{% endif %}{% else %}<span class="klein">keinem Auftrag zugeordnet</span>{% endif %}</td></tr>
+        <tr><td>Status</td><td><form method="post" action="{{ url_for('main.kva_status', did=d.id) }}" class="leiste">{{ csrf() }}
+          <select name="kva_status" style="width:auto">{% for s in ['offen', 'angenommen', 'abgelehnt'] %}<option {{ 'selected' if (d.kva_status or 'offen') == s }}>{{ s }}</option>{% endfor %}</select>
+          <button class="zweit klein">Speichern</button></form></td></tr>
+        {% endif %}
+        {% if d.typ == 'rechnung' %}<tr><td>Fällig am</td><td>{{ snap.faellig_am|datum }}</td></tr>{% endif %}
+        <tr><td>Betrag</td><td><b>{{ snap.summen.brutto|euro }}</b></td></tr>
+        <tr><td>Festgeschrieben</td><td>{{ d.festgeschrieben_am|zeit_sek }}</td></tr>
+        <tr><td>Prüfsumme PDF (SHA-256)</td><td class="klein" style="word-break:break-all">{{ d.pdf_sha256 }}</td></tr>
+        {% if d.e_format and d.e_format != 'pdf' %}<tr><td>E-Rechnung</td><td><b>{{ {'zugferd': 'ZUGFeRD / Factur-X (EN 16931, XML im PDF)', 'xrechnung': 'XRechnung (CII-XML)'}[d.e_format] }}</b>
+          {% if d.xml_pfad %} · <a href="{{ url_for('main.dokument_xml', did=d.id) }}">XML herunterladen</a>{% endif %}
+          <div class="klein" style="word-break:break-all">XML SHA-256 {{ d.xml_sha256 }}</div></td></tr>{% endif %}
+        {% if d.snapshot_sha256 %}<tr><td>Prüfsumme Rechnungsdaten</td><td class="klein" style="word-break:break-all">{{ d.snapshot_sha256 }}</td></tr>{% endif %}
+        {% if aufbewahren_bis %}<tr><td>Aufbewahren bis</td><td>{{ aufbewahren_bis|datum }} <span class="klein">({{ 'Buchungsbeleg' if d.typ != 'kva' else 'Geschäftsbrief' }}, nicht löschbar)</span></td></tr>{% endif %}
+        {% if gutschriften %}<tr><td>Gutschriften</td><td>{% for gs in gutschriften %}<a href="{{ url_for('main.dokument', did=gs.id) }}">{{ gs.nummer or 'Entwurf' }}</a>{{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endif %}
+      </table>
+    </div>
+    {% if zahl %}{% set st = zahl.stand %}
+    <div class="karte" id="zahlungen">
+      <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Zahlungen</h2><span class="marke-status zs-{{ st.status }}">{{ st.status_text }}</span></div>
+      <table class="liste verrechnung">
+        <tr><td>Rechnungsbetrag</td><td>{{ st.brutto|euro }}</td></tr>
+        {% if st.gutschriften %}<tr><td>Gutschriften</td><td>{{ st.gutschriften|euro }}</td></tr>{% endif %}
+        <tr><td>Bezahlt</td><td>{{ st.bezahlt|euro }}</td></tr>
+        <tr class="summe"><td>Offen</td><td>{{ st.offen|euro }}</td></tr>
+        {% if st.gebuehren_offen %}<tr><td>Mahngebühren/Zinsen offen</td><td>{{ st.gebuehren_offen|euro }}</td></tr>{% endif %}
+        {% if st.ueberzahlt %}<tr><td>Überzahlt (Guthaben des Kunden)</td><td>{{ st.ueberzahlt|euro }}</td></tr>{% endif %}
+        <tr><td>Fällig am</td><td>{{ d.faellig_am|datum }}{% if st.tage_ueberfaellig %} <span class="klein" style="color:var(--rot)">({{ st.tage_ueberfaellig }} Tage überfällig)</span>{% endif %}</td></tr>
+      </table>
+      {% if zahl.zahlungen %}
+      <table class="liste" style="margin-top:10px"><tr><th>Datum</th><th>Art</th><th class="zahl">Betrag</th><th></th></tr>
+        {% for z in zahl.zahlungen %}<tr class="{{ 'storniert' if z.storniert_am }}"><td>{{ z.datum|datum }}<div class="klein">erfasst {{ z.erfasst_am|zeit_sek }} ({{ z.benutzer }})</div></td>
+          <td>{{ zahl.zahlarten[z.zahlart] }}{% if z.notiz %}<div class="klein">{{ z.notiz }}</div>{% endif %}{% if z.storniert_am %}<div class="klein" style="text-decoration:none">storniert {{ z.storniert_am|zeit }}: {{ z.storno_grund }}</div>{% endif %}</td>
+          <td class="zahl">{{ z.betrag|euro }}</td>
+          <td>{% if not z.storniert_am %}<details><summary class="klein" style="cursor:pointer;color:var(--rot)">stornieren</summary>
+            <form method="post" action="{{ url_for('main.zahlung_stornieren', zid=z.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)"><button class="gefahr klein" style="margin-top:4px">Zahlung stornieren</button></form></details>{% endif %}</td></tr>{% endfor %}
+      </table>{% endif %}
+      {% if d.status == 'festgeschrieben' %}
+      <details style="margin-top:12px" {{ 'open' if st.offen and not zahl.zahlungen }}><summary style="cursor:pointer"><b>+ Zahlung erfassen</b></summary>
+        <form method="post" action="{{ url_for('main.zahlung_erfassen', did=d.id) }}" style="margin-top:8px">{{ csrf() }}
+          <div class="felder">
+            <div class="s4"><label>Datum</label><input type="date" name="datum" value="{{ zahl.heute }}" max="{{ zahl.heute }}"></div>
+            <div class="s4"><label>Betrag (€)</label><input type="text" name="betrag" value="{{ (st.offen|euro)[:-2] if st.offen else '' }}" required></div>
+            <div class="s4"><label>Zahlungsart</label><select name="zahlart">{% for k, n in zahl.zahlarten.items() if k != 'verrechnung' %}<option value="{{ k }}">{{ n }}</option>{% endfor %}<option value="verrechnung">Verrechnung</option></select></div>
+            <div class="s8"><label>Notiz</label><input type="text" name="notiz" placeholder="z. B. Teilzahlung, Kontoauszug vom …"></div>
+            <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="erstattung"> Erstattung an Kunden</label></div>
+          </div><br><button>Zahlung speichern</button></form></details>
+      {% endif %}
+      {% if zahl.mahnungen or zahl.naechste[0] is not none %}
+      <h3 style="margin:16px 0 6px">Mahnungen</h3>
+      {% for m in zahl.mahnungen %}<div class="leiste" style="margin-bottom:4px"><a href="{{ url_for('main.mahnung', mid=m.id) }}"><b>{{ m.nummer }}</b></a> {{ zahl.titel[m.stufe] }} vom {{ m.datum|datum }} · {{ m.gesamt|euro }} · Frist {{ m.frist_bis|datum }}{% if m.versendet_am %} · <span class="klein">versendet {{ m.versendet_am|zeit }}</span>{% else %} · <span class="klein" style="color:var(--rot)">noch nicht versendet</span>{% endif %}{% if m.erledigt_am %} · <span class="klein">Gebühren erlassen</span>{% endif %}</div>{% endfor %}
+      {% if zahl.naechste[0] is not none %}
+      <form method="post" action="{{ url_for('main.mahnungen_erstellen') }}" class="leiste" style="margin-top:6px">{{ csrf() }}
+        <input type="hidden" name="auswahl" value="{{ d.id }}:{{ zahl.naechste[0] }}"><input type="hidden" name="einzeln" value="1">
+        <button class="zweit">{{ zahl.titel[zahl.naechste[0]] }} erstellen</button>
+        <span class="klein">{{ 'fällig seit' if zahl.naechste[1] and zahl.naechste[1].isoformat() <= zahl.heute else 'regulär fällig ab' }} {{ zahl.naechste[1].isoformat()|datum if zahl.naechste[1] }}</span></form>
+      {% endif %}{% endif %}
+    </div>
+    {% endif %}
+    <div class="karte">
+      <h2>Versand</h2>
+      <table class="liste">
+        <tr><th>Zeitpunkt</th><th>Empfänger</th><th>Status</th></tr>
+        {% for v in versand %}
+        <tr><td>{{ v.zeitpunkt|zeit }}</td><td>{{ v.empfaenger }}</td><td>{{ status(v.status) }}{% if v.fehlermeldung %}<div class="klein">{{ v.fehlermeldung }}</div>{% endif %}</td></tr>
+        {% else %}<tr><td colspan="3" class="klein">Noch nicht per E-Mail versendet.</td></tr>{% endfor %}
+      </table>
+    </div>
+    {% if d.typ == 'kva' %}
+    <div class="karte">
+      <h2>Weiter</h2>
+      <p class="klein">Kunde ist einverstanden und die Reparatur ist erledigt? Übernehmen Sie die Positionen direkt in eine Rechnung.</p>
+      <form method="post" action="{{ url_for('main.dokument_kopieren', did=d.id) }}">{{ csrf() }}<button>In Rechnung übernehmen</button></form>
+    </div>
+    {% else %}
+    <div class="karte">
+      <h2>Korrektur</h2>
+      <p class="klein">Festgeschriebene Rechnungen können nicht geändert oder gelöscht werden (GoBD). Für eine Korrektur stornieren Sie die Rechnung (Stornorechnung mit eigener Nummer) und erstellen anschließend eine neue (Kopie). Für eine teilweise Erstattung oder einen Preisnachlass gibt es die Gutschrift mit eigenem Nummernkreis.</p>
+      <div class="leiste">
+        {% if d.typ == 'rechnung' and d.status == 'festgeschrieben' %}
+        <form method="post" action="{{ url_for('main.dokument_stornieren', did=d.id) }}" class="leiste" onsubmit="return confirm('Rechnung {{ d.nummer }} wirklich stornieren? Es wird eine Stornorechnung mit eigener Nummer erstellt.')">
+          {{ csrf() }}<input type="text" name="grund" placeholder="Grund (optional)" style="width:200px"><button class="gefahr">Stornieren</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('main.dokument_kopieren', did=d.id) }}">{{ csrf() }}<button class="zweit">Als neue Rechnung kopieren</button></form>
+        {% if d.typ == 'rechnung' and d.status == 'festgeschrieben' %}<form method="post" action="{{ url_for('main.dokument_gutschrift', did=d.id) }}">{{ csrf() }}<button class="zweit">Gutschrift erstellen</button></form>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="karte"><iframe class="pdfrahmen" src="{{ url_for('main.dokument_pdf', did=d.id) }}"></iframe>
+    <p class="klein">Angezeigt wird das beim Festschreiben archivierte Original-PDF (Prüfsumme wird bei jedem Öffnen kontrolliert).</p></div>
+</div>
+{{ aenderungen_karte(aenderungen) }}
+{% endblock %}

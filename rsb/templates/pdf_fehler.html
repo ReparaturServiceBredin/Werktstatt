@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titel %}Archiv-PDF fehlerhaft{% endblock %}
+{% block inhalt %}
+<h1>Archiv-PDF von {{ d.nummer }} {{ 'fehlt' if fehlt else 'wurde verändert' }}</h1>
+<div class="meldung fehler">{% if fehlt %}Die beim Festschreiben archivierte PDF-Datei ist nicht mehr vorhanden.{% else %}Die Prüfsumme der archivierten PDF-Datei stimmt nicht mehr mit der beim Festschreiben gespeicherten überein – die Datei wurde außerhalb des Programms verändert.{% endif %}
+Das Programm erzeugt bewusst kein neues PDF, weil nur das Original als Beleg gilt.</div>
+<div class="karte"><p>So beheben Sie das: Stellen Sie die Datei <code>Daten\{{ d.pdf_pfad|replace('/', '\\') }}</code> aus einer Datensicherung wieder her (Einstellungen → Backup) und prüfen Sie danach unter <a href="{{ url_for('main.pruefung') }}">Datenprüfung</a>.</p>
+<p class="klein">Erwartete Prüfsumme (SHA-256): {{ d.pdf_sha256 }}</p></div>
+{% endblock %}

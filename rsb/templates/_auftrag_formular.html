@@ -1,0 +1,67 @@
+{# Gemeinsames Formular für „+ Neuer Auftrag“ und die Detailansicht. w = Auftrag (Detail) oder Formularwerte (neu) #}
+{% macro betrag_feld(v) %}{{ (v|euro(false)) if v is number and v else (v or '') }}{% endmacro %}
+{% macro felder(w, kunden, status_namen, leistungsarten) -%}
+<div class="felder">
+  <div><label>Kunde</label><select name="kunde_id" id="f_kunde" required><option value="">– bitte wählen –</option>
+    {% for k in kunden %}<option value="{{ k.id }}" {{ 'selected' if (w.kunde_id|string) == (k.id|string) }}>{{ k.kundennr }} · {{ k|kname }}{{ (' · ' ~ k.ort) if k.ort }}{{ ' (archiviert)' if k.archiviert }}</option>{% endfor %}</select>
+    <div class="hilfe"><a href="{{ url_for('main.kunde') }}" target="_blank">+ neuen Kunden anlegen</a> (danach diese Seite neu laden)</div></div>
+  {% set ts = 'wartet_teil' if w.status == 'in_arbeit' and w.wartet_teil_seit else (w.status or 'offen') %}
+  <div class="s3"><label>Status</label><select name="status" id="f_status">{% for s, n in status_namen.items() %}<option value="{{ s }}" {{ 'selected' if ts == s }}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="s3"><label>Leistungsart</label><select name="leistungsart">{% for l in leistungsarten %}<option {{ 'selected' if w.leistungsart == l }}>{{ l }}</option>{% endfor %}</select></div>
+  <div><label>Gerät (Marke, Modell)</label><input type="text" name="geraet" value="{{ w.geraet or '' }}" placeholder="z. B. Xiaomi 14T Pro"></div>
+  <div class="s3"><label>Seriennr. / IMEI</label><input type="text" name="seriennummer" id="f_sn" value="{{ w.seriennummer or '' }}" data-ohne="{{ w.id or '' }}" autocomplete="off"></div>
+  <div class="s12" id="sn-hinweis" hidden></div>
+  <div class="s3"><label>Voraussichtlich fertig am</label><input type="date" name="fertig_bis" value="{{ w.fertig_bis or '' }}"></div>
+  <div class="s12"><label>Fehler laut Kunde</label><textarea name="fehler">{{ w.fehler or '' }}</textarea></div>
+  <div class="s12"><label>Zustand bei Eingang (sichtbare Schäden, Kratzer, Wasserschaden …)</label><textarea name="zustand_eingang" style="min-height:60px">{{ w.zustand_eingang or '' }}</textarea>
+    <div class="hilfe">Bitte zusätzlich Fotos unter der Kategorie „Geräteeingang“ bzw. „Vorschaden“ hochladen – sie erscheinen auf dem Annahmeschein.</div></div>
+  {% set zb = zubehoer_teilen(w.zubehoer) %}
+  <div class="s12"><label>Abgegebenes Zubehör</label>
+    <div class="checkliste">{% for v in zb.vorlagen %}<label class="check"><input type="checkbox" name="zubehoer_check" value="{{ v }}" {{ 'checked' if v in zb.gewaehlt }}> {{ v }}</label>{% endfor %}</div>
+    <input type="text" name="zubehoer_sonstiges" value="{{ zb.rest }}" placeholder="Sonstiges Zubehör (frei)" style="margin-top:6px"></div>
+  <div class="s3"><label>Kosten-Obergrenze (€, brutto)</label><input type="text" name="kosten_obergrenze" value="{{ betrag_feld(w.kosten_obergrenze) }}" placeholder="leer = immer Rückfrage">
+    <div class="hilfe">Bis zu diesem Betrag ohne Rückfrage reparieren.</div></div>
+  <div class="s3"><label>Kostenvoranschlag</label><label class="check" style="margin-top:8px"><input type="checkbox" name="kva_gewuenscht" value="1" {{ 'checked' if w.kva_gewuenscht and w.kva_gewuenscht|string != '0' }}> KVA gewünscht</label></div>
+  {% set kva_typen = kva_gebuehren_liste() %}
+  <div class="s3"><label>Gerätetyp (für die KVA-Pauschale)</label><select name="geraetetyp" id="f_geraetetyp"><option value="">– wählen –</option>{% for t, c in kva_typen %}<option value="{{ t }}" data-cent="{{ c }}" {{ 'selected' if w.geraetetyp == t }}>{{ t }} ({{ c|euro }})</option>{% endfor %}</select></div>
+  <div class="s3"><label>KVA-Pauschale (€, brutto)</label><input type="text" name="kva_gebuehr" id="f_kva_gebuehr" value="{{ betrag_feld(w.kva_gebuehr) if w.kva_gebuehr else '' }}" placeholder="laut Gerätetyp">
+    <label class="check" style="margin-top:4px"><input type="checkbox" name="kva_kostenlos" value="1" id="f_kva_kostenlos" {{ 'checked' if w.kva_gebuehr is number and w.kva_gebuehr == 0 }}> kostenlos</label>
+    <div class="hilfe">Bei Annahme des KVA verrechnet, bei Ablehnung fällig.</div></div>
+  <div class="s3"><label>Gerätezugang</label><select name="zugang_art" class="zugang-art">{% for k, n in zugang_arten.items() %}<option value="{{ k }}" {{ 'selected' if (w.zugang_art or '') == k }}>{{ n if k != 'telefonisch' else 'telefonisch bei Bedarf' }}</option>{% endfor %}</select></div>
+  <div class="s12 zugang-feld">
+    <label>PIN / Passwort / Muster</label>
+    <div class="leiste">
+      <input type="password" name="zugang_wert" autocomplete="new-password" style="flex:1;min-width:180px" placeholder="{{ 'hinterlegt – zum Ändern neu eingeben' if w.zugang_geheim else 'wird verschlüsselt gespeichert' }}">
+      <button type="button" class="zweit klein zugang-zeigen-eingabe" title="Eingabe sichtbar machen">👁</button>
+      {% if w.id and w.zugang_geheim %}<button type="button" class="zweit klein zugang-anzeigen" data-url="{{ url_for('main.auftrag_zugang_anzeigen', aid=w.id) }}">Gespeicherten Zugang anzeigen</button><span class="zugang-ausgabe" style="font-family:monospace;font-weight:700"></span>
+      <label class="check" style="margin:0"><input type="checkbox" name="zugang_loeschen" value="1"> Zugangsdaten jetzt löschen</label>{% endif %}
+    </div>
+    <div class="muster" hidden><div class="muster-raster">{% for i in range(1, 10) %}<button type="button" data-punkt="{{ i }}">{{ i }}</button>{% endfor %}</div><button type="button" class="zweit klein muster-neu">Muster zurücksetzen</button>
+      <span class="klein">Punkte in der Reihenfolge des Musters antippen (1 = oben links, 9 = unten rechts).</span></div>
+    <div class="hilfe">Wird verschlüsselt gespeichert, nie auf dem Annahmeschein gedruckt und nach Abschluss des Auftrags automatisch gelöscht. Jede Anzeige wird im Verlauf vermerkt.{% if w.zugang_geloescht_am %} Zuletzt gelöscht am {{ w.zugang_geloescht_am|zeit_sek }}.{% endif %}</div>
+  </div>
+  <div class="s3"><label>Auftragsart</label><select name="auftragsart" id="f_auftragsart">{% for k, n in [('reparatur', 'Reparatur'), ('garantie', 'Garantiefall (kostenlos)')] %}<option value="{{ k }}" {{ 'selected' if (w.auftragsart or 'reparatur') == k }}>{{ n }}</option>{% endfor %}</select>
+    <input type="hidden" name="garantie_bezug_id" id="f_garantie_bezug" value="{{ w.garantie_bezug_id or '' }}"></div>
+  <div class="s3"><label>Garantie auf diese Reparatur (Monate)</label><input type="text" name="garantie_monate" value="{{ w.garantie_monate if w.garantie_monate is not none else '' }}" placeholder="Standard: {{ einst_garantie() }}"></div>
+  <div class="s3 nur-garantie"><label>Interne Kosten (€)</label><input type="text" name="interne_kosten" value="{{ betrag_feld(w.interne_kosten) }}" placeholder="Teile, Zeit"></div>
+  <div class="s3 nur-garantie"><label>Notiz interne Kosten</label><input type="text" name="interne_kosten_notiz" value="{{ w.interne_kosten_notiz or '' }}"></div>
+  <div class="s12 klein nur-garantie" id="garantie-bezug-text">{% if w.garantie_bezug_id %}Garantiefall zum Auftrag #{{ w.garantie_bezug_id }} – keine Rechnung beim Erledigen.{% else %}Garantiefall: Bitte über den Hinweis bei der Seriennummer den ursprünglichen Auftrag zuordnen.{% endif %}</div>
+  <div class="s8"><label>Ersatzteil (bei „Wartet auf Teil“)</label><input type="text" name="teil_info" value="{{ w.teil_info or '' }}" placeholder="z. B. Display, bestellt bei …"></div>
+  <div class="s4"><label>Ersatzteil erwartet am</label><input type="date" name="teil_erwartet" value="{{ w.teil_erwartet or '' }}"></div>
+  <div class="s12"><label>Interne Notizen (z. B. bestellte Teile, Rücksprache)</label><textarea name="notizen">{{ w.notizen or '' }}</textarea></div>
+</div>
+<input type="hidden" name="annahme_felder" value="1">
+<input type="hidden" name="ohne_kva" value="">
+<input type="hidden" name="leihe_spaeter" value="">
+{%- endmacro %}
+
+{# Auswahlliste „Bestehenden KVA verknüpfen“. modus = 'formular' (Auswahl in verstecktes Feld) oder 'verknuepfen' (POST) #}
+{% macro kva_auswahl(modus, kunde_id, ziel_url='') -%}
+<div class="kva-auswahl" data-modus="{{ modus }}" data-kunde="{{ kunde_id or '' }}" data-ziel="{{ ziel_url }}">
+  <div class="leiste">
+    <input type="text" class="kva-suche" placeholder="Suchen nach Nummer, Datum oder Betrag …" style="flex:1;min-width:200px">
+    <label class="check" style="margin:0"><input type="checkbox" class="kva-alle"> alle Kunden anzeigen</label>
+  </div>
+  <table class="liste kva-tabelle" style="margin-top:8px"><thead><tr><th>Nummer</th><th>Datum</th><th>Kunde</th><th class="zahl">Betrag</th><th></th></tr></thead><tbody><tr><td colspan="5" class="klein">wird geladen …</td></tr></tbody></table>
+</div>
+{%- endmacro %}

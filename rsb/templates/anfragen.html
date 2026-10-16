@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Anfragen{% endblock %}
+{% macro stufe(s, p) -%}
+<span class="marke-status {{ {'echt':'st-gesendet','unsicher':'st-warnung','spam':'st-fehler'}[s] }}">{{ {'echt':'Echte Anfrage','unsicher':'Unsicher','spam':'Spam'}[s] }} ({{ p }})</span>
+{%- endmacro %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Anfragen aus dem Kontaktformular</h1>
+  <div class="leiste">
+    <form method="post" action="{{ url_for('main.anfragen_abrufen') }}">{{ csrf() }}<button>Postfach jetzt prüfen</button></form>
+    <a class="knopf zweit" href="{{ url_for('main.anfrage_einfuegen') }}">Anfrage einfügen</a>
+  </div>
+</div>
+{% if einst.anfragen_letzter_fehler %}<div class="meldung fehler">Letzter Abruf fehlgeschlagen: {{ einst.anfragen_letzter_fehler }} – <a href="{{ url_for('main.einstellungen', bereich='anfragen') }}">Einstellungen prüfen</a></div>{% endif %}
+<p class="klein">
+  {% if einst.anfragen_aktiv %}Automatischer Abruf alle {{ einst.anfragen_intervall_min }} Minuten aktiv.{% else %}Automatischer Abruf ist aus (<a href="{{ url_for('main.einstellungen', bereich='anfragen') }}">einschalten</a>).{% endif %}
+  {% if einst.anfragen_letzter_abruf %}Zuletzt geprüft: {{ einst.anfragen_letzter_abruf|zeit }}.{% endif %}
+</p>
+<div class="reiter">
+  {% for k, (titel, _) in filter.items() %}<a href="{{ url_for('main.anfragen_liste', filter=k) }}" class="{{ 'aktiv' if filt == k }}">{{ titel }} ({{ anzahl[k] }})</a>{% endfor %}
+</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Eingang</th><th>Name</th><th>Kontakt</th><th>Gerät</th><th>Nachricht</th><th>Bewertung</th><th>Kunde</th></tr>
+  {% for a in liste %}
+  <tr>
+    <td class="klein">{{ a.eingang_am|zeit }}</td>
+    <td><a href="{{ url_for('main.anfrage', aid=a.id) }}"><b>{{ anzeigename(a) }}</b></a></td>
+    <td class="klein">{{ a.email }}<br>{{ a.telefon }}</td>
+    <td>{{ a.geraet }}</td>
+    <td class="klein">{{ (a.nachricht or '')|truncate(80) }}</td>
+    <td>{{ stufe(a.einstufung, a.spam_punkte) }}</td>
+    <td>{% if a.kunde_id %}<a href="{{ url_for('main.kunde', kid=a.kunde_id) }}">{{ a.kundennr }}</a>{% elif a.status == 'verworfen' %}<span class="klein">verworfen</span>{% else %}<a class="knopf klein zweit" href="{{ url_for('main.anfrage', aid=a.id) }}">prüfen</a>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">Keine Anfragen in dieser Ansicht.</td></tr>{% endfor %}
+</table>
+</div>
+{% if loeschvorschlaege %}
+<form method="post" action="{{ url_for('main.interessenten_loeschen') }}" class="karte" onsubmit="return confirm('Ausgewählte Interessenten endgültig löschen?')">{{ csrf() }}
+  <h2>Datenschutz: Interessenten ohne Auftrag seit über {{ einst.interessent_loeschen_monate }} Monaten</h2>
+  <p class="klein">Aus diesen Anfragen ist kein Auftrag entstanden. Sie können gelöscht werden (keine Aufbewahrungspflicht, da keine Rechnung).</p>
+  <table class="liste">{% for k in loeschvorschlaege %}
+    <tr><td><label class="check"><input type="checkbox" name="kunde_id" value="{{ k.id }}" checked> {{ k.kundennr }} · {{ k|kname }}</label></td><td class="klein">zuletzt geändert {{ k.geaendert_am|datum }}</td></tr>{% endfor %}
+  </table><br><button class="gefahr">Ausgewählte löschen</button>
+</form>
+{% endif %}
+{% endblock %}

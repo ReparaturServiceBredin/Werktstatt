@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Fixkosten{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Fixkosten</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.finanzen') }}">Finanzübersicht</a><a class="knopf" href="{{ url_for('main.fixkosten') }}">+ Neue Fixkosten</a></div></div>
+{% for h in hinweise %}<div class="meldung warnung">{{ h.text }} – <a href="{{ url_for('main.fixkosten', fid=h.f.id) }}">ansehen</a></div>{% endfor %}
+<div class="raster">
+  <div class="kachel"><div class="label">Fixkosten pro Monat</div><div class="wert">{{ ue.summe.monat_brutto|round|int|euro }}</div><div class="klein">netto {{ ue.summe.monat_netto|round|int|euro }} · jährliche und vierteljährliche Kosten anteilig</div></div>
+  <div class="kachel"><div class="label">Fixkosten pro Jahr</div><div class="wert">{{ (ue.summe.monat_brutto * 12)|round|int|euro }}</div><div class="klein">netto {{ (ue.summe.monat_netto * 12)|round|int|euro }}</div></div>
+  <div class="kachel"><div class="label">Positionen</div><div class="wert">{{ liste|selectattr('aktiv')|list|length }}</div><div class="klein">laufend (Stand {{ heute.isoformat()|datum }})</div></div>
+</div>
+{% if ue.kategorien %}
+<div class="karte"><h2>Nach Kategorie</h2>
+  <table class="liste"><thead><tr><th>Kategorie</th><th class="zahl">Positionen</th><th class="zahl">pro Monat (netto)</th><th class="zahl">pro Monat (brutto)</th><th class="zahl">pro Jahr (brutto)</th></tr></thead><tbody>
+  {% for k, v in ue.kategorien.items() %}<tr><td>{{ k }}</td><td class="zahl">{{ v.anzahl }}</td><td class="zahl">{{ v.monat_netto|round|int|euro }}</td><td class="zahl">{{ v.monat_brutto|round|int|euro }}</td><td class="zahl">{{ (v.monat_brutto * 12)|round|int|euro }}</td></tr>{% endfor %}
+  <tr class="summe"><td><b>Summe</b></td><td></td><td class="zahl"><b>{{ ue.summe.monat_netto|round|int|euro }}</b></td><td class="zahl"><b>{{ ue.summe.monat_brutto|round|int|euro }}</b></td><td class="zahl"><b>{{ (ue.summe.monat_brutto * 12)|round|int|euro }}</b></td></tr>
+  </tbody></table></div>
+{% endif %}
+<div class="karte"><h2>Alle Positionen</h2>
+  <table class="liste"><thead><tr><th>Bezeichnung</th><th>Kategorie</th><th>Rhythmus</th><th class="zahl">Betrag (brutto)</th><th class="zahl">pro Monat</th><th>nächste Fälligkeit</th><th>Zahlungen</th></tr></thead><tbody>
+  {% for f in liste %}{% set b = f.aktuell %}<tr {% if not f.aktiv %}style="opacity:.55"{% endif %}>
+    <td><a href="{{ url_for('main.fixkosten', fid=f.id) }}"><b>{{ f.bezeichnung }}</b></a><div class="klein">{{ f.empfaenger or f.lieferant or '' }}{% if f.ende %} · bis {{ f.ende|datum }}{% endif %}{% if f.kuendigung_bis %} · kündigen bis {{ f.kuendigung_bis.isoformat()|datum }}{% endif %}</div></td>
+    <td>{{ f.kategorie }}</td><td>{{ rhythmen[f.rhythmus][0] }}<div class="klein">{{ zahlungsarten.get(f.zahlungsart, f.zahlungsart) }}</div></td>
+    <td class="zahl">{{ b.brutto|euro if b else '–' }}{% if b and f.betraege|length > 1 %}<div class="klein">{{ f.betraege|length }} Beträge im Verlauf</div>{% endif %}</td>
+    <td class="zahl">{{ (b.brutto / rhythmen[f.rhythmus][1])|round|int|euro if b else '–' }}</td>
+    <td>{{ f.naechste[0].isoformat()|datum if f.naechste else ('beendet' if not f.aktiv else '–') }}</td>
+    <td>{% for s in f.stand %}<span class="marke-status {{ 'st-fehler' if s.status == 'fehlt' else 'st-warnung' }}" title="erwartet {{ s.erwartet|euro }}{{ (', gezahlt ' ~ (s.gezahlt|euro)) if s.gezahlt is not none }}">{{ s.datum.strftime('%m/%Y') }} {{ s.status }}</span> {% else %}<span class="klein">{{ 'ok' if f.zahlungsart in ['lastschrift', 'dauerauftrag', 'ueberweisung', 'karte'] else '' }}</span>{% endfor %}</td></tr>
+  {% else %}<tr><td colspan="7" class="klein">Noch keine Fixkosten erfasst. Mit „+ Neue Fixkosten“ legen Sie z. B. Werkstattmiete, Strom oder Versicherungen an.</td></tr>{% endfor %}</tbody></table>
+  <p class="klein">„fehlt“ bzw. „abweichend“: Für diese Fälligkeit liegt ein Kontoauszug vor, aber keine (passende) zugeordnete Abbuchung. Zuordnen im <a href="{{ url_for('main.bank') }}">Bankabgleich</a>.</p>
+</div>
+{% endblock %}

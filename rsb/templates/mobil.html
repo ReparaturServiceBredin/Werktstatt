@@ -1,0 +1,18 @@
+{% extends "mobil_base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_foto_upload.html" import hochladen %}
+{% block inhalt %}
+{% if abgelaufen %}
+  <div class="karte"><h1>QR-Code nicht mehr gültig</h1><p>Dieser Link ist abgelaufen oder wurde bereits verwendet. Bitte am PC einen neuen QR-Code erzeugen.</p></div>
+{% elif fertig %}
+  <div class="karte"><h1>Vielen Dank!</h1><p>Der {{ titel }} wurde unterschrieben und gespeichert. Sie können das Handy zurückgeben.</p></div>
+{% else %}
+  <h1>Fotos – Auftrag {{ a.auftragsnr }}</h1>
+  <p class="klein">{{ a.geraet or '' }} · gültig bis {{ z.gueltig_bis|zeit }}</p>
+  <div class="karte">{{ csrf() }}
+    {{ hochladen(url_for('main.mobil_fotos', token=token), kategorien) }}
+  </div>
+  {% if fotos %}<div class="karte"><h2>Bereits hochgeladen ({{ fotos|length }})</h2>
+    <div class="galerie">{% for f in fotos %}<div class="foto"><img src="{{ url_for('main.mobil_foto_vorschau', token=token, fid=f.id) }}" alt="" loading="lazy"><div class="info"><b>{{ f.kategorie }}</b></div></div>{% endfor %}</div></div>{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_status.html" import status, dokname %}
+{% block titel %}Übersicht{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Übersicht</h1>
+  <div class="leiste">
+    <a class="knopf" href="{{ url_for('main.auftraege') }}">Auftragstafel</a>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_neu') }}">+ Neue Rechnung</a>
+    <a class="knopf zweit" href="{{ url_for('main.kunde') }}">+ Neuer Kunde</a>
+  </div>
+</div>
+{% if not einst.strasse or not einst.iban or not einst.steuernummer %}
+<div class="meldung warnung">Bitte vervollständigen Sie Ihre <a href="{{ url_for('main.einstellungen') }}">Firmendaten</a> (Anschrift, Steuernummer, Bankverbindung). Diese erscheinen auf jeder Rechnung.</div>
+{% endif %}
+{% if einst.abo_modus == 'automatisch' and not einst.smtp_host and zahlen.vertraege_aktiv %}<div class="meldung warnung">Vertragsrechnungen gehen automatisch raus, aber der <a href="{{ url_for('main.einstellungen', bereich='email') }}">E-Mail-Zugang</a> ist noch nicht eingerichtet – sie werden nur festgeschrieben, nicht versendet.</div>{% endif %}
+{% if zahlen.anfragen %}<div class="meldung info"><b>{{ zahlen.anfragen }} neue Anfrage(n)</b> aus dem Kontaktformular – <a href="{{ url_for('main.anfragen_liste') }}">jetzt ansehen</a></div>{% endif %}
+{% if einst.anfragen_letzter_fehler %}<div class="meldung fehler">Abruf der Anfragen fehlgeschlagen: {{ einst.anfragen_letzter_fehler }}</div>{% endif %}
+<div class="raster">
+  {% for st, name in [('offen','Aufträge offen'),('in_arbeit','In Arbeit'),('erledigt','Erledigt (30 Tage)')] %}
+  <a class="kachel kachel-link s-rand-{{ st }}" href="{{ url_for('main.auftraege') }}"><div class="label">{{ name }}</div><div class="wert">{{ zahlen.auftraege.get(st, 0) }}</div></a>
+  {% endfor %}
+</div>
+<div class="raster">
+  <a class="kachel kachel-link" href="{{ url_for('main.vertraege_liste') }}"><div class="label">Verträge &amp; Lizenzen</div><div class="wert">{{ zahlen.vertraege_aktiv }}</div><div class="klein">{{ zahlen.vertraege_monatlich|euro }} regelmäßig pro Monat</div></a>
+  <a class="kachel kachel-link {{ 's-rand-in_arbeit' if zahlen.vertraege_laeuft_ab }}" href="{{ url_for('main.vertraege_liste', filter='laeuft_ab') }}"><div class="label">Laufen bald ab</div><div class="wert">{{ zahlen.vertraege_laeuft_ab }}</div><div class="klein">Lizenzen/Garantien</div></a>
+</div>
+<div class="raster">
+  <div class="kachel"><div class="label">Umsatz {{ jahr }}</div><div class="wert">{{ zahlen.umsatz_jahr|euro }}</div></div>
+  <div class="kachel"><div class="label">Umsatz {{ jahr - 1 }}</div><div class="wert">{{ zahlen.umsatz_vorjahr|euro }}</div></div>
+  <a class="kachel kachel-link" href="{{ url_for('main.offene_posten') }}"><div class="label">Noch nicht bezahlt</div><div class="wert">{{ zahlen.offen|euro }}</div><div class="klein">{{ zahlen.ueberfaellig }} Rechnung(en) überfällig</div></a>
+  <div class="kachel"><div class="label">Kunden / Entwürfe</div><div class="wert">{{ zahlen.kunden }} / {{ zahlen.entwuerfe }}</div></div>
+</div>
+{% if einst.steuer_modus == 'kleinunternehmer' %}
+{% set anteil = (zahlen.umsatz_jahr / 10000000 * 100) %}
+<div class="karte">
+  <h2>Kleinunternehmergrenze {{ jahr }}</h2>
+  <p class="klein">Grenzen nach § 19 UStG (Stand 2025): Vorjahr höchstens 25.000 €, laufendes Jahr höchstens 100.000 €. Wird die 100.000-€-Grenze im laufenden Jahr überschritten, endet die Befreiung sofort ab dem Umsatz, mit dem sie überschritten wird. Bitte im Zweifel mit dem Finanzamt/Steuerberater klären.</p>
+  <div class="leiste">
+    <span>Vorjahr: <b>{{ zahlen.umsatz_vorjahr|euro }}</b> von 25.000,00 €
+      {% if zahlen.umsatz_vorjahr > 2500000 %}<span class="marke-status st-fehler">überschritten</span>{% endif %}</span>
+    <span>· Laufendes Jahr: <b>{{ zahlen.umsatz_jahr|euro }}</b> von 100.000,00 €
+      {% if zahlen.umsatz_jahr > 8000000 %}<span class="marke-status st-fehler">über 80 %</span>{% endif %}</span>
+  </div>
+</div>
+{% endif %}
+<div class="karte">
+  <h2>Zuletzt bearbeitet</h2>
+  <table class="liste">
+    <tr><th>Nummer</th><th>Kunde</th><th>Datum</th><th>Status</th><th class="zahl">Betrag</th></tr>
+    {% for d in letzte %}
+    <tr>
+      <td><a href="{{ url_for('main.dokument', did=d.id) }}">{{ d.nummer or 'Entwurf' }}</a> <span class="klein">{{ {'storno':'Storno','kva':'KVA'}.get(d.typ, '') }}</span></td>
+      <td>{{ dokname(d) }}</td><td>{{ d.datum|datum }}</td><td>{{ status(d.status) }}</td>
+      <td class="zahl">{{ d.summe_brutto|euro }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="klein">Noch keine Dokumente.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

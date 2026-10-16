@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_foto_upload.html" import hochladen %}
+{% block titel %}{{ g.bezeichnung if g else 'Neues Leihgerät' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <div>
+    <h1>{{ g.bezeichnung if g else 'Neues Leihgerät' }} {% if g %}<span class="marke-status lg-{{ g.status }}">{{ status_namen[g.status] }}</span>{% endif %}</h1>
+    {% if aktiv %}<div class="auftrag-kopf" style="margin-top:6px">
+      <span>Verliehen an <a href="{{ url_for('main.kunde', kid=aktiv.kunde_id) }}"><b>{{ aktiv.kundennr }} · {{ aktiv.firma if aktiv.ktyp == 'firma' and aktiv.firma else (aktiv.vorname or '') ~ ' ' ~ (aktiv.nachname or '') }}</b></a></span>
+      {% if aktiv.auftrag_id %}<span>Auftrag <a href="{{ url_for('main.auftrag', aid=aktiv.auftrag_id) }}#leihgeraet"><b>{{ aktiv.auftragsnr }}</b></a></span>{% endif %}
+      <span>Ausgabe <b>{{ aktiv.ausgabe_am|zeit }}</b></span>
+      <span>Rückgabe bis <b {% if aktiv.rueckgabe_geplant and aktiv.rueckgabe_geplant < heute %}style="color:var(--rot)"{% endif %}>{{ aktiv.rueckgabe_geplant|datum if aktiv.rueckgabe_geplant else 'offen' }}</b>{% if aktiv.rueckgabe_geplant and aktiv.rueckgabe_geplant < heute %} <span class="marke-status st-fehler">überfällig</span>{% endif %}</span>
+      <a href="{{ url_for('main.leihe', lid=aktiv.id) }}">Leihvorgang {{ aktiv.leihnr }} →</a>
+    </div>{% endif %}
+  </div>
+  <a class="knopf zweit" href="{{ url_for('main.leihgeraete') }}">← Alle Leihgeräte</a>
+</div>
+{% if g %}
+<nav class="reiter">
+  <a href="#stammdaten" data-reiter="stammdaten">Stammdaten</a>
+  <a href="#fotos" data-reiter="fotos">Fotos <span class="zahl">{{ fotos|rejectattr('geloescht_am')|list|length }}</span></a>
+  <a href="#historie" data-reiter="historie">Historie <span class="zahl">{{ leihen|length }}</span></a>
+</nav>
+{% endif %}
+<section data-bereich="stammdaten">
+<div class="zweispaltig">
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Gerät</h2>
+  <div class="felder">
+    <div class="s12"><label>Bezeichnung</label><input type="text" name="bezeichnung" value="{{ g.bezeichnung if g }}" placeholder="z. B. Lenovo ThinkPad T14 #1" required></div>
+    <div class="s4"><label>Gerätetyp</label><input type="text" name="geraetetyp" value="{{ (g.geraetetyp or '') if g }}" placeholder="Laptop, Smartphone …" list="typen"></div>
+    <div class="s4"><label>Hersteller</label><input type="text" name="hersteller" value="{{ (g.hersteller or '') if g }}"></div>
+    <div class="s4"><label>Modell</label><input type="text" name="modell" value="{{ (g.modell or '') if g }}"></div>
+    <div><label>Seriennummer</label><input type="text" name="seriennummer" value="{{ (g.seriennummer or '') if g }}"></div>
+    <div><label>Interne Inventarnummer</label><input type="text" name="inventarnr" value="{{ (g.inventarnr or '') if g }}" placeholder="z. B. LG-001"></div>
+    <div class="s12"><label>Zubehör, das standardmäßig dazugehört (eins je Zeile)</label><textarea name="zubehoer" style="min-height:80px" placeholder="Netzteil&#10;Tasche&#10;Maus">{{ zubehoer|join('\n') }}</textarea>
+      <div class="hilfe">Erscheint bei Ausgabe und Rückgabe als Checkliste zum Abhaken.</div></div>
+    <div class="s12"><label>Zustand / Bemerkungen</label><textarea name="zustand" style="min-height:60px">{{ (g.zustand or '') if g }}</textarea></div>
+    <div class="s4"><label>Anschaffungsdatum</label><input type="date" name="anschaffung_am" value="{{ (g.anschaffung_am or '') if g }}"></div>
+    <div class="s4"><label>Anschaffungswert (€)</label><input type="text" name="anschaffungswert" value="{{ (g.anschaffungswert|euro)[:-2] if g and g.anschaffungswert }}"></div>
+    <div class="s4"><label>Zeitwert (€)</label><input type="text" name="zeitwert" value="{{ (g.zeitwert|euro)[:-2] if g and g.zeitwert }}">
+      <div class="hilfe">Grundlage bei Verlust/Totalschaden</div></div>
+  </div>
+  <h2 style="margin-top:18px">Leihgebühr &amp; Kaution (Vorgabe)</h2>
+  <div class="felder">
+    <div class="s4"><label>Abrechnungsart</label><select name="gebuehr_art" id="gebuehr_art">{% for k, n in gebuehr_arten.items() %}<option value="{{ k }}" {{ 'selected' if (g.gebuehr_art if g else 'kostenlos') == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s4 nur-gebuehr"><label>Betrag (€)</label><input type="text" name="gebuehr_betrag" value="{{ (g.gebuehr_betrag|euro)[:-2] if g and g.gebuehr_betrag }}"></div>
+    <div class="s4 nur-tag"><label>Kostenlose Tage</label><input type="number" min="0" name="frei_tage" value="{{ g.frei_tage if g else 0 }}">
+      <div class="hilfe">z. B. 3 = die ersten 3 Tage frei</div></div>
+    <div class="s4"><label>Kaution (€, optional)</label><input type="text" name="kaution" value="{{ (g.kaution|euro)[:-2] if g and g.kaution }}"></div>
+  </div><br>
+  <button>Speichern</button>
+  <datalist id="typen"><option>Laptop</option><option>Smartphone</option><option>Tablet</option><option>PC</option><option>Kaffeevollautomat</option></datalist>
+</form>
+{% if g %}
+<div>
+  <div class="karte">
+    <h2>Status</h2>
+    {% if g.status == 'verliehen' %}<p class="klein">Das Gerät ist verliehen. Die Rücknahme erfolgt im Reparaturauftrag bzw. im <a href="{{ url_for('main.leihe', lid=aktiv.id) }}">Leihvorgang</a>.</p>
+    {% else %}
+    <form method="post" action="{{ url_for('main.leihgeraet_status', gid=g.id) }}">{{ csrf() }}
+      <div class="felder">
+        <div class="s4"><label>Neuer Status</label><select name="status">{% for s, n in status_namen.items() if s != 'verliehen' %}<option value="{{ s }}" {{ 'selected' if g.status == s }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="s8"><label>Bemerkung</label><input type="text" name="grund" placeholder="z. B. Display getauscht, wieder einsatzbereit"></div>
+      </div><br><button class="zweit">Status ändern</button>
+    </form>{% endif %}
+    <p class="klein">Leihgeräte werden nicht gelöscht, sondern auf „Ausgemustert“ gesetzt – die Historie bleibt erhalten.</p>
+  </div>
+  {% if schaeden %}<div class="karte"><h2>Schadensfälle</h2>
+    <table class="liste">{% for s in schaeden %}<tr class="{{ 'klein' if s.storniert_am }}"><td>{{ s.erstellt_am|zeit }}<div class="klein"><a href="{{ url_for('main.leihe', lid=s.leihe_id) }}#schaden">{{ s.leihnr }}</a></div></td><td>{{ s.beschreibung }}<div class="klein">{{ kostenarten[s.kostenart] }}{{ ' · STORNIERT: ' ~ s.storno_grund if s.storniert_am }}</div></td><td class="zahl">{{ s.betrag|euro }}</td></tr>{% endfor %}</table></div>{% endif %}
+</div>
+{% endif %}
+</div>
+</section>
+{% if g %}
+<section data-bereich="fotos">
+  <div class="karte"><h2>Fotos des Leihgeräts</h2>
+    {{ hochladen(url_for('main.leihgeraet_fotos', gid=g.id), ['Leihgerät']) }}</div>
+  {% include "_foto_galerie.html" %}
+  <p class="klein">Fotos von Ausgabe und Rückgabe finden Sie beim jeweiligen Leihvorgang (Reiter „Historie“).</p>
+</section>
+<section data-bereich="historie">
+  <div class="karte"><h2>Leihvorgänge</h2>
+    <table class="liste"><thead><tr><th>Leihvertrag</th><th>Kunde / Auftrag</th><th>Ausgabe</th><th>Rückgabe</th><th>Zustand</th><th class="zahl">Gebühr</th></tr></thead><tbody>
+    {% for le in leihen %}<tr class="{{ 'zeile-rot' if not le.rueckgabe_am and not le.storniert_am and le.rueckgabe_geplant and le.rueckgabe_geplant < heute }}">
+      <td><a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.leihnr }}</b></a>{% if le.storniert_am %} <span class="marke-status st-storniert">storniert</span>{% endif %}</td>
+      <td><a href="{{ url_for('main.kunde', kid=le.kunde_id) }}">{{ le.kundennr }} · {{ le.firma if le.ktyp == 'firma' and le.firma else (le.vorname or '') ~ ' ' ~ (le.nachname or '') }}</a>{% if le.auftrag_id %}<div class="klein"><a href="{{ url_for('main.auftrag', aid=le.auftrag_id) }}">{{ le.auftragsnr }}</a></div>{% endif %}</td>
+      <td>{{ le.ausgabe_am|zeit }}</td>
+      <td>{{ le.rueckgabe_am|zeit if le.rueckgabe_am else ('bis ' ~ (le.rueckgabe_geplant|datum) if le.rueckgabe_geplant else 'offen') }}</td>
+      <td>{{ {'einwandfrei': 'einwandfrei', 'schaden': 'Schaden'}.get(le.zustand_rueckgabe, '–') }}</td>
+      <td class="zahl">{{ le.gebuehr_berechnet|euro if le.gebuehr_berechnet is not none else '' }}</td></tr>
+    {% else %}<tr><td colspan="6" class="klein">Noch nie verliehen.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="karte"><h2>Verlauf</h2>
+    <table class="liste verlauf"><thead><tr><th>Zeitpunkt</th><th>Benutzer</th><th>Ereignis</th><th>Details</th></tr></thead><tbody>
+    {% for v in verlauf %}<tr><td>{{ v.zeitpunkt|zeit_sek }}</td><td>{{ v.benutzer }}</td><td><b>{{ v.ereignis }}</b></td><td>{{ v.details or '' }}</td></tr>{% endfor %}
+    </tbody></table><p class="klein">Die Historie kann nicht bearbeitet oder gelöscht werden.</p></div>
+</section>
+{% endif %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const art = document.getElementById('gebuehr_art');
+function artZeigen() {
+  document.querySelectorAll('.nur-gebuehr').forEach(e => e.hidden = art.value === 'kostenlos');
+  document.querySelectorAll('.nur-tag').forEach(e => e.hidden = art.value !== 'tag');
+}
+art.addEventListener('change', artZeigen); artZeigen();
+{% if g %}reiterInit('stammdaten');{% endif %}
+</script>
+{% endblock %}

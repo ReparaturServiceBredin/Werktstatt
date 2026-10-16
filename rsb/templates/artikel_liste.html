@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titel %}Leistungen & Artikel{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Leistungen &amp; Artikel</h1>
+  <div class="leiste">
+    <form class="leiste" method="get"><input type="text" name="q" value="{{ q }}" placeholder="Suchen, auch in der Beschreibung (z. B. USB-C)" style="width:300px"><button class="zweit">Suchen</button></form>
+    <a class="knopf zweit" href="{{ url_for('main.artikel_aus_dokumenten') }}">Aus bisherigen Dokumenten übernehmen</a>
+    <a class="knopf" href="{{ url_for('main.artikel') }}">+ Neu</a>
+  </div>
+</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Bezeichnung</th><th>Typ / Leistungsart</th><th>Einheit</th><th class="zahl">Einkauf</th><th class="zahl">Preis</th><th class="zahl">Marge</th><th></th></tr>
+  {% for a in artikel %}
+  {% set marge = a.preis - a.teilekosten %}
+  <tr style="{{ 'opacity:.5' if not a.aktiv }}">
+    <td><a href="{{ url_for('main.artikel', aid=a.id) }}"><b>{{ a.name }}</b></a>{% if a.artikelnr %} <span class="klein">({{ a.artikelnr }})</span>{% endif %}
+      {% if a.beschreibung %}{% set zeilen = a.beschreibung.splitlines() %}<div class="klein">{{ zeilen[0]|truncate(90) }}{{ ' …' if zeilen|length > 1 and zeilen[0]|length <= 90 }}</div>{% endif %}</td>
+    <td>{{ 'Leistung' if a.typ == 'leistung' else 'Artikel' }}<div class="klein">{{ a.leistungsart or '' }}</div></td><td>{{ a.einheit }}</td>
+    <td class="zahl">{{ '–' if a.ek_unbekannt else a.teilekosten|euro }}</td><td class="zahl"><b>{{ a.preis|euro }}</b></td>
+    <td class="zahl">{% if a.ek_unbekannt %}<span class="klein">–</span>{% else %}<span class="marge {{ 'neg' if marge < 0 }}">{{ marge|euro }}{% if a.preis %} ({{ (marge * 100 / a.preis)|round|int }} %){% endif %}</span>{% endif %}</td>
+    <td>{{ '' if a.aktiv else 'inaktiv' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">Noch keine Leistungen angelegt.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

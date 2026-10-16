@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titel %}Kunden{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Kunden {{ '(Archiv)' if archiv }}</h1>
+  <div class="leiste">
+    <form class="leiste" method="get">
+      <input type="text" name="q" value="{{ q }}" placeholder="Suchen: Name, Ort, Telefon …" style="width:260px">
+      {% if archiv %}<input type="hidden" name="archiv" value="1">{% endif %}
+      <button class="zweit">Suchen</button>
+    </form>
+    <a class="knopf zweit" href="{{ url_for('main.kunden', interessenten='' if nur_interessenten else '1') }}">{{ 'Alle Kunden' if nur_interessenten else 'Nur Interessenten' }}</a>
+    <a class="knopf zweit" href="{{ url_for('main.kunden', archiv='' if archiv else '1') }}">{{ 'Aktive Kunden' if archiv else 'Archiv' }}</a>
+    <a class="knopf" href="{{ url_for('main.kunde') }}">+ Neuer Kunde</a>
+  </div>
+</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Nr.</th><th>Name / Firma</th><th>Art</th><th>Ort</th><th>E-Mail</th><th>Telefon</th><th></th></tr>
+  {% for k in kunden %}
+  <tr>
+    <td>{{ k.kundennr }}</td>
+    <td><a href="{{ url_for('main.kunde', kid=k.id) }}"><b>{{ k|kname }}</b></a>{% if k.interessent %} <span class="marke-status st-entwurf">Interessent</span>{% endif %}{% if k.typ == 'firma' and (k.vorname or k.nachname) %}<div class="klein">{{ k.vorname }} {{ k.nachname }}</div>{% endif %}</td>
+    <td>{{ 'Firma' if k.typ == 'firma' else 'Privat' }}</td>
+    <td>{{ k.plz }} {{ k.ort }}</td><td>{{ k.email }}</td><td>{{ k.telefon }}</td>
+    <td><a class="knopf klein zweit" href="{{ url_for('main.dokument_neu', kunde_id=k.id) }}">Rechnung</a></td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">Keine Kunden gefunden.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

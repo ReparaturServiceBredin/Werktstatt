@@ -1,0 +1,28 @@
+{% macro karte(a, heute) -%}
+{% set ts = 'wartet_teil' if a.status == 'in_arbeit' and a.wartet_teil_seit else a.status %}
+<div class="auftrag" draggable="true" data-id="{{ a.id }}" data-status="{{ ts }}" data-kva="{{ 1 if a.kva_id or a.intern or a.auftragsart == 'garantie' else 0 }}" data-leihe="{{ 1 if a.leihen_offen else 0 }}" data-url="{{ url_for('main.auftrag', aid=a.id) }}" title="Klicken zum Öffnen">
+  <div class="a-kopf"><a href="{{ url_for('main.auftrag', aid=a.id) }}">{{ a.auftragsnr }}</a>
+    <span class="klein">{{ 'seit ' ~ a.eingang_am|tage_seit ~ ' Tg.' if a.status != 'erledigt' else (a.erledigt_am|datum) }}</span></div>
+  <div class="a-name">{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}</div>
+  {% if a.geraet %}<div class="a-geraet">{{ a.geraet }}</div>{% endif %}
+  {% if a.fehler %}<div class="klein">{{ a.fehler|truncate(70) }}</div>{% endif %}
+  {% if ts == 'wartet_teil' %}<div class="a-teil">🔧 {{ a.teil_info or 'Ersatzteil' }}{% if a.teil_erwartet %} · erwartet {{ a.teil_erwartet|datum }}{% endif %}</div>{% endif %}
+  {% if a.status == 'erledigt' and not a.abgeholt_am %}<div class="a-teil" style="color:var(--gruen)">abholbereit</div>{% elif a.abgeholt_am %}<div class="klein">abgeholt {{ a.abgeholt_am|datum }}</div>{% endif %}
+  <div class="a-icons">
+    <span class="a-icon {{ 'ok' if a.foto_anzahl else 'fehlt' }}" title="Fotos">📷 {{ a.foto_anzahl }}</span>
+    {% if a.auftragsart == 'garantie' %}<span class="a-icon garantie">Garantiefall</span>{% elif a.intern %}<span class="a-icon">intern</span>{% else %}<span class="a-icon {{ 'ok' if a.kva_id else 'fehlt' }}">{{ 'KVA ✓' if a.kva_id else 'kein KVA' }}</span>{% endif %}
+    {% if a.leihen_offen %}{% set ueber = a.leihe_bis and a.leihe_bis < heute %}<a class="a-icon {{ 'rot' if ueber else 'leihe' }}" href="{{ url_for('main.auftrag', aid=a.id) }}#leihgeraet" title="{{ 'Rückgabe überfällig seit ' ~ (a.leihe_bis|datum) if ueber else ('Rückgabe bis ' ~ (a.leihe_bis|datum) if a.leihe_bis else 'Leihgerät beim Kunden') }}">🔁 Leihgerät{{ ' überfällig' if ueber }}</a>{% endif %}
+  </div>
+  <div class="a-docs">
+    {% if a.kva_id %}<a href="{{ url_for('main.dokument', did=a.kva_id) }}" class="marke-status {{ 'st-festgeschrieben' if a.kva_status == 'festgeschrieben' else 'st-entwurf' }}">KVA {{ a.kva_nummer or 'Entwurf' }} · {{ a.kva_betrag|euro }}{{ (' · ' ~ a.kva_entscheidung) if a.kva_entscheidung in ('angenommen', 'abgelehnt') }}</a>{% endif %}
+    {% if a.rechnung_id %}<a href="{{ url_for('main.dokument', did=a.rechnung_id) }}" class="marke-status {{ {'festgeschrieben':'st-gesendet','storniert':'st-fehler'}.get(a.re_status, 'st-warnung') }}">{{ a.re_nummer or 'Rechnung: Entwurf' }}{{ (' · ' ~ (a.re_betrag|euro)) if a.re_nummer }}</a>{% endif %}
+  </div>
+  <div class="a-pfeile">
+    {% set zurueck = {'in_arbeit': 'offen', 'wartet_teil': 'in_arbeit', 'erledigt': 'in_arbeit'}.get(ts) %}
+    {% set weiter = {'offen': 'in_arbeit', 'in_arbeit': 'erledigt', 'wartet_teil': 'erledigt'}.get(ts) %}
+    {% if zurueck %}<form method="post" action="{{ url_for('main.auftrag_status', aid=a.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="status" value="{{ zurueck }}"><button class="zweit klein" title="zurück">←</button></form>{% endif %}
+    {% if weiter %}<form method="post" action="{{ url_for('main.auftrag_status', aid=a.id) }}" {{ 'data-erledigt=1' if weiter == 'erledigt' }}><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="status" value="{{ weiter }}"><input type="hidden" name="ohne_kva" value=""><input type="hidden" name="leihe_spaeter" value=""><button class="zweit klein" title="weiter">{{ 'Starten →' if ts == 'offen' else 'Erledigt ✓' }}</button></form>{% endif %}
+    {% if a.status == 'erledigt' and not a.abgeholt_am %}<form method="post" action="{{ url_for('main.auftrag_abgeholt', aid=a.id) }}" onsubmit="return confirm('Abholung ohne digitalen Abholschein vermerken?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="weiter" value="{{ url_for('main.auftraege') }}"><button class="zweit klein" title="Abholung vermerken">abgeholt</button></form>{% endif %}
+  </div>
+</div>
+{%- endmacro %}

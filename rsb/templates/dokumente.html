@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_status.html" import status, dokname %}
+{% block titel %}{{ {"kva": "Kostenvoranschläge", "alle": "Alle Belege"}.get(typ, "Rechnungen") }}{% endblock %}
+{% block inhalt %}
+{% set reiter = "rechnungen" %}{% include "_bereichsreiter.html" %}
+<div class="kopf">
+  <h1>{{ {"kva": "Kostenvoranschläge", "alle": "Alle Belege"}.get(typ, "Rechnungen") }}</h1>
+  <div class="leiste">
+    <form class="leiste" method="get">
+      {% if typ == 'alle' %}<input type="hidden" name="typ" value="alle">{% endif %}
+      <select name="status" onchange="this.form.submit()" style="width:auto">
+        <option value="">Alle Status</option>
+        {% for s, t in [('entwurf','Entwürfe'),('festgeschrieben','Festgeschrieben'),('storniert','Storniert')] %}
+        <option value="{{ s }}" {{ 'selected' if status == s }}>{{ t }}</option>{% endfor %}
+      </select>
+      <input type="text" name="q" value="{{ q }}" placeholder="Nummer, Kunde, Betreff …" style="width:220px">
+      <button class="zweit">Suchen</button>
+    </form>
+    <a class="knopf zweit" href="{{ url_for('main.dokument_neu', typ='kva') }}">+ Neuer KVA</a>
+    <a class="knopf" href="{{ url_for('main.dokument_neu') }}">+ Neue Rechnung</a>
+  </div>
+</div>
+<div class="karte">
+<table class="liste">
+  <tr><th>Nummer</th><th>Art</th><th>Datum</th><th>Kunde</th><th>Betreff</th><th>Status</th><th>Zahlung</th><th>Versand</th><th class="zahl">Betrag</th></tr>
+  {% for d in dokumente %}
+  <tr>
+    <td><a href="{{ url_for('main.dokument', did=d.id) }}"><b>{{ d.nummer or 'Entwurf' }}</b></a></td>
+    <td>{{ {'rechnung':'Rechnung','storno':'Storno','kva':'KVA','gutschrift':'Gutschrift'}.get(d.typ, d.typ) }}</td>
+    <td>{{ d.datum|datum }}</td><td>{{ dokname(d) }}</td><td>{{ d.betreff or '' }}</td>
+    <td>{{ status(d.status) }}</td>
+    <td>{% set zs = zahlstatus.get(d.id) %}{% if zs %}<span class="marke-status zs-{{ zs.status }}">{{ zs.status_text }}</span>{% if zs.mahnstufe is not none %} <span class="klein">M{{ zs.mahnstufe }}</span>{% endif %}{% endif %}</td>
+    <td class="klein">{{ d.versendet_am|zeit if d.versendet_am }}</td>
+    <td class="zahl">{{ d.summe_brutto|euro }}</td>
+  </tr>
+  {% else %}<tr><td colspan="9" class="klein">Keine Dokumente gefunden.</td></tr>{% endfor %}
+</table>
+</div>
+<p class="klein">{% if typ == 'alle' %}<a href="{{ url_for('main.dokumente') }}">Nur Rechnungen, Stornos und Gutschriften anzeigen</a>{% else %}<a href="{{ url_for('main.dokumente', typ='alle') }}">Alle Belege zusammen anzeigen (Rechnungen und Kostenvoranschläge)</a>{% endif %}</p>
+{% endblock %}

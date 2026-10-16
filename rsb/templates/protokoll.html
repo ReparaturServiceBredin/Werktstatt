@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_status.html" import status %}
+{% block titel %}Protokoll{% endblock %}
+{% block inhalt %}
+<h1>Protokoll</h1>
+<p class="klein">Alle wichtigen Vorgänge werden unveränderbar protokolliert. Jeder Eintrag ist mit dem vorherigen über eine Prüfsumme verkettet (siehe Datenprüfung).</p>
+<div class="karte">
+  <h2>E-Mail-Versand</h2>
+  <table class="liste">
+    <tr><th>Zeitpunkt</th><th>Dokument</th><th>Empfänger</th><th>Betreff</th><th>Status</th></tr>
+    {% for v in versand %}
+    <tr><td>{{ v.zeitpunkt|zeit }}</td><td>{% if v.dokument_id %}<a href="{{ url_for('main.dokument', did=v.dokument_id) }}">{{ v.nummer }}</a>{% else %}–{% endif %}</td>
+      <td>{{ v.empfaenger }}</td><td>{{ v.betreff }}</td><td>{{ status(v.status) }}{% if v.fehlermeldung %}<div class="klein">{{ v.fehlermeldung }}</div>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="klein">Noch keine E-Mails versendet.</td></tr>{% endfor %}
+  </table>
+</div>
+<div class="karte">
+  <h2>Änderungsprotokoll (letzte 300 Einträge)</h2>
+  <table class="liste">
+    <tr><th>#</th><th>Zeitpunkt</th><th>Aktion</th><th>Objekt</th><th>Details</th></tr>
+    {% for e in eintraege %}
+    <tr><td class="klein">{{ e.id }}</td><td>{{ e.zeitpunkt|zeit }}</td><td>{{ e.aktion }}</td><td>{{ e.objekt or '' }} {{ e.objekt_id or '' }}</td><td class="klein" style="word-break:break-all">{{ e.details or '' }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

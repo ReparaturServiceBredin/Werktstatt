@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_symbol.html" import symbol %}
+{% block titel %}{{ bereich_titel }}{% endblock %}
+{% block inhalt %}
+<div class="einst-layout">
+  <aside class="einst-nav" aria-label="Einstellungen">
+    <div class="einst-suche">{{ symbol('search') }}<input type="search" id="einst-suche" placeholder="Einstellung suchen, z. B. IMAP" autocomplete="off" aria-label="Einstellungen durchsuchen">
+      <div class="einst-treffer" id="einst-treffer" hidden></div></div>
+    <button type="button" class="einst-nav-knopf zweit" aria-expanded="false">{{ symbol('menu') }}<span>Bereich: <b>{{ bereich_titel }}</b></span>{{ symbol('chevron-down') }}</button>
+    <div class="einst-liste">
+    {% for gtitel, eintraege in gruppen %}
+    <div class="einst-gruppe">{{ gtitel }}</div>
+    {% for b, t, sym in eintraege %}<a href="{{ url_for('main.einstellungen', bereich=b) }}" class="{{ 'aktiv' if bereich == b }}">{{ symbol(sym) }}<span>{{ t }}</span></a>{% endfor %}
+    {% endfor %}
+    <div class="einst-gruppe">Verwaltung &amp; Prüfung</div>
+    {% for ep_, t, sym, _ in verwaltung %}<a href="{{ url_for(ep_) }}">{{ symbol(sym) }}<span>{{ t }}</span></a>{% endfor %}
+    </div>
+  </aside>
+  <div class="einst-inhalt" data-bereich="{{ bereich }}">
+    <h1>{{ bereich_titel }}</h1>
+    {% include "_einstellungen_inhalt.html" %}
+  </div>
+</div>
+{% endblock %}
+{% block skript %}
+{% if bereich == 'anfragen' %}
+<script>
+(function () {
+  const sel = document.getElementById('abrufsicherheit'), form = sel.closest('form');
+  const port = form.querySelector('[name=imap_port]'), meldung = document.getElementById('abrufmeldung');
+  sel.addEventListener('change', () => {  // Port nur vorschlagen, wenn er noch auf dem Standardwert steht
+    if (sel.value === 'starttls' && ['', '993'].includes(port.value)) port.value = '143';
+    if (sel.value === 'ssl' && ['', '143'].includes(port.value)) port.value = '993';
+  });
+  document.getElementById('histordnerknopf').onclick = async e => {
+    const knopf = e.target, alt = knopf.textContent, m = document.getElementById('histmeldung');
+    knopf.disabled = true; knopf.textContent = 'Bitte warten …';
+    let j;
+    try {
+      const r = await fetch('{{ url_for('main.anfragen_imap_ordner') }}', { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'fetch' } });
+      j = await r.json();
+    } catch (err) { j = { ok: false, meldung: 'Keine Antwort vom Programm: ' + err }; }
+    finally { knopf.disabled = false; knopf.textContent = alt; }
+    m.style.display = ''; m.className = 'meldung ' + (j.ok ? 'ok' : 'fehler'); m.textContent = j.meldung;
+    if (!j.ok) return;
+    const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    [['hist_eingang', o => !o.gesendet], ['hist_gesendet', o => o.gesendet]].forEach(([id]) => {
+      const feld = document.getElementById(id), wahl = document.getElementById(id + '_wahl');
+      const gewaehlt = () => feld.value.split('\n').map(s => s.trim()).filter(Boolean);
+      wahl.innerHTML = j.ordner.map(o => `<label class="check"><input type="checkbox" value="${esc(o.name)}" ${gewaehlt().includes(o.name) ? 'checked' : ''}> ${esc(o.name)}${o.gesendet ? ' (Gesendet)' : ''}</label>`).join('');
+      wahl.querySelectorAll('input').forEach(c => c.onchange = () => {
+        let liste = gewaehlt().filter(n => n !== c.value);
+        if (c.checked) liste.push(c.value);
+        feld.value = liste.join('\n');
+      });
+    });
+  };
+  document.getElementById('abruftestknopf').onclick = async e => {
+    const knopf = e.target, alt = knopf.textContent;
+    knopf.disabled = true; knopf.textContent = 'Bitte warten … (bis zu 20 Sekunden)';
+    let j;
+    try {
+      const r = await fetch('{{ url_for('main.anfragen_imap_testen') }}', { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'fetch' } });
+      j = await r.json();
+    } catch (err) { j = { ok: false, meldung: 'Keine Antwort vom Programm: ' + err }; }
+    finally { knopf.disabled = false; knopf.textContent = alt; }
+    meldung.style.display = ''; meldung.className = 'meldung ' + (j.ok ? 'ok' : 'fehler'); meldung.textContent = j.meldung;
+  };
+})();
+</script>
+{% endif %}
+{% if bereich == 'email' %}
+<script>
+(function () {
+  const form = document.getElementById('imapbereich').closest('form');
+  const gleich = document.getElementById('gleichezugang');
+  const eigen = document.querySelectorAll('.imap-eigen');
+  const meldung = document.getElementById('imapmeldung');
+  function umschalten() { eigen.forEach(e => e.style.display = gleich.checked ? 'none' : ''); }
+  gleich.addEventListener('change', umschalten); umschalten();
+  document.getElementById('imapsicherheit').addEventListener('change', e => {
+    const port = form.querySelector('[name=gesendet_imap_port]');
+    if (e.target.value === 'starttls' && ['', '993'].includes(port.value)) port.value = '143';
+    if (e.target.value === 'ssl' && ['', '143'].includes(port.value)) port.value = '993';
+  });
+  function zeige(ok, text) { meldung.style.display = ''; meldung.className = 'meldung ' + (ok ? 'ok' : 'fehler'); meldung.textContent = text; }
+  async function anfrage(url, knopf) {
+    const alt = knopf.textContent; knopf.disabled = true; knopf.textContent = 'Bitte warten …';
+    try {
+      const daten = new FormData(form);
+      if (gleich.checked) daten.set('gesendet_gleiche_zugangsdaten', 'on');
+      const r = await fetch(url, { method: 'POST', body: daten, headers: { 'X-Requested-With': 'fetch' } });
+      return await r.json();
+    } catch (e) { return { ok: false, meldung: 'Keine Antwort vom Programm: ' + e }; }
+    finally { knopf.disabled = false; knopf.textContent = alt; }
+  }
+  document.getElementById('ordnerknopf').onclick = async e => {
+    const j = await anfrage('{{ url_for('main.imap_ordner_abrufen') }}', e.target);
+    zeige(j.ok, j.meldung);
+    if (!j.ok) return;
+    const auswahl = document.getElementById('ordnerauswahl'), feld = document.getElementById('gesendetordner');
+    const liste = document.getElementById('ordnerliste');
+    auswahl.innerHTML = '<option value="">– Ordner auswählen –</option>' + j.ordner.map(o =>
+      `<option value="${o.name.replace(/"/g, '&quot;')}">${o.name}${o.gesendet ? ' (Gesendet)' : ''}</option>`).join('');
+    liste.innerHTML = j.ordner.map(o => `<option value="${o.name.replace(/"/g, '&quot;')}">`).join('');
+    auswahl.style.display = '';
+    const vorschlag = j.ordner.find(o => o.gesendet);
+    if (vorschlag && !feld.value) { feld.value = vorschlag.name; }
+    auswahl.value = feld.value;
+    auswahl.onchange = () => { if (auswahl.value) feld.value = auswahl.value; };
+  };
+  document.getElementById('imaptestknopf').onclick = async e => {
+    const j = await anfrage('{{ url_for('main.imap_verbindung_testen') }}', e.target);
+    zeige(j.ok, j.meldung);
+  };
+})();
+</script>
+{% endif %}
+{% endblock %}

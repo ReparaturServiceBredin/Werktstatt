@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Anfrage einfügen{% endblock %}
+{% block inhalt %}
+<h1>Anfrage einfügen</h1>
+<p class="klein">Für Anfragen, die nicht automatisch abgeholt werden (z. B. weitergeleitete E-Mails oder zum Testen): Text der Formular-E-Mail markieren, kopieren und hier einfügen. Die Anfrage wird genauso geprüft wie beim automatischen Abruf.</p>
+<form method="post" class="karte">{{ csrf() }}
+  <label>Text der E-Mail</label>
+  <textarea name="text" style="min-height:300px" placeholder="Name&#10;Max Mustermann&#10;Telefon&#10;0171 1234567&#10;Email&#10;max@example.com&#10;Geraet&#10;Smartphone / Tablet&#10;Nachricht&#10;Display gesprungen"></textarea>
+  <br><br><button>Prüfen und übernehmen</button>
+</form>
+{% endblock %}

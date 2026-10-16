@@ -1,0 +1,12 @@
+{# Änderungsprotokoll (nicht bearbeitbar): wer, wann, welches Feld, alt → neu #}
+{% macro aenderungen_karte(liste, titel='Änderungsprotokoll') -%}
+<details class="karte" id="aenderungen">
+  <summary style="cursor:pointer"><b>{{ titel }}</b> <span class="klein">({{ liste|length }} Einträge, nicht bearbeitbar)</span></summary>
+  {% if liste %}
+  <table class="liste verlauf" style="margin-top:10px"><thead><tr><th>Zeitpunkt</th><th>Benutzer</th><th>Vorgang</th><th>Feld</th><th>alter Wert</th><th>neuer Wert</th></tr></thead><tbody>
+  {% for e in liste %}<tr><td>{{ e.zeitpunkt|zeit_sek }}</td><td>{{ e.benutzer }}</td><td>{{ e.aktion }}</td><td>{{ e.feld or '' }}</td>
+    <td class="klein" style="white-space:pre-wrap;max-width:280px">{{ e.alt or '' }}</td><td class="klein" style="white-space:pre-wrap;max-width:280px">{{ e.neu or '' }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="klein">Noch keine Änderungen erfasst.</p>{% endif %}
+</details>
+{%- endmacro %}

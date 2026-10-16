@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titel %}Leihgeräte{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Leihgeräte</h1>
+  <a class="knopf" href="{{ url_for('main.leihgeraet') }}">+ Neues Leihgerät</a>
+</div>
+<div class="reiter">
+  <a href="{{ url_for('main.leihgeraete', q=suche) }}" class="{{ 'aktiv' if not status }}">Im Bestand <span class="zahl">{{ zahlen.values()|sum - (zahlen.ausgemustert or 0) }}</span></a>
+  {% for s, n in status_namen.items() %}<a href="{{ url_for('main.leihgeraete', status=s, q=suche) }}" class="{{ 'aktiv' if status == s }}">{{ n }} <span class="zahl">{{ zahlen[s] or 0 }}</span></a>{% endfor %}
+  <a href="{{ url_for('main.leihgeraete', status='alle', q=suche) }}" class="{{ 'aktiv' if status == 'alle' }}">Alle</a>
+</div>
+<form class="leiste" style="margin-bottom:14px"><input type="hidden" name="status" value="{{ status }}">
+  <input type="text" name="q" value="{{ suche }}" placeholder="Suchen: Bezeichnung, Seriennr., Inventarnr., Kunde, Auftrag …" style="flex:1;min-width:220px">
+  <button class="zweit">Suchen</button></form>
+<table class="liste">
+  <thead><tr><th>Leihgerät</th><th>Inventar / SN</th><th>Status</th><th>Verliehen an</th><th>Ausgabe</th><th>Rückgabe bis</th><th>Leihgebühr</th></tr></thead>
+  <tbody>
+  {% for g in geraete %}{% set ueber = g.leihe_id and g.rueckgabe_geplant and g.rueckgabe_geplant < heute %}
+  <tr class="{{ 'zeile-rot' if ueber }}">
+    <td><a href="{{ url_for('main.leihgeraet', gid=g.id) }}"><b>{{ g.bezeichnung }}</b></a><div class="klein">{{ [g.geraetetyp, g.hersteller, g.modell]|select|join(' · ') }}</div></td>
+    <td class="klein">{{ g.inventarnr or '–' }}<br>{{ g.seriennummer or '' }}</td>
+    <td><span class="marke-status lg-{{ g.status }}">{{ status_namen[g.status] }}</span></td>
+    <td>{% if g.leihe_id %}<a href="{{ url_for('main.kunde', kid=g.kunde_id) }}">{{ g.kundennr }} · {{ g.firma if g.ktyp == 'firma' and g.firma else (g.vorname or '') ~ ' ' ~ (g.nachname or '') }}</a>
+      {% if g.auftrag_id %}<div class="klein">Auftrag <a href="{{ url_for('main.auftrag', aid=g.auftrag_id) }}#leihgeraet">{{ g.auftragsnr }}</a> · <a href="{{ url_for('main.leihe', lid=g.leihe_id) }}">{{ g.leihnr }}</a></div>{% endif %}{% endif %}</td>
+    <td>{{ g.ausgabe_am|zeit if g.leihe_id }}</td>
+    <td>{% if g.leihe_id %}{{ g.rueckgabe_geplant|datum if g.rueckgabe_geplant else 'offen' }}{% if ueber %} <span class="marke-status st-fehler">überfällig</span>{% endif %}{% endif %}</td>
+    <td class="klein">{{ gebuehr(g.gebuehr_art, g.gebuehr_betrag, g.frei_tage) }}{% if g.kaution %}<br>Kaution {{ g.kaution|euro }}{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">Keine Leihgeräte gefunden.{% if not suche and not status %} Legen Sie Ihr erstes Leihgerät über „+ Neues Leihgerät“ an.{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

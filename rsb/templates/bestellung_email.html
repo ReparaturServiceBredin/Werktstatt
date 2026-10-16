@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Bestellung senden{% endblock %}
+{% block inhalt %}
+<h1>Bestellung {{ b.nummer }} an {{ b.lieferant }} senden</h1>
+{% if not smtp_ok %}<div class="meldung warnung">Es ist noch kein E-Mail-Server eingerichtet (Einstellungen → E-Mail).</div>{% endif %}
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    <div class="s12"><label>An</label><input type="email" name="an" value="{{ an }}" required></div>
+    <div class="s12"><label>Betreff</label><input type="text" name="betreff" value="{{ betreff }}" required></div>
+    <div class="s12"><label>Text</label><textarea name="text" style="min-height:180px">{{ text }}</textarea></div>
+    <div class="s12 klein">Anhang: <a href="{{ url_for('main.bestellung_pdf', bid=b.id) }}" target="_blank">Bestellung_{{ b.nummer }}.pdf</a></div>
+  </div><br><div class="leiste"><button>Senden und als bestellt markieren</button><a class="knopf zweit" href="{{ url_for('main.bestellung', bid=b.id) }}">Abbrechen</a></div>
+</form>
+{% endblock %}

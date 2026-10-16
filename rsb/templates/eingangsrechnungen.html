@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titel %}Eingangsrechnungen{% endblock %}
+{% block inhalt %}
+{% set reiter = "einkauf" %}{% include "_bereichsreiter.html" %}
+<div class="kopf"><h1>Eingangsrechnungen</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen_postfach') }}">📥 Aus dem Postfach</a><a class="knopf" href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">+ Erfassen / hochladen</a></div></div>
+<p>Offen zu zahlen: <b>{{ summe_offen|euro }}</b></p>
+<nav class="reiter">{% for k, n in [('offen','Offen'),('bezahlt','Bezahlt'),('storniert','Storniert'),('alle','Alle')] %}<a href="{{ url_for('main.eingangsrechnungen', status=k, q=q) }}" class="{{ 'aktiv' if status == k }}">{{ n }}</a>{% endfor %}</nav>
+<form class="leiste" method="get"><input type="hidden" name="status" value="{{ status }}"><input type="text" name="q" value="{{ q }}" placeholder="Suchen: Lieferant, Rechnungsnummer, Beschreibung" style="flex:1"><button class="zweit">Suchen</button></form>
+<div class="karte" style="margin-top:10px"><table class="liste"><thead><tr><th>Beleg</th><th>Lieferant</th><th>Rechnungsnr.</th><th>Datum</th><th>fällig</th><th>Kostenart</th><th class="zahl">Brutto</th><th class="zahl">offen</th><th>Status</th></tr></thead><tbody>
+{% for e in liste %}{% set offen = e.brutto - e.bezahlt %}<tr><td><a href="{{ url_for('main.eingangsrechnung', eid=e.id) }}"><b>{{ e.lfd_nr }}</b></a>{% if e.datei %} 📎{% endif %}</td><td>{{ e.lieferant or '' }}</td><td>{{ e.nummer or '' }}</td><td>{{ e.datum|datum }}</td>
+  <td {% if e.status == 'offen' and e.faellig_am and e.faellig_am < heute %}style="color:var(--rot);font-weight:700"{% endif %}>{{ e.faellig_am|datum if e.faellig_am else '' }}</td><td class="klein">{{ e.kostenart or '' }}</td>
+  <td class="zahl">{{ e.brutto|euro }}</td><td class="zahl">{{ offen|euro if e.status == 'offen' else '' }}</td><td>{{ status_namen[e.status] }}</td></tr>
+{% else %}<tr><td colspan="9" class="klein">Keine Eingangsrechnungen.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

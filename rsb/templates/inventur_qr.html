@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titel %}Inventur am Handy{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>{{ inv.bezeichnung }} – am Handy zählen</h1><a class="knopf zweit" href="{{ url_for('main.inventur', iid=inv.id) }}">← Zur Inventur</a></div>
+{% if not im_netz %}<div class="meldung warnung">Das Programm ist zurzeit nur an diesem PC erreichbar. Bitte unter <a href="{{ url_for('main.einstellungen', bereich='annahme') }}">Einstellungen → Annahme &amp; Abholung</a> „Programm im WLAN erreichbar machen“ einschalten und das Programm neu starten.</div>{% endif %}
+<div class="karte qr-box">{{ qr }}<p>Mit der Handy-Kamera scannen. Gültig 4 Stunden bzw. bis zum Abschluss der Inventur.</p><p class="klein"><code>{{ url }}</code></p></div>
+{% endblock %}

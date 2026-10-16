@@ -1,0 +1,17 @@
+{% macro status(s) -%}
+<span class="marke-status st-{{ s }}">{{ {"entwurf": "Entwurf", "festgeschrieben": "Festgeschrieben", "storniert": "Storniert", "gesendet": "Gesendet", "fehler": "Fehler"}.get(s, s) }}</span>
+{%- endmacro %}
+{% macro dokname(d) -%}{{ d.firma if d.ktyp == 'firma' and d.firma else ((d.vorname or '') ~ ' ' ~ (d.nachname or '')).strip() or d.firma or '–' }}{%- endmacro %}
+{% macro csrf() -%}<input type="hidden" name="csrf" value="{{ csrf_token() }}">{%- endmacro %}
+
+{% macro bausteinauswahl(bausteine, kat) %}
+{% set passende = bausteine|selectattr('kategorie', 'equalto', kat)|list %}
+{% if passende %}
+<div class="leiste" style="margin-bottom:6px">
+  <select class="baustein" data-ziel="t_{{ kat }}" style="width:auto">
+    <option value="">Textbaustein einfügen …</option>
+    {% for b in passende %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+  </select>
+</div>
+{% endif %}
+{% endmacro %}

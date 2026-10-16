@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_foto_upload.html" import hochladen %}
+{% block titel %}Leihvorgang {{ le.leihnr }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <div>
+    <h1>Leihvorgang {{ le.leihnr }}
+      {% if le.storniert_am %}<span class="marke-status st-storniert">storniert</span>
+      {% elif le.rueckgabe_am %}<span class="marke-status {{ 'st-fehler' if le.zustand_rueckgabe == 'schaden' else 'st-gesendet' }}">zurück{{ ' – Schaden' if le.zustand_rueckgabe == 'schaden' }}</span>
+      {% else %}<span class="marke-status lg-verliehen">verliehen</span>{% if ueberfaellig %} <span class="marke-status st-fehler">Rückgabe überfällig</span>{% endif %}{% endif %}</h1>
+    <div class="auftrag-kopf" style="margin-top:6px">
+      <span>Gerät <a href="{{ url_for('main.leihgeraet', gid=le.geraet_id) }}"><b>{{ le.bezeichnung }}</b></a></span>
+      <span>Kunde <a href="{{ url_for('main.kunde', kid=le.kunde_id) }}"><b>{{ le.kundennr }} · {{ le.firma if le.ktyp == 'firma' and le.firma else (le.vorname or '') ~ ' ' ~ (le.nachname or '') }}</b></a></span>
+      {% if le.auftrag_id %}<span>Auftrag <a href="{{ url_for('main.auftrag', aid=le.auftrag_id) }}#leihgeraet"><b>{{ le.auftragsnr }}</b></a></span>{% endif %}
+    </div>
+  </div>
+  <div class="leiste">
+    {% if not le.rueckgabe_am and not le.storniert_am %}<a class="knopf" href="{{ url_for('main.leihe_rueckgabe', lid=le.id) }}">Leihgerät zurücknehmen</a>{% endif %}
+  </div>
+</div>
+{% if le.storniert_am %}<div class="meldung warnung">Storniert am {{ le.storniert_am|zeit_sek }} von {{ le.storniert_von }} – Grund: {{ le.storno_grund }}</div>{% endif %}
+
+<div class="zweispaltig">
+  <div>
+    <div class="karte">
+      <h2>Ausgabe</h2>
+      <table class="liste">
+        <tr><td>Ausgabe am</td><td><b>{{ le.ausgabe_am|zeit_sek }}</b> <span class="klein">({{ le.ausgegeben_von }}, erfasst {{ le.erfasst_am|zeit_sek }})</span></td></tr>
+        <tr><td>Rückgabe bis</td><td {% if ueberfaellig %}style="color:var(--rot);font-weight:700"{% endif %}>{{ le.rueckgabe_geplant|datum if le.rueckgabe_geplant else 'offen' }}</td></tr>
+        <tr><td>Leihgebühr</td><td>{{ gebuehr }}</td></tr>
+        <tr><td>Kaution</td><td>{% if le.kaution_erhalten %}{{ le.kaution_betrag|euro }} ({{ le.kaution_zahlart }}) · <b>{{ kaution_status[le.kaution_status] }}</b>{% if le.kaution_erledigt_am %} am {{ le.kaution_erledigt_am|zeit }}{% endif %}{% else %}keine{% endif %}</td></tr>
+        <tr><td>Zustand</td><td style="white-space:pre-wrap">{% if le.protokoll_geloescht_am %}<span class="klein">Protokoll gelöscht (Löschfrist) am {{ le.protokoll_geloescht_am|zeit }}</span>{% else %}{{ le.zustand_ausgabe or '–' }}{% endif %}</td></tr>
+      </table><br>
+      <div class="leiste">
+        <a class="knopf zweit" href="{{ url_for('main.leihe_pdf', lid=le.id, art='ausgabe') }}" target="_blank">Leihvertrag / Übergabeprotokoll (PDF)</a>
+        <a class="knopf zweit" href="{{ url_for('main.leihe_email', lid=le.id, art='ausgabe') }}">Per E-Mail senden</a>
+      </div>
+    </div>
+    {% if le.rueckgabe_am %}
+    <div class="karte">
+      <h2>Rückgabe</h2>
+      <table class="liste">
+        <tr><td>Rückgabe am</td><td><b>{{ le.rueckgabe_am|zeit_sek }}</b> <span class="klein">({{ le.zurueckgenommen_von }})</span></td></tr>
+        <tr><td>Zustand</td><td>{{ 'einwandfrei' if le.zustand_rueckgabe == 'einwandfrei' else 'Schaden festgestellt' }}{% if zubehoer_zurueck is not none and zubehoer_aus|reject('in', zubehoer_zurueck)|list %} – <b style="color:var(--rot)">Zubehör fehlt: {{ zubehoer_aus|reject('in', zubehoer_zurueck)|join(', ') }}</b>{% endif %}{% if le.rueckgabe_notiz %}<div style="white-space:pre-wrap">{{ le.rueckgabe_notiz }}</div>{% endif %}</td></tr>
+        <tr><td>Leihgebühr</td><td><b>{{ le.gebuehr_berechnet|euro }}</b><div class="klein">{{ le.gebuehr_text }}</div></td></tr>
+      </table><br>
+      <div class="leiste">
+        <a class="knopf zweit" href="{{ url_for('main.leihe_pdf', lid=le.id, art='rueckgabe') }}" target="_blank">Rückgabeprotokoll (PDF)</a>
+        <a class="knopf zweit" href="{{ url_for('main.leihe_email', lid=le.id, art='rueckgabe') }}">Per E-Mail senden</a>
+        {% if schaeden %}<a class="knopf zweit" href="{{ url_for('main.leihe_pdf', lid=le.id, art='schaden') }}" target="_blank">Schadensfall-Dokumentation (PDF)</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div>
+    <div class="karte">
+      <h2>Zubehör</h2>
+      <table class="liste"><thead><tr><th>Zubehör</th><th>mitgegeben</th><th>zurück</th></tr></thead><tbody>
+        {% for z in zubehoer_aus %}<tr><td>{{ z }}</td><td>✓</td><td>{% if zubehoer_zurueck is none %}<span class="klein">–</span>{% elif z in zubehoer_zurueck %}✓{% else %}<span class="marke-status st-fehler">fehlt</span>{% endif %}</td></tr>
+        {% else %}<tr><td colspan="3" class="klein">Kein Zubehör mitgegeben.</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    {% if le.rueckgabe_am and not le.storniert_am %}
+    <div class="karte">
+      <h2>Abrechnung</h2>
+      {% if rechnung %}<p>Abgerechnet in <a href="{{ url_for('main.dokument', did=rechnung.id) }}"><b>{{ rechnung.nummer or 'Rechnungsentwurf' }}</b></a>.</p>{% endif %}
+      {% if offen_abzurechnen %}
+        {% if le.separat_abrechnen %}<p class="klein">Beim Erledigen des Auftrags war das Gerät noch nicht zurück – bitte jetzt abrechnen.</p>{% endif %}
+        {% if ziel == 'warten' %}
+        <p>Wird automatisch in die Rechnung des Auftrags übernommen, sobald der Auftrag auf „Erledigt“ gezogen wird.</p>
+        <form method="post" action="{{ url_for('main.leihe_abrechnen', lid=le.id) }}" onsubmit="return confirm('Leihgebühr{{ '/Schaden' if schaeden }} jetzt mit einer eigenen Rechnung abrechnen (nicht über die Auftragsrechnung)?')">{{ csrf() }}
+          <button class="zweit">Jetzt separat abrechnen</button></form>
+        {% else %}
+        <form method="post" action="{{ url_for('main.leihe_abrechnen', lid=le.id) }}">{{ csrf() }}
+          <button>{% if ziel == 'entwurf' %}In Rechnungsentwurf des Auftrags übernehmen{% else %}Eigene Rechnung für Leihgebühr{{ '/Schaden' if schaeden }} erstellen{% endif %}</button></form>
+        {% endif %}
+      {% elif not rechnung %}<p class="klein">Nichts abzurechnen.</p>{% endif %}
+    </div>
+    {% endif %}
+    {% if le.kaution_erhalten %}
+    <div class="karte">
+      <h2>Kaution</h2>
+      <table class="liste verrechnung">
+        <tr><td>Erhaltene Kaution ({{ le.kaution_zahlart }})</td><td>{{ verrechnung.kaution|euro }}</td></tr>
+        {% if verrechnung.schaden %}
+        <tr><td>Schadenersatz gesamt</td><td>{{ verrechnung.schaden|euro }}</td></tr>
+        <tr><td>Durch Kaution verrechnet</td><td>− {{ verrechnung.angerechnet|euro }}</td></tr>
+        <tr class="summe"><td>Noch vom Kunden zu zahlen</td><td>{{ verrechnung.nachzahlung|euro }}</td></tr>
+        <tr class="summe"><td>Erstattung an den Kunden</td><td>{{ verrechnung.erstattung|euro }}</td></tr>
+        {% endif %}
+        <tr><td>Status</td><td><b>{{ kaution_status[le.kaution_status] }}</b></td></tr>
+      </table>
+      {% if le.kaution_status == 'zurueckzuzahlen' or (le.kaution_status == 'verrechnet' and verrechnung.erstattung and le.rueckgabe_am) %}
+      <form method="post" action="{{ url_for('main.leihe_kaution_zurueck', lid=le.id) }}" style="margin-top:10px" onsubmit="return confirm('Rückzahlung von {{ (verrechnung.erstattung if le.kaution_status == 'verrechnet' else verrechnung.kaution)|euro }} an den Kunden vermerken?')">{{ csrf() }}
+        <button class="zweit">{{ (verrechnung.erstattung if le.kaution_status == 'verrechnet' else verrechnung.kaution)|euro }} zurückgezahlt</button></form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="karte" id="schaden">
+  <h2>Schadensfälle</h2>
+  {% if schaeden %}
+  <table class="liste"><thead><tr><th>Erfasst</th><th>Beschreibung</th><th>Kostenart</th><th class="zahl">Betrag</th><th></th></tr></thead><tbody>
+    {% for s in schaeden %}<tr class="{{ 'klein' if s.storniert_am }}">
+      <td>{{ s.erstellt_am|zeit_sek }}<div class="klein">{{ s.benutzer }}</div></td>
+      <td style="white-space:pre-wrap">{{ s.beschreibung }}{% if s.storniert_am %}<div style="color:var(--rot)">STORNIERT {{ s.storniert_am|zeit_sek }} ({{ s.storniert_von }}): {{ s.storno_grund }}</div>{% endif %}
+        {% if s.interner_auftrag_id and interne[s.id] %}<div class="klein">Interne Reparatur: <a href="{{ url_for('main.auftrag', aid=s.interner_auftrag_id) }}">{{ interne[s.id].auftragsnr }}</a></div>{% endif %}</td>
+      <td>{{ kostenarten[s.kostenart] }}</td><td class="zahl">{{ s.betrag|euro }}</td>
+      <td>{% if not s.storniert_am %}
+        {% if not s.interner_auftrag_id %}<form method="post" action="{{ url_for('main.schaden_interner_auftrag', sid=s.id) }}">{{ csrf() }}<button class="zweit klein">Internen Reparaturauftrag anlegen</button></form>{% endif %}
+        <details><summary class="klein" style="cursor:pointer;color:var(--rot)">Stornieren …</summary>
+          <form method="post" action="{{ url_for('main.schaden_stornieren', sid=s.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)"><button class="gefahr klein" style="margin-top:4px">Stornieren</button></form></details>
+      {% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="klein">Keine Schadensfälle.</p>{% endif %}
+  {% if le.rueckgabe_am and not le.storniert_am %}
+  <details style="margin-top:12px"><summary style="cursor:pointer"><b>+ Weiteren Schadensfall erfassen</b></summary>
+    <form method="post" action="{{ url_for('main.leihe_schaden', lid=le.id) }}" style="margin-top:8px">{{ csrf() }}
+      <div class="felder">
+        <div class="s12"><label>Beschreibung</label><textarea name="beschreibung" required></textarea></div>
+        <div class="s4"><label>Kostenart</label><select name="kostenart" class="kostenart">{% for k, n in kostenarten.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></div>
+        <div class="s4"><label>Betrag (€)</label><input type="text" name="betrag" class="schadenbetrag" data-zeitwert="{{ (le.zeitwert|euro)[:-2] }}"></div>
+        <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag"> internen Reparaturauftrag anlegen</label></div>
+      </div><br><button>Schadensfall anlegen</button>
+    </form></details>
+  {% endif %}
+  <p class="klein">Schadensfälle können nicht geändert oder gelöscht werden – bei Fehlern mit Begründung stornieren und neu anlegen.</p>
+</div>
+
+<div class="karte" id="fotos">
+  <h2>Fotos – Vergleich Ausgabe / Rückgabe</h2>
+  <div class="vergleich">
+    {% for kat, titel in [('Leihgerät Ausgabe', 'Bei Ausgabe'), ('Leihgerät Rückgabe', 'Bei Rückgabe')] %}
+    <div><h3>{{ titel }}</h3><div class="galerie">{% for f in fotos if f.kategorie == kat %}{% set zurueck = url_for('main.leihe', lid=le.id) ~ '#fotos' %}{% include "_foto_kachel.html" %}{% else %}<span class="klein">keine Fotos</span>{% endfor %}</div></div>
+    {% endfor %}
+  </div>
+  {% set schadenfotos = fotos|selectattr('kategorie', 'equalto', 'Leihgerät Schaden')|list %}
+  {% if schadenfotos %}<h3 style="margin-top:16px">Schadensfotos</h3><div class="galerie">{% for f in schadenfotos %}{% set zurueck = url_for('main.leihe', lid=le.id) ~ '#fotos' %}{% include "_foto_kachel.html" %}{% endfor %}</div>{% endif %}
+  <h3 style="margin-top:16px">Fotos nachreichen</h3>
+  {{ hochladen(url_for('main.leihe_fotos', lid=le.id), leih_kategorien[1:]) }}
+</div>
+
+{% if not le.rueckgabe_am and not le.storniert_am %}
+<details class="karte"><summary style="cursor:pointer;color:var(--rot)">Ausgabe irrtümlich erfasst? Stornieren …</summary>
+  <form method="post" action="{{ url_for('main.leihe_stornieren', lid=le.id) }}" style="margin-top:8px">{{ csrf() }}
+    <input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)" style="max-width:420px">
+    <button class="gefahr" style="margin-top:6px">Ausgabe stornieren</button>
+    <p class="klein">Der Vorgang bleibt als „storniert“ gespeichert, das Gerät wird wieder verfügbar.</p></form></details>
+{% endif %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+document.querySelectorAll('.kostenart').forEach(sel => sel.addEventListener('change', () => {
+  const betrag = sel.closest('form').querySelector('.schadenbetrag');
+  if (sel.value === 'totalschaden' && !betrag.value) betrag.value = betrag.dataset.zeitwert;
+}));
+</script>
+{% endblock %}

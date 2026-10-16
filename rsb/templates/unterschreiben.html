@@ -1,0 +1,52 @@
+{% extends "mobil_base.html" if mobil else "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}{{ titel }} {{ a.auftragsnr }}{% endblock %}
+{% block inhalt %}
+<h1>{{ titel }} – Auftrag {{ a.auftragsnr }}</h1>
+<div class="karte">
+  <h2>Ihre Angaben</h2>
+  <table class="liste">
+    <tr><th style="width:38%">Kunde</th><td>{{ snap.kunde.name }} ({{ snap.kunde.kundennr }})</td></tr>
+    <tr><th>Gerät</th><td>{{ snap.geraet or '–' }}{% if snap.seriennummer %} · SN/IMEI {{ snap.seriennummer }}{% endif %}</td></tr>
+    <tr><th>Fehler laut Kunde</th><td style="white-space:pre-wrap">{{ snap.fehler or '–' }}</td></tr>
+    {% if art == 'annahme' %}
+    <tr><th>Zustand bei Eingang</th><td style="white-space:pre-wrap">{{ snap.zustand_eingang or 'keine Auffälligkeiten notiert' }}{% if snap.fotos %} · {{ snap.fotos|length }} Foto(s){% endif %}</td></tr>
+    {% endif %}
+    <tr><th>Zubehör</th><td>{% set zb = snap.zubehoer|selectattr('dabei')|map(attribute='name')|list %}{{ (zb + ([snap.zubehoer_sonstiges] if snap.zubehoer_sonstiges else []))|join(', ') or 'keines' }}</td></tr>
+    {% if art == 'annahme' %}
+    <tr><th>Kosten-Obergrenze</th><td>{{ ('ohne Rückfrage bis ' ~ (snap.kosten_obergrenze|euro)) if snap.kosten_obergrenze else 'keine – vorher Rücksprache' }}</td></tr>
+    <tr><th>Kostenvoranschlag</th><td>{{ 'gewünscht' if snap.kva_gewuenscht else 'nicht gewünscht' }}{% if snap.kva_gebuehr is not none %} · Pauschale <b>{{ snap.kva_gebuehr|euro if snap.kva_gebuehr else 'kostenlos' }}</b>{% endif %}</td></tr>
+    <tr><th>Voraussichtlich fertig</th><td>{{ snap.fertig_bis|datum if snap.fertig_bis else 'offen' }}</td></tr>
+    <tr><th>Gerätezugang</th><td>{{ snap.zugang }}</td></tr>
+    {% else %}
+    {% if snap.rechnung %}<tr><th>Rechnung</th><td>{{ snap.rechnung.nummer }} · {{ snap.rechnung.betrag|euro }} · {{ snap.rechnung.status }}</td></tr>{% endif %}
+    {% if snap.garantie %}<tr><th>Freiwillige Garantie</th><td>{{ snap.garantie }}</td></tr>{% endif %}
+    {% endif %}
+  </table>
+</div>
+{% if art == 'annahme' %}
+<div class="karte"><h2>Datenschutz und Datensicherung</h2><div class="schein-text">{{ snap.datenschutz }}</div></div>
+<div class="karte"><h2>Abholbedingungen</h2><div class="schein-text">{{ snap.abholbedingungen }}</div></div>
+{% endif %}
+{% if art == 'annahme' and snap.kva_text %}<div class="meldung warnung" style="font-size:15px"><b>Kostenvoranschlag:</b> {{ snap.kva_text }}</div>{% endif %}
+<form method="post" action="{{ ziel }}" class="karte">{{ csrf() }}
+  <h2>Unterschrift</h2>
+  <label class="check" style="font-weight:400;align-items:flex-start"><input type="checkbox" name="bestaetigt" value="1" required style="margin-top:3px">
+    <span>{% if art == 'annahme' %}Ich beauftrage die Reparatur zu den oben genannten Bedingungen und bestätige die Richtigkeit der Angaben sowie die Kenntnisnahme der Hinweise zu Datenschutz und Abholung.{% else %}{{ snap.erklaerung }}{% endif %}</span></label>
+  <div class="felder" style="margin-top:10px">
+    <div class="s12"><label>Name der unterschreibenden Person</label><input type="text" name="unterzeichner" value="{{ snap.kunde.name }}" required minlength="2" autocomplete="off"></div>
+  </div>
+  <div class="unterschrift" style="margin-top:10px">
+    <canvas></canvas>
+    <div class="grundlinie">Bitte hier mit Finger, Stift oder Maus unterschreiben.</div>
+    <input type="hidden" name="unterschrift" value="">
+    <div class="leiste" style="margin-top:10px">
+      <button type="submit">Unterschreiben &amp; speichern</button>
+      <button type="button" class="zweit unterschrift-loeschen">Unterschrift löschen</button>
+      {% if zurueck %}<a class="knopf zweit" href="{{ zurueck }}">Abbrechen</a>{% endif %}
+    </div>
+  </div>
+  <p class="klein">Datum und Uhrzeit der Unterschrift werden vom Server gesetzt (Europe/Berlin). Das PDF wird danach unverändert archiviert.</p>
+</form>
+{% endblock %}
+{% block skript %}{% if not mobil %}<script src="{{ url_for('static', filename='app.js') }}"></script>{% endif %}{% endblock %}

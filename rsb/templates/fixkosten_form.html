@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ f.bezeichnung if f else 'Neue Fixkosten' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>{{ f.bezeichnung if f else 'Neue Fixkosten' }}</h1>
+  <a class="knopf zweit" href="{{ url_for('main.fixkosten_liste') }}">← Fixkosten</a></div>
+{% if kuendigung_bis %}<div class="meldung {{ 'warnung' if kuendigung_bis.isoformat() >= heute else 'info' }}">Kündigung möglich bis <b>{{ kuendigung_bis.isoformat()|datum }}</b> (Vertragsende {{ f.ende|datum }}).</div>{% endif %}
+<div class="zweispaltig">
+<form method="post" enctype="multipart/form-data" class="karte">{{ csrf() }}<input type="hidden" name="aktion" value="speichern">
+  {% set w = f or {} %}
+  <div class="felder">
+    <div class="s8"><label>Bezeichnung</label><input type="text" name="bezeichnung" required value="{{ w.bezeichnung or '' }}" placeholder="z. B. Werkstattmiete"></div>
+    <div class="s4"><label>Kategorie</label><select name="kategorie">{% for k in kategorien %}<option {{ 'selected' if w.kategorie == k }}>{{ k }}</option>{% endfor %}{% if w.kategorie and w.kategorie not in kategorien %}<option selected>{{ w.kategorie }}</option>{% endif %}</select></div>
+    {% if not f %}
+    <div class="s4"><label>Betrag netto (€)</label><input type="text" name="netto" id="fx_netto" inputmode="decimal"></div>
+    <div class="s4"><label>Steuersatz (%)</label><input type="text" name="steuersatz" id="fx_satz" value="{{ standard_satz }}"></div>
+    <div class="s4"><label>Brutto (€)</label><input type="text" name="brutto" id="fx_brutto" inputmode="decimal"><div class="hilfe">Netto oder Brutto genügt</div></div>
+    {% endif %}
+    <div class="s4"><label>Rhythmus</label><select name="rhythmus">{% for k, (n, _) in rhythmen.items() %}<option value="{{ k }}" {{ 'selected' if w.rhythmus == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Fälligkeitstag</label><input type="number" min="1" max="31" name="faellig_tag" value="{{ w.faellig_tag or 1 }}"><div class="hilfe">Tag im Monat (31 = Monatsende)</div></div>
+    <div class="s4"><label>Zahlungsart</label><select name="zahlungsart">{% for k, n in zahlungsarten.items() %}<option value="{{ k }}" {{ 'selected' if w.zahlungsart == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Beginn</label><input type="date" name="beginn" required value="{{ w.beginn or heute }}"><div class="hilfe">bei vierteljährlich/jährlich: erster Fälligkeitsmonat</div></div>
+    <div class="s4"><label>Ende (optional)</label><input type="date" name="ende" value="{{ w.ende or '' }}"></div>
+    <div class="s4"><label>Kündigungsfrist</label><div class="leiste" style="flex-wrap:nowrap"><input type="number" min="0" name="kuendigung_wert" value="{{ w.kuendigung_wert or '' }}" style="width:80px"><select name="kuendigung_einheit">{% for k, n in einheiten.items() %}<option value="{{ k }}" {{ 'selected' if w.kuendigung_einheit == k or (not w.kuendigung_einheit and k == 'monate') }}>{{ n }}</option>{% endfor %}</select></div><div class="hilfe">vor Vertragsende</div></div>
+    <div class="s6"><label>Empfänger</label><input type="text" name="empfaenger" value="{{ w.empfaenger or '' }}" placeholder="z. B. Stadtwerke"></div>
+    <div class="s6"><label>oder Lieferant</label><select name="lieferant_id"><option value="">–</option>{% for l in lieferanten %}<option value="{{ l.id }}" {{ 'selected' if w.lieferant_id == l.id }}>{{ l.name }}</option>{% endfor %}</select></div>
+    <div class="s12"><label>Suchbegriff im Kontoauszug (optional)</label><input type="text" name="bank_suchbegriff" value="{{ w.bank_suchbegriff or '' }}" placeholder="z. B. Name wie er auf dem Auszug steht, IBAN oder Mandatsreferenz"><div class="hilfe">Damit erkennt der Bankabgleich die Abbuchung sicher. Sonst werden Empfänger bzw. Lieferant verwendet.</div></div>
+    <div class="s12"><label>Notiz</label><input type="text" name="notiz" value="{{ w.notiz or '' }}"></div>
+    <div class="s12"><label>Vertrag (PDF oder Bild)</label><input type="file" name="vertrag" accept=".pdf,.jpg,.jpeg,.png">{% if f and f.datei %}<div class="hilfe">Gespeichert: <a href="{{ url_for('main.fixkosten_vertrag', fid=f.id) }}" target="_blank">{{ f.datei_name or 'Vertrag' }}</a> – eine neue Datei ersetzt die Verknüpfung (die alte Datei bleibt archiviert).</div>{% endif %}</div>
+  </div><br><button>{{ 'Speichern' if f else 'Fixkosten anlegen' }}</button>
+</form>
+<div>
+{% if f %}
+<div class="karte"><h2>Betrag und Verlauf</h2>
+  <p>Aktuell: <b>{{ aktuell.brutto|euro }}</b> brutto ({{ aktuell.netto|euro }} netto, {{ aktuell.steuersatz|menge }} %) je Fälligkeit</p>
+  <table class="liste"><thead><tr><th>gültig ab</th><th class="zahl">netto</th><th class="zahl">Steuer</th><th class="zahl">brutto</th><th>Notiz</th><th></th></tr></thead><tbody>
+  {% for b in f.betraege|reverse %}<tr {% if aktuell and b.id == aktuell.id %}class="gewaehlt"{% endif %}><td>{{ b.gueltig_ab|datum }}{% if b.gueltig_ab > heute %} <span class="marke-status st-entwurf">geplant</span>{% endif %}</td><td class="zahl">{{ b.netto|euro }}</td><td class="zahl">{{ b.steuersatz|menge }} %</td><td class="zahl">{{ b.brutto|euro }}</td><td class="klein">{{ b.notiz or '' }}<br>{{ b.erfasst_am|zeit }} · {{ b.benutzer or '' }}</td>
+    <td>{% if b.gueltig_ab > heute and f.betraege|length > 1 %}<form method="post">{{ csrf() }}<input type="hidden" name="aktion" value="betrag_entfernen"><input type="hidden" name="betrag_id" value="{{ b.id }}"><button class="zweit klein">entfernen</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  <form method="post" class="felder" style="margin-top:12px">{{ csrf() }}<input type="hidden" name="aktion" value="betrag">
+    <div class="s12"><b>Neuer Betrag</b> <span class="klein">– z. B. Mieterhöhung. Frühere Zeiträume behalten den alten Betrag.</span></div>
+    <div class="s3"><label>gültig ab</label><input type="date" name="gueltig_ab" required></div>
+    <div class="s3"><label>netto (€)</label><input type="text" name="netto" id="fx_netto"></div>
+    <div class="s3"><label>Steuersatz (%)</label><input type="text" name="steuersatz" id="fx_satz" value="{{ aktuell.steuersatz|menge }}"></div>
+    <div class="s3"><label>brutto (€)</label><input type="text" name="brutto" id="fx_brutto"></div>
+    <div class="s9"><label>Notiz</label><input type="text" name="notiz_betrag" placeholder="z. B. Mieterhöhung laut Schreiben vom …"></div>
+    <div class="s3"><label>&nbsp;</label><button>Betrag speichern</button></div>
+  </form>
+</div>
+<div class="karte"><h2>Zahlungen laut Bankabgleich</h2>
+  {% if stand %}<table class="liste"><thead><tr><th>Fälligkeit</th><th class="zahl">erwartet</th><th class="zahl">gezahlt</th><th>Status</th></tr></thead><tbody>
+  {% for s in stand %}<tr><td>{{ s.datum.isoformat()|datum }}</td><td class="zahl">{{ s.erwartet|euro }}</td><td class="zahl">{{ s.gezahlt|euro if s.gezahlt is not none else '–' }}</td>
+    <td><span class="marke-status {{ {'bezahlt':'st-gesendet','abweichend':'st-warnung','fehlt':'st-fehler'}[s.status] }}">{{ s.status }}</span></td></tr>{% endfor %}</tbody></table>
+  {% else %}<p class="klein">{{ 'Bar bzw. ohne Bank – keine Prüfung.' if f.zahlungsart in ['bar', 'paypal'] else 'Noch keine Kontoauszüge für die Fälligkeiten eingelesen.' }}</p>{% endif %}
+  {% if zahlungen %}<p class="klein" style="margin-top:8px">Zugeordnete Abbuchungen: {% for u in zahlungen %}{{ u.buchungstag|datum }} {{ (-u.betrag)|euro }} (für {{ u.fixkosten_monat }}){{ ' · ' if not loop.last }}{% endfor %}</p>{% endif %}
+  {% if rechnungen %}<p class="klein">Zugehörige Eingangsrechnungen: {% for e in rechnungen %}<a href="{{ url_for('main.eingangsrechnung', eid=e.id) }}">{{ e.lfd_nr }}</a> ({{ e.brutto|euro }}){{ ' · ' if not loop.last }}{% endfor %}</p>{% endif %}
+</div>
+<details class="karte"><summary>Position löschen …</summary>
+  <p class="klein">Nur möglich, solange keine Zahlungen oder Rechnungen zugeordnet sind. Läuft ein Vertrag aus, tragen Sie besser ein Ende ein – dann bleiben vergangene Monate korrekt.</p>
+  <form method="post" onsubmit="return confirm('Fixkosten-Position wirklich löschen?')">{{ csrf() }}<input type="hidden" name="aktion" value="loeschen"><button class="gefahr">Löschen</button></form></details>
+{{ aenderungen_karte(aenderungen) }}
+{% else %}
+<div class="karte"><h2>So funktioniert es</h2><ul class="klein">
+  <li>Der Betrag gilt ab Beginn. Ändert er sich später (z. B. Mieterhöhung), erfassen Sie in der Position einen <b>neuen Betrag mit „gültig ab“</b>. Der alte bleibt für vergangene Zeiträume erhalten.</li>
+  <li>Jährliche, halbjährliche und vierteljährliche Kosten werden in der Finanzübersicht anteilig auf die Monate verteilt (umschaltbar auf „im Fälligkeitsmonat“).</li>
+  <li>Mit Ende und Kündigungsfrist erinnert die Glocke rechtzeitig vor dem Kündigungstermin.</li></ul></div>
+{% endif %}
+</div>
+</div>
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+(function () {
+  const n = document.getElementById('fx_netto'), s = document.getElementById('fx_satz'), b = document.getElementById('fx_brutto');
+  if (!n) return;
+  n.addEventListener('change', () => { if (n.value) b.value = euroText(zahl(n.value) * (1 + zahl(s.value) / 100)); });
+  b.addEventListener('change', () => { if (b.value && !n.value) n.value = euroText(zahl(b.value) / (1 + zahl(s.value) / 100)); });
+  s.addEventListener('change', () => { if (n.value) b.value = euroText(zahl(n.value) * (1 + zahl(s.value) / 100)); });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}E-Mail {{ m.nummer }}{% endblock %}
+{% block inhalt %}
+<h1>{{ titel }} {{ m.nummer }} per E-Mail senden</h1>
+{% if not smtp_ok %}<div class="meldung warnung">Es ist noch kein E-Mail-Server eingerichtet. Bitte zuerst unter <a href="{{ url_for('main.einstellungen', bereich='email') }}">Einstellungen → E-Mail</a> eintragen.</div>{% endif %}
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    <div class="s12"><label>An</label><input type="email" name="an" value="{{ an }}" required>{% if not an %}<div class="hilfe">Beim Kunden ist keine E-Mail-Adresse hinterlegt – dann besser ausdrucken.</div>{% endif %}</div>
+    <div class="s12"><label>Betreff</label><input type="text" name="betreff" value="{{ betreff }}" required></div>
+    <div class="s12"><label>Text</label><textarea name="text" style="min-height:220px">{{ text }}</textarea></div>
+    <div class="s12 klein">Anhang: <b><a href="{{ url_for('main.mahnung_pdf', mid=m.id) }}" target="_blank">{{ m.nummer }}.pdf</a></b> (archiviertes Original) · erscheint im Versandprotokoll der Rechnung und in der E-Mail-Historie des Kunden</div>
+  </div><br>
+  <div class="leiste"><button>Jetzt senden</button><a class="knopf zweit" href="{{ url_for('main.mahnung', mid=m.id) }}">Abbrechen</a></div>
+</form>
+{% endblock %}

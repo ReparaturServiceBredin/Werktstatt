@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Update läuft</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body>
+<div class="anmeldung" style="max-width:480px">
+  <img src="{{ url_for('static', filename='bilder/logo_standard.png') }}" alt="Logo">
+  <div class="karte">
+    <h1>Update wird installiert …</h1>
+    <p>Version {{ alt }} → <b>{{ neu }}</b>. Ein Backup wurde erstellt. Das Programm startet gerade neu – diese Seite lädt sich automatisch neu, sobald es fertig ist.</p>
+    <p class="klein" id="status">Bitte warten …</p>
+  </div>
+</div>
+<script>
+  const ziel = {{ neu|tojson }};
+  let versuche = 0;
+  async function pruefen() {
+    versuche++;
+    try {
+      const r = await fetch('/version', { cache: 'no-store' });
+      if (r.ok && (await r.json()).version === ziel) { window.location = '/'; return; }
+    } catch (e) {}
+    document.getElementById('status').textContent = versuche > 60
+      ? 'Das dauert ungewöhnlich lange. Bitte das Programm-Fenster prüfen bzw. Werkstatt-Sauter.exe neu starten.'
+      : 'Bitte warten … (' + versuche + ')';
+    setTimeout(pruefen, 2000);
+  }
+  setTimeout(pruefen, 3000);
+</script>
+</body></html>

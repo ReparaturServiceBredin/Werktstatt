@@ -1,0 +1,454 @@
+{% from "_status.html" import csrf %}
+{% macro feld(name, label, typ='text', span='', hilfe='') -%}
+<div class="{{ span }}"><label>{{ label }}</label><input type="{{ typ }}" name="{{ name }}" value="{{ einst[name] if einst[name] is not none }}">
+  {% if hilfe %}<div class="hilfe">{{ hilfe }}</div>{% endif %}</div>
+{%- endmacro %}
+{% macro haken(name, label) -%}
+<div class="s12"><label class="check"><input type="checkbox" name="{{ name }}" {{ 'checked' if einst[name] }}> {{ label }}</label></div>
+{%- endmacro %}
+{% if bereich == 'firma' %}
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    {{ feld('firma_name', 'Firmenname') }}{{ feld('firma_zusatz', 'Zusatz / Slogan') }}
+    {{ feld('inhaber', 'Inhaber') }}{{ feld('strasse', 'Straße und Hausnummer') }}
+    {{ feld('plz', 'PLZ', span='s2') }}{{ feld('ort', 'Ort', span='s4') }}{{ feld('land', 'Land') }}
+    {{ feld('telefon', 'Telefon') }}{{ feld('email', 'E-Mail') }}{{ feld('web', 'Internetseite') }}
+    {{ feld('steuernummer', 'Steuernummer', hilfe='Pflichtangabe auf Rechnungen (alternativ USt-IdNr.)') }}
+    {{ feld('ust_idnr', 'USt-IdNr. (falls vorhanden)') }}
+    {{ feld('kontoinhaber', 'Kontoinhaber') }}{{ feld('bank_name', 'Bank') }}
+    {{ feld('iban', 'IBAN') }}{{ feld('bic', 'BIC') }}
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'rechnung' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Umsatzsteuer</h2>
+  <div class="felder">
+    <div><label>Besteuerung</label><select name="steuer_modus">
+      <option value="kleinunternehmer" {{ 'selected' if einst.steuer_modus == 'kleinunternehmer' }}>Kleinunternehmer (§ 19 UStG) – keine Umsatzsteuer</option>
+      <option value="regel" {{ 'selected' if einst.steuer_modus == 'regel' }}>Regelbesteuerung – mit Umsatzsteuer</option></select>
+      <div class="hilfe">Gilt für neue Entwürfe. Bereits festgeschriebene Rechnungen bleiben unverändert. Umstellung bitte nur nach Rücksprache mit Finanzamt/Steuerberater.</div></div>
+    {{ feld('regel_steuersatz', 'Standard-Steuersatz bei Regelbesteuerung (%)', span='s3') }}
+    <div class="s12"><label>Hinweis auf Steuerbefreiung (wird bei Kleinunternehmer automatisch gedruckt)</label>
+      <input type="text" name="kleinunternehmer_hinweis" value="{{ einst.kleinunternehmer_hinweis }}"></div>
+  </div>
+  <br><h2>Zahlung</h2>
+  <div class="felder">
+    {{ feld('zahlungsziel_privat', 'Zahlungsziel Privatkunden (Tage)', 'number', 's3') }}
+    {{ feld('zahlungsziel_firma', 'Zahlungsziel Firmenkunden (Tage)', 'number', 's3') }}
+    {{ feld('kva_gueltig_tage', 'Kostenvoranschlag gültig (Tage)', 'number', 's3') }}
+    {{ feld('anzahlung_prozent', 'Anzahlung Standard (%) – ab Etappe 2', 'number', 's3') }}
+    <div class="s6 klein" style="align-self:center">Mahngebühren, Fristen und Verzugszinsen: <a href="{{ url_for('main.einstellungen', bereich='mahnwesen') }}">Einstellungen → Mahnwesen</a></div>
+    <div class="s12"><label>Zahlungsarten-Text auf der Rechnung</label><input type="text" name="zahlungsarten_text" value="{{ einst.zahlungsarten_text }}"></div>
+  </div>
+  <br><h2>Nummern &amp; Listen</h2>
+  <div class="felder">
+    {{ feld('nummern_format', 'Nummernformat', span='s4', hilfe='{praefix}, {jahr}, {nummer:04d} → RE-2026-0001. Gilt ab dem nächsten Jahr bzw. neuen Nummernkreis.') }}
+    {{ feld('praefix_rechnung', 'Präfix Rechnungen/Stornos', span='s2') }}{{ feld('praefix_gutschrift', 'Präfix Gutschriften', span='s2') }}{{ feld('praefix_angebot', 'Präfix KVA', span='s2') }}{{ feld('praefix_kunde', 'Präfix Kunden', span='s2') }}
+    {{ feld('leistungsarten', 'Leistungsarten (mit Komma getrennt)', span='s12') }}
+  </div>
+  <br><h2>Aufbewahrung (GoBD)</h2>
+  <div class="felder">
+    {{ feld('aufbewahrung_belege_jahre', 'Rechnungen / Buchungsbelege (Jahre)', 'number', 's4', hilfe='gesetzlich mindestens 8 Jahre (§ 147 AO)') }}
+    {{ feld('aufbewahrung_briefe_jahre', 'Handels- und Geschäftsbriefe (Jahre)', 'number', 's4', hilfe='gesetzlich mindestens 6 Jahre, z. B. Kostenvoranschläge, Leihverträge, versandte Belege') }}
+    <div class="s4 klein" style="align-self:center">Die Frist beginnt mit dem Ende des Kalenderjahres des Belegs. Festgeschriebene Belege sind nie löschbar.</div>
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'layout' %}
+<div class="zweispaltig">
+<div>
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    {{ feld('farbe_primaer', 'Hauptfarbe', 'color', 's4') }}{{ feld('farbe_sekundaer', 'Zweitfarbe (Grautöne)', 'color', 's4') }}
+    <div class="s4"><label>Schrift</label><select name="schrift">{% for s in schriften %}<option {{ 'selected' if einst.schrift == s }}>{{ s }}</option>{% endfor %}</select></div>
+    {{ feld('schriftgroesse', 'Schriftgröße (pt)', span='s4') }}
+    {{ feld('logo_breite_mm', 'Logobreite (mm)', span='s4') }}
+    <div class="s4"><label>Logo-Position</label><select name="logo_position">{% for p in ['links','mitte','rechts'] %}<option {{ 'selected' if einst.logo_position == p }}>{{ p }}</option>{% endfor %}</select></div>
+    {{ feld('kopfzeile_text', 'Kopfzeile (kleiner Text unter dem Logo, optional)', span='s12') }}
+    {{ feld('fusszeile_text', 'Zusätzliche Fußzeile (optional, z. B. Öffnungszeiten)', span='s12') }}
+    {{ haken('faltmarken', 'Falz- und Lochmarken drucken (für Fensterumschläge DIN lang)') }}
+    {{ haken('girocode', 'QR-Code zum Bezahlen (GiroCode) auf Rechnungen drucken') }}
+  </div><br>
+  <div class="leiste"><button>Speichern</button><a class="knopf zweit" href="{{ url_for('main.musterrechnung') }}" target="vorschau">Vorschau aktualisieren</a></div>
+</form>
+<form method="post" action="{{ url_for('main.logo_hochladen') }}" enctype="multipart/form-data" class="karte">{{ csrf() }}
+  <h2>Logo</h2>
+  <img src="{{ url_for('main.logo_anzeigen') }}" alt="Logo" style="max-width:260px;background:#fff;border:1px solid var(--rand);padding:8px;border-radius:6px">
+  <p class="klein">PNG mit transparentem Hintergrund sieht am besten aus. Breite Logos (Querformat) passen am besten in den Kopf.</p>
+  <div class="leiste"><input type="file" name="logo" accept="image/png,image/jpeg" style="width:auto"><button>Hochladen</button>
+    {% if einst.logo_datei %}<button name="entfernen" value="1" class="zweit">Standardlogo verwenden</button>{% endif %}</div>
+</form>
+</div>
+<div class="karte"><h2>Vorschau (Musterrechnung)</h2>
+  <iframe name="vorschau" class="pdfrahmen" src="{{ url_for('main.musterrechnung') }}"></iframe></div>
+</div>
+
+{% elif bereich == 'email' %}
+<form method="post" class="karte">{{ csrf() }}
+  <p class="klein">Die Zugangsdaten finden Sie bei Ihrem E-Mail-Anbieter (Stichwort „SMTP-Server“). Beispiele: IONOS <code>smtp.ionos.de</code>, Strato <code>smtp.strato.de</code>, Port 587 mit STARTTLS bzw. 465 mit SSL.</p>
+  <div class="felder">
+    {{ feld('smtp_host', 'SMTP-Server', span='s6') }}{{ feld('smtp_port', 'Port', 'number', 's2') }}
+    <div class="s4"><label>Verschlüsselung</label><select name="smtp_sicherheit">
+      {% for k, t in [('starttls','STARTTLS (meist Port 587)'),('ssl','SSL/TLS (meist Port 465)'),('keine','keine (nicht empfohlen)')] %}<option value="{{ k }}" {{ 'selected' if einst.smtp_sicherheit == k }}>{{ t }}</option>{% endfor %}</select></div>
+    {{ feld('smtp_benutzer', 'Benutzername (meist die E-Mail-Adresse)') }}
+    <div><label>Passwort</label><input type="password" name="smtp_passwort" autocomplete="new-password" placeholder="{{ '•••••••• (gespeichert – nur ausfüllen zum Ändern)' if smtp_passwort_gesetzt else '' }}">
+      <div class="hilfe">Wird verschlüsselt gespeichert.</div></div>
+    {{ feld('absender_name', 'Absendername') }}{{ feld('absender_email', 'Absenderadresse') }}
+    {{ haken('bcc_an_mich', 'Kopie jeder E-Mail an mich (BCC) – so liegt der Versand auch in Ihrem Postfach') }}
+  </div>
+  <br>
+  <h2>IMAP (Kopie im Gesendet-Ordner speichern)</h2>
+  <p class="klein">Beim Versand per SMTP legt der Server keine Kopie in Ihrem Postfach ab. Mit IMAP speichert das Programm jede versendete E-Mail (mit Anhang) zusätzlich im Ordner „Gesendet“ – sichtbar in Webmail, Outlook und auf dem Handy.
+    IONOS: <code>imap.ionos.de</code> · Strato: <code>imap.strato.de</code> – Port 993 mit SSL/TLS.</p>
+  <div class="felder" id="imapbereich">
+    {{ haken('gesendet_aktiv', 'Gesendete Mails im Postfach ablegen') }}
+    {{ feld('gesendet_imap_host', 'IMAP-Server', span='s6') }}{{ feld('gesendet_imap_port', 'Port', 'number', 's2') }}
+    <div class="s4"><label>Verschlüsselung</label><select name="gesendet_imap_sicherheit" id="imapsicherheit">
+      {% for k, t in [('ssl','SSL/TLS (meist Port 993)'),('starttls','STARTTLS (meist Port 143)')] %}<option value="{{ k }}" {{ 'selected' if einst.gesendet_imap_sicherheit == k }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="gesendet_gleiche_zugangsdaten" id="gleichezugang" {{ 'checked' if einst.gesendet_gleiche_zugangsdaten }}> Gleiche Zugangsdaten wie SMTP verwenden</label></div>
+    <div class="imap-eigen"><label>IMAP-Benutzername</label><input type="text" name="gesendet_imap_benutzer" value="{{ einst.gesendet_imap_benutzer or '' }}"></div>
+    <div class="imap-eigen"><label>IMAP-Passwort</label><input type="password" name="gesendet_imap_passwort" autocomplete="new-password" placeholder="{{ '•••••••• (gespeichert – nur ausfüllen zum Ändern)' if gesendet_passwort_gesetzt else '' }}">
+      <div class="hilfe">Wird verschlüsselt gespeichert.</div></div>
+    <div class="s8"><label>Ordner für gesendete Mails</label>
+      <input type="text" name="gesendet_ordner" id="gesendetordner" list="ordnerliste" value="{{ einst.gesendet_ordner or '' }}" placeholder="z. B. Gesendete Objekte">
+      <datalist id="ordnerliste"></datalist>
+      <select id="ordnerauswahl" style="display:none;margin-top:6px"></select>
+      <div class="hilfe">Bei IONOS meist „Gesendete Objekte“. Am sichersten über „Ordner abrufen“ auswählen.</div></div>
+    <div class="s4" style="align-self:start;padding-top:20px"><div class="leiste">
+      <button type="button" class="zweit" id="ordnerknopf">Ordner abrufen</button>
+      <button type="button" class="zweit" id="imaptestknopf">Verbindung testen</button></div></div>
+    <div class="s12"><div id="imapmeldung" class="meldung" style="display:none;margin:0"></div></div>
+  </div>
+  <br><button>Speichern</button>
+</form>
+<form method="post" action="{{ url_for('main.testmail') }}" class="karte">{{ csrf() }}
+  <h2>Test</h2>
+  <div class="leiste"><input type="email" name="an" placeholder="{{ einst.absender_email }}" style="width:280px"><button class="zweit">Test-E-Mail senden</button></div>
+</form>
+
+{% elif bereich == 'anfragen' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Posteingang (IMAP)</h2>
+  <p class="klein">Das Tool holt Formular-E-Mails aus diesem Postfach ab. IONOS: <code>imap.ionos.de</code>, Port 993 mit SSL/TLS – ist Port 993 in Ihrem Netz gesperrt: Port 143 mit STARTTLS (ebenfalls verschlüsselt). Gmail: <code>imap.gmail.com</code>, Port 993, nur mit App-Passwort. Leeres Benutzer-/Passwortfeld = gleiche Zugangsdaten wie beim E-Mail-Versand.</p>
+  <div class="felder">
+    {{ haken('anfragen_aktiv', 'Postfach automatisch prüfen (solange das Programm läuft)') }}
+    {{ feld('anfragen_intervall_min', 'Alle … Minuten', 'number', 's3') }}
+    {{ feld('imap_host', 'IMAP-Server', span='s4') }}{{ feld('imap_port', 'Port', 'number', 's2') }}
+    <div class="s3"><label>Verschlüsselung</label><select name="imap_sicherheit" id="abrufsicherheit">
+      {% for k, t in [('ssl','SSL/TLS (meist Port 993)'),('starttls','STARTTLS (meist Port 143)')] %}<option value="{{ k }}" {{ 'selected' if (einst.imap_sicherheit or 'ssl') == k }}>{{ t }}</option>{% endfor %}</select></div>
+    {{ feld('imap_benutzer', 'Benutzername (leer = wie E-Mail-Versand)') }}
+    <div><label>Passwort (leer = wie E-Mail-Versand)</label><input type="password" name="imap_passwort" autocomplete="new-password" placeholder="{{ '•••••••• (gespeichert)' if imap_passwort_gesetzt else '' }}"></div>
+    {{ feld('imap_ordner', 'Ordner mit den Anfragen', span='s4') }}
+    {{ feld('imap_zielordner', 'Erledigte verschieben nach', span='s4') }}
+    <div class="s4" style="align-self:end">{{ haken('imap_verschieben', 'verarbeitete Formular-E-Mails verschieben') }}</div>
+    {{ feld('anfrage_erkennung', 'Formular-E-Mails erkennen am Text', span='s12', hilfe='Nur E-Mails, die diesen Text enthalten, werden verarbeitet. Alle anderen E-Mails bleiben unberührt.') }}
+    <div class="s12"><button type="button" class="zweit" id="abruftestknopf">Verbindung testen</button>
+      <span class="klein">prüft Verbindung, Anmeldung und die Ordner – auch vor dem Speichern</span></div>
+    <div class="s12"><div id="abrufmeldung" class="meldung" style="display:none;margin:0;white-space:pre-line"></div></div>
+  </div>
+  <br><h2 id="historie">E-Mail-Historie bei Kunden</h2>
+  <p class="klein">Alle E-Mails mit Kunden erscheinen automatisch beim Kunden – egal ob aus dem Programm, Outlook oder vom Handy gesendet. Es wird der IMAP-Zugang oben verwendet und das Postfach nur gelesen (nichts wird als gelesen markiert, verschoben oder gelöscht). E-Mails ohne Bezug zu einem Kunden werden übersprungen und nicht gespeichert. Abgerufen wird im gleichen Intervall wie die Anfragen.</p>
+  <div class="felder">
+    {{ haken('historie_aktiv', 'E-Mail-Historie aktivieren') }}
+    <div><label>Ordner für empfangene Mails (einer je Zeile)</label><textarea name="historie_ordner_eingang" id="hist_eingang" style="min-height:60px">{{ einst.historie_ordner_eingang or 'INBOX' }}</textarea>
+      <div id="hist_eingang_wahl" class="checkliste" style="margin-top:6px"></div></div>
+    <div><label>Ordner für gesendete Mails (einer je Zeile)</label><textarea name="historie_ordner_gesendet" id="hist_gesendet" style="min-height:60px">{{ einst.historie_ordner_gesendet or '' }}</textarea>
+      <div class="hilfe">bei IONOS meist „Gesendete Objekte“</div>
+      <div id="hist_gesendet_wahl" class="checkliste" style="margin-top:6px"></div></div>
+    <div class="s12"><button type="button" class="zweit" id="histordnerknopf">Ordner abrufen</button> <span class="klein">zeigt alle Ordner des Postfachs zum Ankreuzen (Umlaute werden richtig dargestellt)</span></div>
+    <div class="s4"><label>Erster Import: wie weit zurück</label><select name="historie_zeitraum_tage">
+      {% for t, n in [(30, 'letzte 30 Tage'), (182, 'letzte 6 Monate'), (365, 'letztes Jahr'), (0, 'alles')] %}<option value="{{ t }}" {{ 'selected' if (einst.historie_zeitraum_tage if einst.historie_zeitraum_tage is not none else 182) == t }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s8"><label>Weitere eigene Adressen (werden beim Abgleich ignoriert)</label><textarea name="historie_eigene_adressen" style="min-height:40px" placeholder="reparatur-bredin@gmail.com">{{ einst.historie_eigene_adressen or '' }}</textarea>
+      <div class="hilfe">Absender-, SMTP- und IMAP-Adresse sind automatisch dabei.</div></div>
+    <div class="s12"><div id="histmeldung" class="meldung" style="display:none;margin:0"></div></div>
+  </div>
+  <br><h2>Prüfung &amp; Kunden</h2>
+  <div class="felder">
+    {{ haken('anfrage_auto_kunde', 'Bei echten Anfragen automatisch Kunden (Interessent) anlegen') }}
+    {{ feld('anfrage_schwelle_unsicher', 'ab … Punkten „unsicher“', 'number', 's3') }}
+    {{ feld('anfrage_schwelle_spam', 'ab … Punkten „Spam“', 'number', 's3') }}
+    <div class="s3"><label>Reihenfolge im Feld „Name“</label><select name="anfrage_namensreihenfolge">
+      {% for k, t in [('auto','automatisch erkennen'),('vorname_nachname','Vorname Nachname'),('nachname_vorname','Nachname Vorname')] %}<option value="{{ k }}" {{ 'selected' if einst.anfrage_namensreihenfolge == k }}>{{ t }}</option>{% endfor %}</select></div>
+    {{ feld('interessent_loeschen_monate', 'Interessenten ohne Auftrag löschen nach … Monaten', 'number', 's3') }}
+  </div><br><button>Speichern</button>
+</form>
+<form method="post" action="{{ url_for('main.anfragen_abrufen') }}" class="karte">{{ csrf() }}
+  <h2>Test</h2>
+  <p class="klein">Zuletzt geprüft: {{ einst.anfragen_letzter_abruf|zeit if einst.anfragen_letzter_abruf else 'noch nie' }}{% if einst.anfragen_letzter_fehler %} – <span style="color:var(--rot)">{{ einst.anfragen_letzter_fehler }}</span>{% endif %}</p>
+  <button class="zweit">Postfach jetzt prüfen</button>
+</form>
+<form method="post" action="{{ url_for('main.historie_abrufen') }}" class="karte">{{ csrf() }}
+  <h2>E-Mail-Historie</h2>
+  <p class="klein">{% if not einst.historie_aktiv %}Ausgeschaltet. {% endif %}Zuletzt abgeglichen: {{ einst.historie_letzter_abruf|zeit if einst.historie_letzter_abruf else 'noch nie' }}{% if einst.historie_letzter_fehler %} – <span style="color:var(--rot)">{{ einst.historie_letzter_fehler }}</span>{% endif %}</p>
+  <div class="leiste"><button class="zweit" {{ 'disabled' if not einst.historie_aktiv }}>Jetzt abgleichen</button>
+    <button class="zweit" name="neu_abgleichen" value="1" {{ 'disabled' if not einst.historie_aktiv }} onclick="return confirm('Alle Ordner im Importzeitraum neu durchsuchen? Vorhandene Einträge bleiben, es entstehen keine Duplikate.')">Alle Ordner neu abgleichen</button></div>
+</form>
+
+{% elif bereich == 'backup' %}
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    {{ haken('backup_auto', 'Täglich automatisch ein Backup erstellen (beim Start des Programms)') }}
+    {{ feld('backup_ziel', 'Zusätzlicher Backup-Ordner (z. B. NAS)', span='s8', hilfe='z. B. \\\\NAS\\Backup\\Buchhaltung oder Z:\\Backup\\Buchhaltung – leer = nur lokal im Ordner Daten\\backups') }}
+    {{ feld('backup_behalten', 'Anzahl Backups behalten', 'number', 's4') }}
+  </div><br><button>Speichern</button>
+</form>
+<div class="karte">
+  <h2>Backup jetzt erstellen</h2>
+  <p class="klein">Letztes Backup: {{ einst.letztes_backup|zeit if einst.letztes_backup else 'noch keins' }}</p>
+  <form method="post" action="{{ url_for('main.backup_jetzt') }}">{{ csrf() }}<button>Backup jetzt erstellen</button></form>
+  <br>
+  <table class="liste"><tr><th>Datei</th><th class="zahl">Größe</th></tr>
+    {% for name, groesse in backups %}<tr><td><a href="{{ url_for('main.backup_herunterladen', name=name) }}">{{ name }}</a></td><td class="zahl">{{ (groesse / 1024)|round|int }} KB</td></tr>
+    {% else %}<tr><td colspan="2" class="klein">Noch keine Backups.</td></tr>{% endfor %}</table>
+</div>
+<div class="karte" id="wiederherstellen">
+  <h2>Sicherung wiederherstellen</h2>
+  <p class="klein">Datenordner: <b>{{ daten_ordner }}</b> (fester Ort, egal von wo das Programm gestartet wird; öffnen über das Symbol neben der Uhr → „Daten-Ordner öffnen“).</p>
+  {% set wb = einst.wiederherstellung_bericht %}
+  {% if wb %}<div class="meldung {{ 'ok' if wb.ok else 'fehler' }}">{% if wb.ok %}Zuletzt eingespielt: <b>{{ wb.quelle }}</b> – jetzt {{ wb.inhalt.anzahl.kunden or 0 }} Kunden, {{ wb.inhalt.anzahl.auftraege or 0 }} Aufträge, {{ wb.inhalt.anzahl.artikel or 0 }} Artikel. Der vorherige Stand liegt in {{ wb.sicherung }}.{% else %}{{ wb.meldung }}{% endif %}</div>{% endif %}
+  {% if onedrive %}<div class="meldung warnung"><b>Ihr Datenordner liegt in OneDrive</b> ({{ daten_ordner }}). OneDrive kann eine geöffnete Datenbank durch eine ältere Fassung ersetzen. Empfehlung: Programm samt Ordner „Daten“ in einen Ordner außerhalb von OneDrive verschieben, z. B. C:\Werkstatt-Sauter, und Sicherungen über „Zusätzlicher Backup-Ordner“ anlegen.</div>{% endif %}
+  <p class="klein">Zeigt jede Sicherung mit ihrem Inhalt. Beim Einspielen wird der aktuelle Stand vorher vollständig gesichert (vor_wiederherstellung_….zip, erscheint danach ebenfalls hier). Fotos und PDFs werden ergänzt, nie gelöscht. Das Programm startet dafür kurz neu.</p>
+  <div style="overflow-x:auto"><table class="liste"><thead><tr><th>Stand</th><th>Quelle</th><th class="zahl">Kunden</th><th class="zahl">Aufträge</th><th class="zahl">Artikel</th><th class="zahl">Belege</th><th class="zahl">Fotos</th><th>Firmendaten</th><th></th></tr></thead><tbody>
+  {% for q in wh_quellen %}{% set i = q.inhalt %}<tr>
+    <td>{{ q.zeit|zeit_sek }}</td><td style="word-break:break-all;min-width:160px"><span class="klein">{{ q.art }}</span><br>{{ q.name }}</td>
+    {% if i.fehler %}<td colspan="6" class="klein">{{ i.fehler }}</td>{% else %}
+    <td class="zahl">{{ i.anzahl.kunden or 0 }}</td><td class="zahl">{{ i.anzahl.auftraege or 0 }}</td><td class="zahl">{{ i.anzahl.artikel or 0 }}</td><td class="zahl">{{ i.anzahl.dokumente or 0 }}</td>
+    <td class="zahl">{{ i.anzahl.auftrag_fotos or 0 }}{% if i.dateien is not none %}<div class="klein">{{ i.dateien }} Datei(en)</div>{% endif %}</td>
+    <td class="klein">{{ i.firma }}{% if i.strasse %}<br>{{ i.strasse }}{% endif %}{% if i.imap %}<br>IMAP: {{ i.imap }}{% endif %}</td>{% endif %}
+    <td>{% if not i.fehler %}<form method="post" action="{{ url_for('main.wiederherstellen') }}" onsubmit="return confirm('Diese Sicherung einspielen? Der aktuelle Stand wird vorher vollständig gesichert.')">{{ csrf() }}<input type="hidden" name="quelle" value="{{ q.pfad }}"><button class="zweit klein">Wiederherstellen</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="9" class="klein">Keine Sicherungen gefunden.</td></tr>{% endfor %}</tbody></table></div>
+  <p class="klein"><a href="{{ url_for('main.einstellungen', bereich='backup', suche=1) }}#wiederherstellen">Auch andere Datenordner suchen</a> (Desktop, Downloads, Dokumente, OneDrive – z. B. falls das Programm früher an einem anderen Ort lag)</p>
+</div>
+
+{% elif bereich == 'vertraege' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Wiederkehrende Rechnungen (Verträge &amp; Lizenzen)</h2>
+  <p class="klein">Das Programm prüft täglich (beim Start und alle paar Stunden), welche Verträge fällig sind, und erstellt je Kunde eine Rechnung mit allen fälligen Positionen. Gekündigte Verträge werden nach dem Kündigungsdatum nicht mehr berechnet.</p>
+  <div class="felder">
+    <div class="s8"><label>Fällige Rechnungen …</label><select name="abo_modus">
+      <option value="entwurf" {{ 'selected' if einst.abo_modus != 'automatisch' }}>als Entwurf anlegen – ich prüfe und schreibe selbst fest</option>
+      <option value="automatisch" {{ 'selected' if einst.abo_modus == 'automatisch' }}>automatisch festschreiben und per E-Mail an den Kunden senden</option></select></div>
+    <div class="s4"><label>Erinnerung vor Ablauf (Tage)</label><input type="number" min="0" name="vertrag_erinnerung_tage" value="{{ einst.vertrag_erinnerung_tage }}"></div>
+  </div>
+  <p class="klein">Letzter Abrechnungslauf: {{ einst.abo_letzter_lauf|zeit if einst.abo_letzter_lauf else 'noch nie' }}</p>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'mahnwesen' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Ablauf</h2>
+  <p class="klein">Zahlungserinnerung (ohne Gebühr) → 1. Mahnung → 2. Mahnung. Unter <a href="{{ url_for('main.mahnwesen') }}">Mahnwesen</a> erscheinen fällige Schreiben als Vorschlag; erstellt und versendet wird erst nach Ihrer Bestätigung.</p>
+  <div class="felder">
+    {{ feld('mahn_erinnerung_tage', 'Zahlungserinnerung … Tage nach Fälligkeit', 'number', 's3') }}
+    {{ feld('mahn_stufe1_tage', '1. Mahnung … Tage nach Fristablauf der Erinnerung', 'number', 's3') }}
+    {{ feld('mahn_stufe2_tage', '2. Mahnung … Tage nach Fristablauf der 1. Mahnung', 'number', 's3') }}
+    {{ feld('mahn_frist_tage', 'Neue Zahlungsfrist in jedem Schreiben (Tage)', 'number', 's3') }}
+    <div class="s3"><label>Gebühr 1. Mahnung (€)</label><input type="text" name="mahngebuehr_cent" value="{{ einst.mahngebuehr_cent|euro(false) }}"></div>
+    <div class="s3"><label>Gebühr 2. Mahnung (€)</label><input type="text" name="mahngebuehr_2_cent" value="{{ einst.mahngebuehr_2_cent|euro(false) }}"></div>
+    <div class="s6 klein" style="align-self:center">Die Zahlungserinnerung ist immer gebührenfrei. Mahngebühren sollten nur die tatsächlichen Kosten (Porto, Material) abdecken.</div>
+  </div>
+  <br><h2>Texte</h2>
+  <p class="klein">Platzhalter: {anrede_brief}, {rechnung_nummer}, {rechnung_datum}, {rechnung_betrag}, {faellig_am}, {offen_rechnung}, {gebuehr}, {zinsen}, {gesamt}, {frist_bis}, {nummer}, {inhaber}, {firma_name}</p>
+  <div class="felder">
+    <div class="s12"><label>Zahlungserinnerung</label><textarea name="mahn_text_0" style="min-height:120px">{{ einst.mahn_text_0 }}</textarea></div>
+    <div class="s12"><label>1. Mahnung</label><textarea name="mahn_text_1" style="min-height:120px">{{ einst.mahn_text_1 }}</textarea></div>
+    <div class="s12"><label>2. Mahnung</label><textarea name="mahn_text_2" style="min-height:120px">{{ einst.mahn_text_2 }}</textarea></div>
+    <div class="s12"><label>E-Mail-Betreff</label><input type="text" name="mahn_email_betreff" value="{{ einst.mahn_email_betreff }}"></div>
+    <div class="s12"><label>E-Mail-Text</label><textarea name="mahn_email_text" style="min-height:100px">{{ einst.mahn_email_text }}</textarea></div>
+  </div>
+  <br><h2>Verzugszinsen (optional)</h2>
+  <div class="felder">
+    {{ haken('zinsen_aktiv', 'Verzugszinsen in Mahnungen berechnen') }}
+    {{ feld('basiszinssatz', 'Basiszinssatz (%)', span='s3', hilfe='aktuellen Wert bei der Deutschen Bundesbank nachsehen – ändert sich zum 1.1. und 1.7.') }}
+    {{ feld('zinsen_aufschlag_privat', 'Aufschlag Privatkunden (Prozentpunkte)', 'number', 's3', hilfe='§ 288 Abs. 1 BGB: 5') }}
+    {{ feld('zinsen_aufschlag_firma', 'Aufschlag Geschäftskunden (Prozentpunkte)', 'number', 's3', hilfe='§ 288 Abs. 2 BGB: 9') }}
+    <div class="s3"><label>Zinsen berechnen ab</label><select name="zinsen_ab">
+      <option value="mahnung1" {{ 'selected' if einst.zinsen_ab != 'faelligkeit' }}>Datum der 1. Mahnung (vorsichtig)</option>
+      <option value="faelligkeit" {{ 'selected' if einst.zinsen_ab == 'faelligkeit' }}>Tag nach Fälligkeit</option></select></div>
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'leihgeraete' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Leihbedingungen</h2>
+  <p class="klein">Dieser Text steht im Leihvertrag / Übergabeprotokoll, das der Kunde bei der Ausgabe eines Leihgeräts unterschreibt. <code>{firma}</code> wird durch Ihren Firmennamen ersetzt. Lassen Sie die Bedingungen im Zweifel einmal rechtlich prüfen.</p>
+  <textarea name="leihbedingungen" style="min-height:360px">{{ einst.leihbedingungen or '' }}</textarea><br><br>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'datenschutz' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Löschfristen (DSGVO)</h2>
+  <p class="klein">0 = keine automatische Löschung. Aufbewahrungspflichtige Belege (Rechnungen {{ einst.aufbewahrung_belege_jahre }} Jahre, Geschäftsbriefe {{ einst.aufbewahrung_briefe_jahre }} Jahre) werden nie vorzeitig gelöscht – betroffene Kunden werden dann anonymisiert. Die Vorschläge sind übliche Werte; bitte prüfen, ob sie zu Ihrem Betrieb passen.</p>
+  <div class="felder">
+    <div class="s12">{{ haken('ds_auto', 'Löschlauf automatisch einmal täglich ausführen (sonst manuell unter Datenschutz)') }}</div>
+    <div class="s4"><label>Interessenten ohne Auftrag (Monate)</label><input type="number" min="0" name="interessent_loeschen_monate" value="{{ einst.interessent_loeschen_monate }}"></div>
+    <div class="s4"><label>Inaktive Kunden (Jahre)</label><input type="number" min="0" name="ds_kunde_inaktiv_jahre" value="{{ einst.ds_kunde_inaktiv_jahre }}"><div class="hilfe">ab Ende des Kalenderjahres des letzten Kontakts (Auftrag, Rechnung, E-Mail); mit aufbewahrungspflichtigen Belegen nur Anonymisierung</div></div>
+    <div class="s4"><label>Fotos und Annahme-/Abholscheine (Jahre)</label><input type="number" min="0" name="ds_fotos_jahre" value="{{ einst.ds_fotos_jahre }}"><div class="hilfe">ab Ende des Kalenderjahres der Abholung (Abholung 15.10.2026, 3 Jahre → Löschung ab 01.01.2030); bei laufender Garantie gesperrt</div></div>
+    <div class="s4"><label>Leihprotokolle und -fotos (Jahre)</label><input type="number" min="0" name="ds_leihe_jahre" value="{{ einst.ds_leihe_jahre }}"><div class="hilfe">ab Ende des Kalenderjahres der Rückgabe bzw. des Abschlusses eines Schadensfalls</div></div>
+    <div class="s4"><label>Vorschau der Löschungen (Tage)</label><input type="number" min="1" name="ds_vorschau_tage" value="{{ einst.ds_vorschau_tage }}"><div class="hilfe">„Folgende Daten werden in den nächsten … Tagen gelöscht“</div></div>
+    <div class="s4"><label>Gerätezugangsdaten liegengebliebener Aufträge (Tage)</label><input type="number" min="0" name="ds_zugang_tage" value="{{ einst.ds_zugang_tage }}"><div class="hilfe">bei Abholung, Abschluss und Stornierung werden sie sofort endgültig gelöscht</div></div>
+    <div class="s4"><label>E-Mail-Verlauf ohne Belegbezug (Jahre)</label><input type="number" min="0" name="ds_email_jahre" value="{{ einst.ds_email_jahre }}"></div>
+    <div class="s12"><label>Verantwortlicher für das Verzeichnis (optional, sonst aus den Firmendaten)</label><input type="text" name="ds_verantwortlicher" value="{{ einst.ds_verantwortlicher }}"></div>
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'datev' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>DATEV-Export</h2>
+  <p class="klein">Diese Angaben bekommen Sie vom Steuerberater. Die Konten sind Vorschläge aus dem Standardkontenrahmen – bitte einmal mit dem Steuerberater abstimmen.</p>
+  <div class="felder">
+    <div class="s3"><label>Beraternummer</label><input type="text" name="datev_beraternr" value="{{ einst.datev_beraternr }}" inputmode="numeric"></div>
+    <div class="s3"><label>Mandantennummer</label><input type="text" name="datev_mandantennr" value="{{ einst.datev_mandantennr }}" inputmode="numeric"></div>
+    <div class="s3"><label>Kontenrahmen</label><select name="datev_skr"><option value="03" {{ 'selected' if einst.datev_skr != '04' }}>SKR 03</option><option value="04" {{ 'selected' if einst.datev_skr == '04' }}>SKR 04</option></select></div>
+    <div class="s3"><label>Beginn Wirtschaftsjahr (MM-TT)</label><input type="text" name="datev_wj_beginn" value="{{ einst.datev_wj_beginn }}"></div>
+    <div class="s3"><label>Sachkontenlänge</label><input type="number" name="datev_kontenlaenge" value="{{ einst.datev_kontenlaenge }}"></div>
+    <div class="s3"><label>Debitoren ab</label><input type="number" name="datev_debitor_start" value="{{ einst.datev_debitor_start }}"><div class="hilfe">Debitor = Startnummer + Kunden-ID</div></div>
+    <div class="s3"><label>Kreditoren ab</label><input type="number" name="datev_kreditor_start" value="{{ einst.datev_kreditor_start }}"><div class="hilfe">oder Kreditorennummer beim Lieferanten</div></div>
+    <div class="s6"><label>Abweichende Konten (Name=Konto)</label><textarea name="datev_konten" style="min-height:140px" placeholder="bank=1210&#10;kasse=1000">{{ einst.datev_konten }}</textarea>
+      <div class="hilfe">Namen: kasse, bank, geldtransit, erloese_ku, erloese_19, erloese_7, erloese_0, privateinlage, privatentnahme, sonstige_ertraege, sonstige_aufwendungen</div></div>
+    <div class="s6"><label>Konten je Kostenart (Kostenart=Konto)</label><textarea name="datev_kostenarten" style="min-height:140px" placeholder="Werkzeug & Geräte=4985">{{ einst.datev_kostenarten }}</textarea>
+      <div class="hilfe">Leer = Standardkonto des Kontenrahmens.</div></div>
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'einkauf' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Einkauf</h2>
+  <div class="felder">
+    <div class="s4"><label>Mindestmarge (% vom Verkaufspreis)</label><input type="number" name="mindest_marge_prozent" value="{{ einst.mindest_marge_prozent }}">
+      <div class="hilfe">Ändert sich der Einkaufspreis (z. B. beim Wareneingang) und die Marge fällt darunter, erscheint eine Warnung.</div></div>
+    <div class="s4"><label>Präfix Bestellungen</label><input type="text" name="praefix_bestellung" value="{{ einst.praefix_bestellung }}"></div>
+    <div class="s4"><label>Präfix Eingangsrechnungen (eigene Belegnummer)</label><input type="text" name="praefix_eingangsrechnung" value="{{ einst.praefix_eingangsrechnung }}"></div>
+    <div class="s6"><label>Kostenarten (eine je Zeile)</label><textarea name="kostenarten" style="min-height:220px">{{ einst.kostenarten }}</textarea>
+      <div class="hilfe">Für die Zuordnung der Eingangsrechnungen und später für die Konten im DATEV-Export.</div></div>
+    <div class="s6"><label>Postfach-Ordner mit Eingangsrechnungen</label><input type="text" name="er_imap_ordner" value="{{ einst.er_imap_ordner }}">
+      <div class="hilfe">Nutzt den IMAP-Zugang unter „Anfragen“. Tipp: im Mailprogramm eine Regel anlegen, die Rechnungen in einen eigenen Ordner (z. B. „Rechnungen“) verschiebt.</div></div>
+  </div>
+  <br><h2>Fixkosten und Finanzen</h2>
+  <div class="felder">
+    <div class="s6"><label>Kategorien für Fixkosten (eine je Zeile)</label><textarea name="fixkosten_kategorien" style="min-height:220px">{{ einst.fixkosten_kategorien }}</textarea></div>
+    <div class="s6"><label>Kostenarten, die als Wareneinsatz zählen (eine je Zeile)</label><textarea name="wareneinsatz_kostenarten" style="min-height:100px">{{ einst.wareneinsatz_kostenarten }}</textarea>
+      <div class="hilfe">Eingangsrechnungen und Kassenausgaben mit diesen Kostenarten gehen in der Finanzübersicht in den Wareneinsatz (Rohertrag), alle anderen in „sonstige Ausgaben“.</div>
+      <label style="margin-top:12px">Hinweis auf Vertragsende und Kündigungsfrist (Tage vorher)</label><input type="number" min="1" name="fixkosten_hinweis_tage" value="{{ einst.fixkosten_hinweis_tage }}"></div>
+  </div><br><button>Speichern</button>
+</form>
+
+{% elif bereich == 'benachrichtigung' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Kundenbenachrichtigung</h2>
+  <p class="klein">Bei diesen Ereignissen schlägt das Programm eine Nachricht an den Kunden vor. Platzhalter: <code>{Anrede}</code> <code>{Kundenname}</code> <code>{Auftragsnummer}</code> <code>{Gerät}</code> <code>{Betrag}</code> <code>{Öffnungszeiten}</code> <code>{Fertig bis}</code> <code>{Firma}</code>. Gesendete Nachrichten landen in der E-Mail-Historie des Kunden.</p>
+  <div class="felder">
+    <div class="s12">{{ haken('benachrichtigung_vorschau', 'Vor jedem Versand Vorschau anzeigen (empfohlen) – sonst wird sofort gesendet') }}</div>
+    <div class="s3"><label>Versandweg</label><select name="benachrichtigung_kanal">
+      <option value="email" {{ 'selected' if einst.benachrichtigung_kanal != 'sms' }}>E-Mail</option>
+      <option value="sms" {{ 'selected' if einst.benachrichtigung_kanal == 'sms' }}>SMS (Anbieter noch nicht eingerichtet)</option></select></div>
+    <div class="s3"><label>Abhol-Erinnerung nach (Tagen)</label><input type="text" name="erinnerung_tage" value="{{ einst.erinnerung_tage }}">
+      <div class="hilfe">z. B. 7, 14, 30 – Tage nach „Erledigt“</div></div>
+    <div class="s6"><label>Öffnungszeiten (für {Öffnungszeiten})</label><textarea name="oeffnungszeiten" style="min-height:60px">{{ einst.oeffnungszeiten or '' }}</textarea></div>
+  </div>
+  {% for a, titel in [('angenommen','Auftrag angenommen'),('kva','Kostenvoranschlag versendet (nach dem Festschreiben; entfällt, wenn der KVA direkt per E-Mail geht)'),('wartet_teil','Warten auf Ersatzteil'),('fertig','Gerät fertig zur Abholung'),('erinnerung','Erinnerung: Gerät noch nicht abgeholt')] %}
+  <h2 style="margin-top:18px">{{ titel }}</h2>
+  <div class="felder">
+    <div class="s12">{{ haken('ben_' ~ a ~ '_aktiv', 'automatisch vorschlagen') }}</div>
+    <div class="s12"><label>Betreff</label><input type="text" name="ben_{{ a }}_betreff" value="{{ einst['ben_' ~ a ~ '_betreff'] or '' }}"></div>
+    <div class="s12"><label>Text</label><textarea name="ben_{{ a }}_text" style="min-height:150px">{{ einst['ben_' ~ a ~ '_text'] or '' }}</textarea></div>
+  </div>
+  {% endfor %}<br>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'annahme' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Annahmeschein &amp; Abholschein</h2>
+  <p class="klein">Diese Texte stehen auf dem Annahmeschein, den der Kunde bei der Geräteabgabe unterschreibt. Lassen Sie die Formulierungen im Zweifel einmal rechtlich prüfen. Bereits unterschriebene Scheine bleiben unverändert archiviert.</p>
+  <div class="felder">
+    <div class="s4"><label>Garantie auf Reparaturen (Monate)</label><input type="number" min="0" max="60" name="garantie_monate" value="{{ einst.garantie_monate }}">
+      <div class="hilfe">Freiwillige Garantie ab Abholung, Standard 12; 0 = keine. Je Auftrag und je Rechnungsposition änderbar. Die gesetzliche Gewährleistung besteht unabhängig davon.</div></div>
+    <div class="s8"></div>
+    <div class="s6"><label>Zubehör-Checkliste (ein Eintrag je Zeile)</label><textarea name="annahme_zubehoer" style="min-height:160px">{{ einst.annahme_zubehoer or '' }}</textarea></div>
+    <div class="s6"><label>KVA-Pauschale je Gerätetyp (brutto, „Gerätetyp = Betrag“ je Zeile)</label><textarea name="kva_gebuehren" style="min-height:120px">{{ einst.kva_gebuehren }}</textarea>
+      <div class="hilfe">Weitere Gerätetypen einfach als neue Zeile ergänzen. Der Typ „Sonstige Geräte“ gilt, wenn nichts gewählt ist. Pro Auftrag änderbar, auch „kostenlos“. Bei Annahme des KVA wird die Pauschale verrechnet, bei Ablehnung schlägt das Programm einen Rechnungsentwurf vor.</div></div>
+    <div class="s12"><label>Hinweis zur KVA-Pauschale auf dem Annahmeschein (Platzhalter {KVA-Gebühr})</label><textarea name="annahme_kva_text" style="min-height:80px">{{ einst.annahme_kva_text }}</textarea>
+      <div class="hilfe">Erscheint auf dem Annahmeschein und vor der Unterschrift deutlich hervorgehoben.</div></div>
+    <div class="s12"><label>Text der freiwilligen Garantie (Rechnung und Abholschein)</label><textarea name="garantie_text" style="min-height:130px">{{ einst.garantie_text }}</textarea>
+      <div class="hilfe">Platzhalter: {Garantiedauer} {Garantieende} {Firmenname} {Firmenanschrift}. Die Garantie beginnt mit der Abholung. Bitte den Satz zur gesetzlichen Gewährleistung nicht entfernen – die Garantie gilt zusätzlich und ersetzt oder verkürzt die Gewährleistung nicht.</div></div>
+    <div class="s12"><label>Datenschutz-Hinweis</label><textarea name="annahme_datenschutz" style="min-height:130px">{{ einst.annahme_datenschutz or '' }}</textarea></div>
+    <div class="s12"><label>Abholbedingungen (Abholfrist, Lagergebühr, Umgang mit nicht abgeholten Geräten)</label><textarea name="annahme_abholbedingungen" style="min-height:130px">{{ einst.annahme_abholbedingungen or '' }}</textarea></div>
+    <div class="s12"><label>Bestätigung auf dem Abholschein</label><textarea name="abholschein_text" style="min-height:60px">{{ einst.abholschein_text or '' }}</textarea></div>
+  </div>
+  <h2 style="margin-top:18px">Handy / Tablet im WLAN</h2>
+  <p class="klein">Damit Kunden auf dem Handy oder Tablet unterschreiben bzw. Sie Fotos mit dem Handy aufnehmen können (QR-Code), muss das Programm im eigenen WLAN erreichbar sein. Aus dem Netzwerk sind dann <b>nur</b> die zeitlich begrenzten QR-Code-Seiten ohne Anmeldung erreichbar; alles andere nur, wenn der Passwortschutz eingeschaltet ist und man sich anmeldet. Änderung wirkt nach einem <b>Neustart</b> des Programms. Windows fragt beim ersten Start evtl. nach einer Firewall-Freigabe – bitte nur für „Private Netzwerke“ zulassen.</p>
+  <div class="felder">
+    <div class="s12">{{ haken('handy_im_netz', 'Programm im WLAN erreichbar machen (für QR-Codes am Handy)') }}</div>
+    <div class="s6"><label>Adresse für QR-Codes (optional)</label><input type="text" name="handy_adresse" value="{{ einst.handy_adresse or '' }}" placeholder="automatisch, z. B. 192.168.178.20:5000">
+      <div class="hilfe">Nur nötig, wenn die automatisch erkannte Adresse nicht passt.</div></div>
+  </div><br>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'programm' %}
+<div class="karte">
+  <h2>Version {{ version }}</h2>
+  {% if not ist_exe %}
+    <div class="meldung info">Sie nutzen die Installation per <code>start.bat</code>. Automatische Updates gibt es nur in der
+      EXE-Version (<b>Werkstatt-Sauter.exe</b>, siehe Anleitung). Die EXE benutzt denselben festen Datenordner – Ihre
+      Daten sind dort sofort da.</div>
+  {% endif %}
+  {% if update_da %}
+    <div class="meldung warnung"><b>Neue Version {{ update_da }} verfügbar.</b>
+      {% if einst.update_hinweise %}<pre class="klein" style="white-space:pre-wrap;margin:8px 0 0">{{ einst.update_hinweise }}</pre>{% endif %}</div>
+    {% if ist_exe %}<form method="post" action="{{ url_for('main.update_installieren') }}" onsubmit="return confirm('Jetzt aktualisieren? Vorher wird automatisch ein Backup erstellt. Das Programm startet danach neu (ca. 30 Sekunden).')">{{ csrf() }}<button>Jetzt aktualisieren</button></form>{% endif %}
+  {% else %}
+    <p>Sie verwenden die aktuelle Version.</p>
+  {% endif %}
+  <p class="klein">Zuletzt geprüft: {{ einst.update_letzte_pruefung|zeit if einst.update_letzte_pruefung else 'noch nie' }}{% if einst.update_fehler %} – <span style="color:var(--rot)">{{ einst.update_fehler }}</span>{% endif %}</p>
+  <div class="leiste">
+    <form method="post" action="{{ url_for('main.update_pruefen') }}">{{ csrf() }}<button class="zweit">Jetzt nach Updates suchen</button></form>
+    <a class="knopf zweit" href="{{ url_for('main.versionen') }}">Versionsprotokoll anzeigen</a>
+  </div>
+</div>
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Programmfenster</h2>
+  <div class="felder">
+    <div class="s8"><label>Buchhaltung öffnen als</label><select name="fenster_modus">
+      <option value="app" {{ 'selected' if einst.fenster_modus == 'app' }}>eigenes Programmfenster (ohne Browser-Leiste)</option>
+      <option value="browser" {{ 'selected' if einst.fenster_modus == 'browser' }}>Tab im normalen Browser</option></select></div>
+  </div>
+  <br><h2>Automatische Updates</h2>
+  <div class="felder">
+    {{ haken('update_auto', 'Neue Versionen beim Programmstart automatisch installieren (vorher wird ein Backup erstellt)') }}
+  </div>
+  <p class="klein">Das Programm fragt beim Start und alle 6 Stunden bei GitHub nach, ob es eine neue Version gibt. Es werden dabei keine Daten von Ihnen übertragen. Die heruntergeladene Datei wird mit einer Prüfsumme kontrolliert.</p>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'sicherheit' %}
+{% if not einst.login_aktiv %}
+<form method="post" action="{{ url_for('main.passwort_aendern') }}" class="karte">{{ csrf() }}
+  <h2>Passwortschutz ist ausgeschaltet</h2>
+  <p class="klein">Das Programm öffnet sich ohne Anmeldung. Von anderen Geräten ist es nicht erreichbar (nur dieser PC),
+    aber jeder, der an diesem PC sitzt, kann es öffnen. Tipp: Windows-Anmeldung mit Passwort/PIN und Bildschirmsperre nutzen.</p>
+  <h2>Passwortschutz einschalten</h2>
+  <div class="felder">
+    <div class="s4"><label>Passwort (mind. 8 Zeichen)</label><input type="password" name="neu" required minlength="8"></div>
+    <div class="s4"><label>Passwort wiederholen</label><input type="password" name="neu2" required minlength="8"></div>
+  </div><br><button name="aktion" value="an">Passwortschutz einschalten</button>
+</form>
+{% else %}
+<form method="post" action="{{ url_for('main.passwort_aendern') }}" class="karte">{{ csrf() }}
+  <h2>Passwort ändern</h2>
+  <div class="felder">
+    <div class="s4"><label>Bisheriges Passwort</label><input type="password" name="alt" required></div>
+    <div class="s4"><label>Neues Passwort</label><input type="password" name="neu" required minlength="8"></div>
+    <div class="s4"><label>Neues Passwort wiederholen</label><input type="password" name="neu2" required minlength="8"></div>
+  </div><br><button name="aktion" value="aendern">Passwort ändern</button>
+</form>
+<form method="post" action="{{ url_for('main.passwort_aendern') }}" class="karte">{{ csrf() }}
+  <h2>Passwortschutz ausschalten</h2>
+  <p class="klein">Danach öffnet sich das Programm ohne Anmeldung.</p>
+  <button name="aktion" value="aus" class="gefahr">Passwortschutz ausschalten</button>
+</form>
+{% endif %}
+{% endif %}

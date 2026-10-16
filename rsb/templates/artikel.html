@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ a.name if a else 'Neue Leistung' }}{% if a %}{{ aenderungen_karte(aenderungen) }}{% endif %}
+{% endblock %}
+{% block inhalt %}
+<h1>{{ a.name if a else 'Neue Leistung / neuer Artikel' }}</h1>
+<form method="post" class="karte">
+  {{ csrf() }}
+  <div class="felder">
+    <div class="s8"><label>Bezeichnung (erscheint auf der Rechnung)</label><input type="text" name="name" required value="{{ (a.name or '') if a }}"></div>
+    <div class="s4"><label>Artikelnummer (optional)</label><input type="text" name="artikelnr" value="{{ (a.artikelnr or '') if a }}"></div>
+    <div class="s12"><label>Beschreibung</label><textarea name="beschreibung" rows="7" style="min-height:150px" placeholder="z. B. technische Details: Anschlüsse/Ports, Varianten, Maße, Kompatibilität …">{{ (a.beschreibung or '') if a }}</textarea>
+      <div class="hilfe">Erscheint im Kostenvoranschlag und in der Rechnung unter der Bezeichnung (Zeilenumbrüche bleiben erhalten). Im Dokument kann sie für den Einzelfall angepasst werden, ohne diesen Katalogeintrag zu ändern.</div></div>
+    <div class="s4"><label>Leistungsart (für Auswertungen)</label>
+      <select name="leistungsart">{% for l in leistungsarten %}<option {{ 'selected' if a and a.leistungsart == l }}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Typ</label><select name="typ">
+      <option value="leistung" {{ 'selected' if not a or a.typ == 'leistung' }}>Leistung (Arbeit / Festpreis)</option>
+      <option value="material" {{ 'selected' if a and a.typ == 'material' }}>Artikel (Material / Ersatzteil)</option></select></div>
+    <div class="s4"><label>Einheit</label><input type="text" name="einheit" list="einheiten" value="{{ a.einheit if a else 'Stk.' }}">
+      <datalist id="einheiten"><option>Stk.</option><option>pauschal</option><option>Std.</option><option>km</option></datalist></div>
+    <div class="s3"><label>Einkaufspreis (€)</label><input type="text" name="teilekosten" id="teile" value="{{ (a.teilekosten|euro(false)) if a and not a.ek_unbekannt else '' }}" placeholder="unbekannt">
+      <div class="hilfe">Leer lassen, wenn unbekannt – dann wird keine Marge angezeigt.</div></div>
+    <div class="s3"><label>Aufschlag (%)</label><input type="text" name="aufschlag_prozent" id="aufschlag" value="{{ (a.aufschlag_prozent|menge) if a and a.aufschlag_prozent is not none }}">
+      <div class="hilfe"><a href="#" id="berechnen">Preis aus Aufschlag berechnen</a></div></div>
+    <div class="s3"><label>Verkaufspreis (€)</label><input type="text" name="preis" id="preis" value="{{ (a.preis|euro(false)) if a }}"></div>
+    <div class="s3"><label>Steuersatz bei Regelbesteuerung (%)</label><input type="text" name="steuersatz" value="{{ (a.steuersatz|menge) if a else '19' }}">
+      <div class="hilfe">Wird nur verwendet, wenn Sie später auf Umsatzsteuer umstellen.</div></div>
+    <div class="s3"><label>Garantie (Monate)</label><input type="text" name="garantie_monate" value="{{ a.garantie_monate if a and a.garantie_monate is not none else '' }}" placeholder="Standard ({{ einst.garantie_monate }})">
+      <div class="hilfe">Leer = Standard aus den Einstellungen; 0 = ohne Garantie.</div></div>
+    <div class="s12"><div class="meldung info" id="margeanzeige" style="margin:0">Marge: –</div></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="aktiv" {{ 'checked' if not a or a.aktiv }}> aktiv (in der Auswahl beim Rechnung schreiben anzeigen)</label></div>
+    <div class="s12"><h2 style="margin:10px 0 0">Lager</h2></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="lagerfuehrend" id="f_lager" {{ 'checked' if a and a.lagerfuehrend }}> lagerführend (Bestand führen, für Aufträge reservieren, Inventur)</label></div>
+    <div class="s3 lagerfeld"><label>Mindestbestand</label><input type="text" name="mindestbestand" value="{{ (a.mindestbestand|menge) if a and a.mindestbestand is not none else '' }}" placeholder="z. B. 2"></div>
+    <div class="s3 lagerfeld"><label>Lagerort</label><input type="text" name="lagerort" value="{{ (a.lagerort or '') if a }}" placeholder="z. B. Regal A2"></div>
+    <div class="s3 lagerfeld"><label>EAN</label><input type="text" name="ean" value="{{ (a.ean or '') if a }}"></div>
+    <div class="s3 lagerfeld"><label>Herstellernummer</label><input type="text" name="herstellernr" value="{{ (a.herstellernr or '') if a }}"></div>
+    <div class="s12 lagerfeld"><label>Kompatibel mit (durchsuchbar)</label><input type="text" name="kompatibilitaet" value="{{ (a.kompatibilitaet or '') if a }}" placeholder="z. B. iPhone 13, iPhone 13 Pro, A2633"></div>
+  </div>
+  <br>
+  <div class="leiste"><button>Speichern</button><a class="knopf zweit" href="{{ url_for('main.artikel_liste') }}">Abbrechen</a></div>
+</form>
+{% if a and a.lagerfuehrend %}
+<div class="karte" id="lager">
+  <h2>Bestand: {{ a.bestand|menge }} {{ a.einheit or '' }}{% if reserviert %} <span class="klein">· reserviert {{ reserviert|menge }} · verfügbar {{ (a.bestand - reserviert)|menge }}</span>{% endif %}
+    {% if a.mindestbestand is not none and a.bestand - reserviert < a.mindestbestand %} <span class="marke-status st-fehler">unter Mindestbestand</span>{% endif %}</h2>
+  <form method="post" action="{{ url_for('main.lager_buchen', artikel_id=a.id) }}" class="felder">{{ csrf() }}
+    <div class="s3"><label>Buchung</label><select name="art"><option value="zugang">Zugang (+)</option><option value="abgang">Abgang (−)</option><option value="korrektur">Korrektur (±, mit Vorzeichen)</option></select></div>
+    <div class="s2"><label>Menge</label><input type="text" name="menge" required inputmode="decimal" placeholder="z. B. 5"></div>
+    <div class="s4"><label>Grund (Pflicht)</label><input type="text" name="grund" required minlength="3" placeholder="z. B. Lieferung iParts, Bruch, Erstbestand"></div>
+    <div class="s3"><label>&nbsp;</label><button>Buchen</button></div>
+  </form>
+  <table class="liste" style="margin-top:12px"><thead><tr><th>Zeitpunkt</th><th>Art</th><th class="zahl">Menge</th><th class="zahl">Bestand danach</th><th>Grund</th><th>Auftrag</th><th>Benutzer</th></tr></thead><tbody>
+  {% for b in bewegungen %}<tr><td>{{ b.zeitpunkt|zeit_sek }}</td><td>{{ lagerarten[b.art] }}</td><td class="zahl">{{ '+' if b.menge > 0 }}{{ b.menge|menge }}</td><td class="zahl">{{ b.bestand_danach|menge }}</td><td>{{ b.grund }}</td>
+    <td>{% if b.auftrag_id %}<a href="{{ url_for('main.auftrag', aid=b.auftrag_id) }}">{{ b.auftragsnr }}</a>{% endif %}</td><td>{{ b.benutzer }}</td></tr>
+  {% else %}<tr><td colspan="7" class="klein">Noch keine Buchungen – Anfangsbestand als „Zugang“ buchen.</td></tr>{% endfor %}</tbody></table>
+  <p class="klein">Der Bestand wird nie direkt überschrieben: jede Änderung ist eine Buchung mit Grund, Benutzer und Zeitpunkt.</p>
+</div>
+{% endif %}
+{% if a %}
+<div class="karte" id="bezugsquellen">
+  <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Bezugsquellen (Lieferanten)</h2>
+    {% if quellen %}<a class="knopf zweit klein" href="{{ url_for('main.bestellung_neu', artikel_id=a.id) }}">Bestellen</a>{% endif %}</div>
+  <table class="liste"><thead><tr><th>Lieferant</th><th>Lief.-Art.-Nr.</th><th class="zahl">EK netto</th><th class="zahl">Lieferzeit</th><th class="zahl">Garantie</th><th></th></tr></thead><tbody>
+  {% for q in quellen %}<tr><td><a href="{{ url_for('main.lieferant', lid=q.lieferant_id) }}">{{ q.name }}</a>{% if loop.first and q.ek is not none and quellen|length > 1 %} <span class="marke-status st-gesendet">günstigster</span>{% endif %}</td>
+    <td>{{ q.lieferanten_artnr or '' }}</td><td class="zahl">{{ q.ek|euro if q.ek is not none else '–' }}</td><td class="zahl">{{ (q.lieferzeit_tage ~ ' Tg.') if q.lieferzeit_tage else '' }}</td><td class="zahl">{{ (q.garantie_monate ~ ' Mon.') if q.garantie_monate else '' }}</td>
+    <td class="zahl"><form method="post" action="{{ url_for('main.artikel_bezugsquelle', aid=a.id) }}">{{ csrf() }}<input type="hidden" name="lieferant_id" value="{{ q.lieferant_id }}"><input type="hidden" name="entfernen" value="1"><button class="zweit klein" title="entfernen">✕</button></form></td></tr>
+  {% else %}<tr><td colspan="6" class="klein">Noch keine Bezugsquelle.</td></tr>{% endfor %}</tbody></table>
+  {% if alle_lieferanten %}
+  <form method="post" action="{{ url_for('main.artikel_bezugsquelle', aid=a.id) }}" class="felder" style="margin-top:10px">{{ csrf() }}
+    <div class="s3"><label>Lieferant</label><select name="lieferant_id" required>{% for l in alle_lieferanten %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select></div>
+    <div class="s2"><label>EK netto (€)</label><input type="text" name="ek"></div>
+    <div class="s2"><label>Lief.-Art.-Nr.</label><input type="text" name="lieferanten_artnr"></div>
+    <div class="s2"><label>Garantie (Mon.)</label><input type="text" name="garantie_monate" placeholder="z. B. 6"></div>
+    <div class="s3"><label>&nbsp;</label><button class="zweit">Speichern</button></div>
+    <div class="s12"><label class="check"><input type="checkbox" name="als_ek" value="1"> diesen Preis als Einkaufspreis des Artikels übernehmen (Marge wird neu berechnet)</label></div>
+  </form>{% else %}<p class="klein">Lieferanten legen Sie unter <a href="{{ url_for('main.lieferanten') }}">Einkauf → Lieferanten</a> an.</p>{% endif %}
+</div>
+<form method="post" action="{{ url_for('main.artikel_loeschen', aid=a.id) }}" onsubmit="return confirm('Wirklich löschen?')">{{ csrf() }}<button class="gefahr">Löschen</button></form>
+{% endif %}
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+  const teile = document.getElementById('teile'), auf = document.getElementById('aufschlag'), preis = document.getElementById('preis');
+  function zeigeMarge() {
+    const t = zahl(teile.value), p = zahl(preis.value), m = p - t;
+    const el = document.getElementById('margeanzeige');
+    if (!teile.value.trim()) { el.textContent = 'Marge: – (Einkaufspreis unbekannt)'; el.className = 'meldung info'; return; }
+    el.textContent = 'Marge: ' + euro(m) + (p ? ' (' + Math.round(m / p * 100) + ' % vom Preis)' : '') + (t ? ' · Aufschlag auf Teile: ' + Math.round(m / t * 100) + ' %' : '');
+    el.className = 'meldung ' + (m < 0 ? 'fehler' : 'ok');
+  }
+  document.getElementById('berechnen').onclick = e => { e.preventDefault(); preis.value = euroText(zahl(teile.value) * (1 + zahl(auf.value) / 100)); zeigeMarge(); };
+  [teile, auf, preis].forEach(el => el.addEventListener('input', zeigeMarge));
+  zeigeMarge();
+  const lagerHaken = document.getElementById('f_lager');
+  const lagerFelder = () => document.querySelectorAll('.lagerfeld').forEach(e => e.hidden = !lagerHaken.checked);
+  lagerHaken.addEventListener('change', lagerFelder); lagerFelder();
+</script>
+{% endblock %}

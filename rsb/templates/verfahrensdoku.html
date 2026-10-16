@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titel %}Verfahrensdokumentation{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Verfahrensdokumentation</h1>
+  <div class="leiste">
+    <a class="knopf" href="{{ url_for('main.verfahrensdokumentation', pdf=1) }}" target="_blank">Als PDF öffnen</a>
+    <a class="knopf zweit" href="{{ url_for('main.verfahrensdokumentation', pdf=1, download=1) }}">PDF herunterladen</a>
+  </div>
+</div>
+<div class="meldung info">Vorlage für Ihren Steuerberater: Sie wird aus den aktuellen Einstellungen erzeugt und beschreibt, wie das Programm Belege erstellt, festschreibt, archiviert und sichert. Stellen mit <b>{{ ergaenzen }}</b> bitte ergänzen (z. B. handschriftlich im Ausdruck). Eine Verfahrensdokumentation ist individuell – bitte mit dem Steuerberater durchgehen.</div>
+<div class="karte verfahrensdoku">
+{% for titel, bausteine in abschnitte %}
+  <h2>{{ titel }}</h2>
+  {% for b in bausteine %}
+    {% if b is not string and b[0] == 'liste' %}<ul>{% for x in b[1] %}<li>{{ markiert(x) }}</li>{% endfor %}</ul>
+    {% elif b is not string and b[0] == 'tabelle' %}<table class="liste" style="max-width:640px">{% for z in b[1] %}{% set zelle = 'th' if loop.first else 'td' %}<tr>{% for c in z %}<{{ zelle }}>{{ c }}</{{ zelle }}>{% endfor %}</tr>{% endfor %}</table>
+    {% else %}<p>{{ markiert(b) }}</p>{% endif %}
+  {% endfor %}
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titel %}Bestellungen{% endblock %}
+{% block inhalt %}
+{% set reiter = "einkauf" %}{% include "_bereichsreiter.html" %}
+<div class="kopf"><h1>Bestellungen</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.lager_bestellvorschlag') }}">Aus Bestellvorschlag</a><a class="knopf" href="{{ url_for('main.bestellung_neu') }}">+ Neue Bestellung</a></div></div>
+<nav class="reiter">{% for k, n in [('offen','Offen'),('geliefert','Geliefert'),('storniert','Storniert'),('alle','Alle')] %}<a href="{{ url_for('main.bestellungen', status=k) }}" class="{{ 'aktiv' if status == k }}">{{ n }}</a>{% endfor %}</nav>
+<div class="karte"><table class="liste"><thead><tr><th>Nummer</th><th>Lieferant</th><th>Status</th><th>bestellt</th><th>erwartet</th><th class="zahl">Pos.</th><th class="zahl">Summe (EK)</th></tr></thead><tbody>
+{% for b in liste %}<tr><td><a href="{{ url_for('main.bestellung', bid=b.id) }}"><b>{{ b.nummer }}</b></a></td><td>{{ b.lieferant }}</td><td>{{ status_namen[b.status] }}</td>
+  <td>{{ b.bestellt_am|datum if b.bestellt_am else '' }}</td><td>{{ b.erwartet_am|datum if b.erwartet_am else '' }}</td><td class="zahl">{{ b.positionen }}</td><td class="zahl">{{ (b.summe or 0)|round|int|euro }}</td></tr>
+{% else %}<tr><td colspan="7" class="klein">Keine Bestellungen.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

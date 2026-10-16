@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titel %}Lieferanten{% endblock %}
+{% block inhalt %}
+{% set reiter = "einkauf" %}{% include "_bereichsreiter.html" %}
+<div class="kopf"><h1>Lieferanten</h1><a class="knopf" href="{{ url_for('main.lieferant') }}">+ Neuer Lieferant</a></div>
+<div class="karte"><table class="liste"><thead><tr><th>Name</th><th>Kontakt</th><th>Meine Kd.-Nr.</th><th>Zahlung</th><th class="zahl">Lieferzeit</th><th class="zahl">Artikel</th><th class="zahl">offene Bestellungen</th></tr></thead><tbody>
+{% for l in liste %}<tr {% if not l.aktiv %}style="opacity:.55"{% endif %}><td><a href="{{ url_for('main.lieferant', lid=l.id) }}"><b>{{ l.name }}</b></a>{% if l.webshop %} <a class="klein" href="{{ l.webshop }}" target="_blank" rel="noopener">Webshop ↗</a>{% endif %}</td>
+  <td class="klein">{{ [l.ansprechpartner, l.email, l.telefon]|select|join(' · ') }}</td><td>{{ l.kundennr_bei or '' }}</td>
+  <td class="klein">{{ l.zahlungsbedingungen or '' }}</td><td class="zahl">{{ (l.lieferzeit_tage ~ ' Tg.') if l.lieferzeit_tage else '' }}</td>
+  <td class="zahl">{{ l.artikel }}</td><td class="zahl">{{ l.offene_bestellungen or '' }}</td></tr>
+{% else %}<tr><td colspan="7" class="klein">Noch keine Lieferanten angelegt.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

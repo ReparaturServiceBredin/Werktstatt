@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_auftrag_karte.html" import karte %}
+{% from "_benachrichtigung.html" import vorschau %}
+{% block titel %}Reparaturaufträge{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Reparaturaufträge</h1>
+  <a class="knopf" href="{{ url_for('main.auftrag_neu') }}">+ Neuer Auftrag</a>
+</div>
+<p class="klein">Karte anklicken = Auftrag öffnen. Karten mit der Maus in eine andere Spalte ziehen – oder die Pfeil-Knöpfe nutzen. Wird ein Auftrag auf <b>Erledigt</b> gezogen, erstellt das Tool automatisch den Rechnungsentwurf (mit den Positionen aus dem KVA) und öffnet ihn.</p>
+{% if benachrichtigungen %}<div class="meldung info"><b>{{ benachrichtigungen|length }} Kundenbenachrichtigung(en) warten auf Freigabe.</b> Vorschau prüfen und senden – oder „Diesmal nicht senden“.</div>
+{% for b in benachrichtigungen %}{{ vorschau(b, anlaesse, url_for('main.auftraege')) }}{% endfor %}{% endif %}
+<div class="tafel">
+  {% for status, name in status_namen.items() %}
+  <div class="spalte" data-status="{{ status }}">
+    <div class="spalte-kopf s-{{ status }}">{{ name }} <span>{{ spalten[status]|length }}</span></div>
+    <div class="spalte-inhalt">
+      {% for a in spalten[status] %}{{ karte(a, heute) }}{% endfor %}
+      <div class="leer klein">{{ 'Hierher ziehen' }}</div>
+    </div>
+    {% if status == 'erledigt' %}<div class="klein" style="padding:6px 10px">{% if alle_erledigten %}<a href="{{ url_for('main.auftraege') }}">nur letzte 30 Tage</a>{% else %}letzte 30 Tage · <a href="{{ url_for('main.auftraege', alle=1) }}">alle anzeigen</a>{% endif %}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% include "_kein_kva_dialog.html" %}
+{% endblock %}
+{% block skript %}
+<script>
+const CSRF = {{ csrf_token()|tojson }};
+let gezogen = null, zuletztGezogen = 0;
+document.querySelectorAll('.auftrag').forEach(k => {
+  k.addEventListener('dragstart', e => { gezogen = k; k.classList.add('zieht'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', k.dataset.id); });
+  k.addEventListener('dragend', () => { zuletztGezogen = Date.now(); k.classList.remove('zieht'); document.querySelectorAll('.spalte').forEach(s => s.classList.remove('ueber')); });
+  // Klick auf die Karte öffnet die Detailansicht – nicht bei Knöpfen/Links und nicht direkt nach dem Ziehen
+  k.addEventListener('click', e => {
+    if (e.target.closest('a, button, form, input, select')) return;
+    if (Date.now() - zuletztGezogen < 400) return;
+    window.location = k.dataset.url;
+  });
+});
+// „Erledigt ✓“-Knopf: ohne KVA erst nachfragen
+document.querySelectorAll('form[data-erledigt]').forEach(f => f.addEventListener('submit', async e => {
+  const karte = f.closest('.auftrag');
+  e.preventDefault();
+  const r = await erledigtFragen(karte);
+  if (!r || r === 'weg') return;
+  f.ohne_kva.value = r.ohneKva; f.leihe_spaeter.value = r.leiheSpaeter; f.submit();
+}));
+/* Rückfragen beim Erledigen: Leihgerät noch draußen? Kein KVA? Ergebnis null = abbrechen, 'weg' = Seite wird gewechselt */
+async function erledigtFragen(karte) {
+  const r = { ohneKva: '', leiheSpaeter: '' };
+  if (karte.dataset.leihe === '1') {
+    const w = await leiheOffenFragen();
+    if (w === 'zuruecknehmen') { window.location = karte.dataset.url + '#leihgeraet'; return 'weg'; }
+    if (w !== 'spaeter') return null;
+    r.leiheSpaeter = '1';
+  }
+  if (karte.dataset.kva !== '1') {
+    const w = await keinKvaFragen();
+    if (w === 'verknuepfen') { window.location = karte.dataset.url + '#kostenvoranschlag'; return 'weg'; }
+    if (w !== 'leer') return null;
+    r.ohneKva = '1';
+  }
+  return r;
+}
+function karteNach(spalte, y) {
+  return [...spalte.querySelectorAll('.auftrag:not(.zieht)')].find(k => { const r = k.getBoundingClientRect(); return y < r.top + r.height / 2; });
+}
+document.querySelectorAll('.spalte').forEach(sp => {
+  sp.addEventListener('dragover', e => {
+    e.preventDefault(); sp.classList.add('ueber');
+    const inhalt = sp.querySelector('.spalte-inhalt'), vor = karteNach(sp, e.clientY);
+    if (gezogen) inhalt.insertBefore(gezogen, vor || inhalt.querySelector('.leer'));
+  });
+  sp.addEventListener('dragleave', e => { if (!sp.contains(e.relatedTarget)) sp.classList.remove('ueber'); });
+  sp.addEventListener('drop', async e => {
+    e.preventDefault();
+    if (!gezogen) return;
+    const karte = gezogen;
+    let ohneKva = '', leiheSpaeter = '';
+    if (sp.dataset.status === 'erledigt' && karte.dataset.status !== 'erledigt') {
+      const r = await erledigtFragen(karte);
+      if (r === 'weg') return;
+      if (!r) { window.location.reload(); return; }
+      ohneKva = r.ohneKva; leiheSpaeter = r.leiheSpaeter;
+    }
+    const naechste = gezogen.nextElementSibling;
+    const daten = new FormData();
+    daten.append('csrf', CSRF);
+    daten.append('status', sp.dataset.status);
+    daten.append('ohne_kva', ohneKva);
+    daten.append('leihe_spaeter', leiheSpaeter);
+    if (naechste && naechste.classList.contains('auftrag')) daten.append('vor_id', naechste.dataset.id);
+    const r = await fetch(`/auftraege/${karte.dataset.id}/status`, { method: 'POST', body: daten, headers: { 'X-Requested-With': 'fetch' } });
+    const j = r.ok ? await r.json() : null;
+    if (j && (j.kein_kva || j.leihe_offen)) { window.location = j.auftrag_url; return; }
+    if (!j || !j.ok) { alert('Speichern fehlgeschlagen. Bitte Seite neu laden.'); return; }
+    if (j.rechnung_url) { window.location = j.rechnung_url; return; }
+    window.location.reload();
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+<dialog id="keinKvaDialog" class="dialog">
+  <h2>Kein Kostenvoranschlag verknüpft</h2>
+  <p>{{ kein_kva_text or 'Kein KVA verknüpft – leeren Rechnungsentwurf erstellen oder KVA jetzt verknüpfen?' }}</p>
+  <div class="leiste">
+    <button type="button" data-wahl="leer">Leeren Rechnungsentwurf erstellen</button>
+    <button type="button" class="zweit" data-wahl="verknuepfen">KVA jetzt verknüpfen</button>
+    <button type="button" class="zweit" data-wahl="">Abbrechen</button>
+  </div>
+</dialog>
+<dialog id="leiheOffenDialog" class="dialog">
+  <h2>Leihgerät noch nicht zurück</h2>
+  <p>{{ leihe_offen_text or 'Das Leihgerät ist noch nicht zurück. Leihgerät jetzt zurücknehmen oder später separat abrechnen?' }}</p>
+  <div class="leiste">
+    <button type="button" data-wahl="zuruecknehmen">Leihgerät jetzt zurücknehmen</button>
+    <button type="button" class="zweit" data-wahl="spaeter">Später separat abrechnen</button>
+    <button type="button" class="zweit" data-wahl="">Abbrechen</button>
+  </div>
+</dialog>
+<script>
+function dialogFragen(id) {
+  const d = document.getElementById(id);
+  return new Promise(fertig => {
+    d.querySelectorAll('[data-wahl]').forEach(b => b.onclick = () => { d.close(); fertig(b.dataset.wahl); });
+    d.oncancel = () => fertig('');
+    d.showModal();
+  });
+}
+/* Ergebnis: 'zuruecknehmen', 'spaeter' oder '' */
+function leiheOffenFragen() { return dialogFragen('leiheOffenDialog'); }
+/* Fragt nach, wenn ein Auftrag ohne KVA auf „Erledigt“ gesetzt wird. Ergebnis: 'leer', 'verknuepfen' oder '' */
+function keinKvaFragen() { return dialogFragen('keinKvaDialog'); }
+</script>

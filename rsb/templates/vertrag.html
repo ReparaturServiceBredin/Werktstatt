@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf, status %}
+{% from "_vertrag.html" import zustand %}
+{% block titel %}{{ v.bezeichnung if v else 'Neuer Vertrag' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>{{ v.bezeichnung if v else 'Neuer Vertrag / neue Lizenz' }} {% if v %}{{ zustand(v) }}{% endif %}</h1>
+  <div class="leiste">
+    {% if kunde %}<a class="knopf zweit" href="{{ url_for('main.kunde', kid=kunde.id) }}">← {{ kunde|kname }}</a>{% endif %}
+    <a class="knopf zweit" href="{{ url_for('main.vertraege_liste') }}">Alle Verträge</a>
+  </div>
+</div>
+<div class="zweispaltig">
+<form method="post" class="karte" id="vform">{{ csrf() }}
+  <div class="felder">
+    {% if not v %}
+    <div class="s12"><label>Kunde</label><select name="kunde_id" required><option value="">– bitte wählen –</option>
+      {% for k in kunden %}<option value="{{ k.id }}" {{ 'selected' if kunde and kunde.id == k.id }}>{{ k.kundennr }} · {{ k|kname }}</option>{% endfor %}</select></div>
+    <div class="s12"><label>Vorlage (Vertragsart)</label><select name="vertragsart_id" id="art"><option value="">– frei eingeben –</option>
+      {% for a in arten %}<option value="{{ a.id }}">{{ a.kategorie }} · {{ a.name }}</option>{% endfor %}</select>
+      <div class="hilfe">Füllt die Felder vor. <a href="{{ url_for('main.vertragsarten', neu=1) }}">Neue Vertragsart anlegen</a></div></div>
+    {% endif %}
+    <div class="s8"><label>Bezeichnung (erscheint auf der Rechnung)</label><input type="text" name="bezeichnung" required value="{{ v.bezeichnung if v }}"></div>
+    <div class="s4"><label>Kategorie</label><select name="kategorie">{% for k in kategorien %}<option {{ 'selected' if v and v.kategorie == k }}>{{ k }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>Vertrags-/Policen-/Lizenznummer</label><input type="text" name="vertragsnummer" value="{{ v.vertragsnummer or '' if v }}" placeholder="z. B. Lizenzschlüssel oder Policennummer"></div>
+    <div class="s6"><label>Gerät / Seriennummer</label><input type="text" name="geraet" value="{{ v.geraet or '' if v }}" placeholder="z. B. iPhone 15, IMEI …"></div>
+    <div class="s4"><label>Beginn</label><input type="date" name="beginn" required value="{{ v.beginn if v else heute }}"></div>
+    <div class="s8"><label>Abrechnung</label><select name="abrechnung" id="abrechnung">{% for k, (t, _) in abrechnung.items() %}<option value="{{ k }}" {{ 'selected' if v and v.abrechnung == k }}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Laufzeit (Monate)</label><input type="number" min="0" name="laufzeit_monate" value="{{ v.laufzeit_monate or '' if v }}" placeholder="leer = unbefristet">
+      <div class="hilfe">12 = 1 Jahr, 24 = 2 Jahre, 36 = 3 Jahre</div></div>
+    <div class="s4"><label>Mindestlaufzeit (Monate)</label><input type="number" min="0" name="mindestlaufzeit_monate" value="{{ v.mindestlaufzeit_monate or '' if v }}"></div>
+    <div class="s4" style="align-self:center"><label class="check"><input type="checkbox" name="auto_verlaengern" {{ 'checked' if v and v.auto_verlaengern }}> verlängert sich automatisch</label></div>
+    <div class="s4"><label>Preis je Abrechnung (€)</label><input type="text" name="preis" value="{{ (v.preis|euro(false)) if v else '0,00' }}"></div>
+    <div class="s4"><label>Einkauf je Abrechnung (€)</label><input type="text" name="einkauf" value="{{ (v.einkauf|euro(false)) if v else '0,00' }}"></div>
+    <div class="s4"><label>Anzahl (z. B. Geräte)</label><input type="text" name="anzahl" value="{{ (v.anzahl|menge) if v else '1' }}"></div>
+    <div class="s6"><label>Bereits berechnet bis (optional)</label><input type="date" name="abgerechnet_bis" value="{{ (v.abgerechnet_bis or '') if v }}">
+      <div class="hilfe">Nur bei Übernahme bestehender Verträge: Zeiträume bis zu diesem Datum wurden schon anders berechnet (z. B. Lexware) und werden übersprungen.</div></div>
+    <div class="s12"><label>Notizen</label><textarea name="notizen">{{ v.notizen or '' if v }}</textarea></div>
+  </div><br>
+  <div class="leiste"><button>Speichern</button>{% if not v %}<button name="danach" value="kunde" class="zweit">Speichern &amp; zum Kunden</button>{% endif %}</div>
+</form>
+{% if v %}
+<div>
+  <div class="karte">
+    <h2>Übersicht</h2>
+    <table class="liste">
+      <tr><td>Beginn</td><td>{{ v.beginn|datum }}</td></tr>
+      <tr><td>{{ 'Bezahlt bis / Ende' if v.abrechnung == 'laufzeit' else 'Ende' }}</td><td>{{ v.ende|datum if v.ende else 'unbefristet' }}{{ ' (verlängert sich automatisch)' if v.auto_verlaengern and v.ende }}</td></tr>
+      {% if v.mindestlaufzeit_monate %}<tr><td>Mindestlaufzeit</td><td>{{ v.mindestlaufzeit_monate }} Monate</td></tr>{% endif %}
+      {% if v.monatswert %}<tr><td>Entspricht pro Monat</td><td>{{ v.monatswert|euro }}{% if v.einkauf %} · Marge {{ ((v.preis - v.einkauf) * v.anzahl)|int|euro }} je Abrechnung{% endif %}</td></tr>{% endif %}
+      {% if v.status == 'gekuendigt' %}<tr><td>Kündigung</td><td>eingegangen {{ v.gekuendigt_am|datum }}, zum <b>{{ v.kuendigung_zum|datum }}</b>{% if v.kuendigungsgrund %}<div class="klein">{{ v.kuendigungsgrund }}</div>{% endif %}</td></tr>{% endif %}
+      {% if faellig %}<tr><td>Zur Abrechnung fällig</td><td>{% for von, bis in faellig %}{{ von.strftime('%d.%m.%Y') }} – {{ bis.strftime('%d.%m.%Y') }}<br>{% endfor %}</td></tr>{% endif %}
+    </table>
+    {% if v.abrechnung == 'laufzeit' and v.status != 'gekuendigt' %}
+    <form method="post" action="{{ url_for('main.vertrag_verlaengern', vid=v.id) }}" onsubmit="return confirm('Um eine weitere Laufzeit ({{ v.laufzeit_monate }} Monate) verlängern und Rechnungsentwurf erstellen?')" style="margin-top:10px">{{ csrf() }}<button class="zweit">Um {{ v.laufzeit_monate }} Monate verlängern &amp; berechnen</button></form>
+    {% endif %}
+  </div>
+  <div class="karte">
+    {% if v.status == 'gekuendigt' %}
+      <h2>Gekündigt</h2>
+      <p class="klein">Bis zum {{ v.kuendigung_zum|datum }} wird noch abgerechnet, danach nicht mehr.</p>
+      <form method="post" action="{{ url_for('main.vertrag_kuendigen', vid=v.id) }}">{{ csrf() }}<button name="zuruecknehmen" value="1" class="zweit">Kündigung zurücknehmen</button></form>
+    {% else %}
+      <h2>Kündigen</h2>
+      <form method="post" action="{{ url_for('main.vertrag_kuendigen', vid=v.id) }}" onsubmit="return confirm('Vertrag wirklich kündigen?')">{{ csrf() }}
+        <div class="felder">
+          <div><label>Kündigung eingegangen am</label><input type="date" name="gekuendigt_am" value="{{ heute }}"></div>
+          <div><label>Vertrag endet zum</label><input type="date" name="kuendigung_zum" value="{{ kuendigung_vorschlag }}" required>
+            <div class="hilfe">Vorschlag: Ende der laufenden Periode bzw. Mindestlaufzeit</div></div>
+          <div class="s12"><label>Grund (optional)</label><input type="text" name="kuendigungsgrund"></div>
+        </div><br><button class="gefahr">Als gekündigt hinterlegen</button>
+      </form>
+    {% endif %}
+  </div>
+  <div class="karte">
+    <h2>Abrechnungen</h2>
+    <table class="liste"><tr><th>Zeitraum</th><th>Rechnung</th><th class="zahl">Betrag</th></tr>
+      {% for a in abrechnungen %}<tr><td>{{ a.von|datum }} – {{ a.bis|datum }}</td><td><a href="{{ url_for('main.dokument', did=a.dokument_id) }}">{{ a.nummer or 'Entwurf' }}</a> {{ status(a.dstatus) }}</td><td class="zahl">{{ a.betrag|euro }}</td></tr>
+      {% else %}<tr><td colspan="3" class="klein">{{ 'Keine Abrechnung (nur Dokumentation).' if v.abrechnung == 'keine' else 'Noch nicht abgerechnet.' }}</td></tr>{% endfor %}
+    </table>
+  </div>
+  <form method="post" action="{{ url_for('main.vertrag_loeschen', vid=v.id) }}" onsubmit="return confirm('Vertrag löschen? (Nur möglich, solange keine festgeschriebene Rechnung existiert.)')">{{ csrf() }}<button class="gefahr">Vertrag löschen</button></form>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+{% block skript %}
+<script>
+const ARTEN = {{ arten|tojson }};
+const art = document.getElementById('art');
+if (art) art.onchange = () => {
+  const a = ARTEN.find(x => String(x.id) === art.value); if (!a) return;
+  const f = document.getElementById('vform');
+  const setze = (n, w) => { const el = f.querySelector(`[name=${n}]`); if (el) el.value = w ?? ''; };
+  setze('bezeichnung', a.name); setze('kategorie', a.kategorie); setze('abrechnung', a.abrechnung);
+  setze('laufzeit_monate', a.laufzeit_monate); setze('mindestlaufzeit_monate', a.mindestlaufzeit_monate);
+  setze('preis', (a.preis / 100).toLocaleString('de-DE', {minimumFractionDigits: 2}));
+  setze('einkauf', (a.einkauf / 100).toLocaleString('de-DE', {minimumFractionDigits: 2}));
+  f.querySelector('[name=auto_verlaengern]').checked = !!a.auto_verlaengern;
+  if (a.beschreibung && !f.querySelector('[name=notizen]').value) setze('notizen', a.beschreibung);
+};
+</script>
+{% endblock %}

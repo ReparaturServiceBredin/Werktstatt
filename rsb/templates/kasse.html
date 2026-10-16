@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Kassenbuch{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>Kassenbuch <span class="klein">Bestand {{ bestand|euro }}</span></h1>
+  <a class="knopf zweit" href="{{ url_for('main.kassenbuch', von=von, bis=bis, druck=1) }}" target="_blank">Drucken / PDF</a></div>
+<p class="klein">{% if letzter %}Letzter Tagesabschluss: <b>{{ letzter.datum|datum }}</b> (gezählt {{ letzter.ist|euro }}{% if letzter.differenz %}, Differenz {{ letzter.differenz|euro }}{% endif %}).{% else %}Noch kein Tagesabschluss.{% endif %}
+  Buchungen sind fortlaufend nummeriert und unveränderlich – Korrekturen nur per Gegenbuchung. Barzahlungen auf Rechnungen und bar bezahlte Eingangsrechnungen erscheinen automatisch.</p>
+{% if offen %}{% set ob = offen.buchung %}
+<div class="karte" id="fehlbetrag" style="border-left:4px solid var(--rot)">
+  <h2>Buchung vorgemerkt – Kassenbestand würde negativ</h2>
+  <p>Kassenbestand wäre am <b>{{ offen.tag|datum }}</b> um <b>{{ offen.fehlbetrag|euro }}</b> negativ. Wahrscheinlich fehlt eine Einnahme oder eine Privateinlage.</p>
+  <p class="klein">Vorgemerkt: {{ arten[ob.art] }} am {{ ob.datum|datum }} über {{ ob.betrag|euro }} – „{{ ob.text }}“. Nach dem Erfassen der fehlenden Buchung wird sie automatisch erneut versucht.</p>
+  <div class="zweispaltig">
+    {% for a, titel in [('einnahme', 'Fehlende Einnahme erfassen'), ('einlage', 'Privateinlage buchen')] %}
+    <form method="post" action="{{ url_for('main.kasse_buchen') }}" class="karte">{{ csrf() }}
+      <input type="hidden" name="nachholen" value="1"><input type="hidden" name="art" value="{{ a }}">
+      <h3>{{ titel }}</h3>
+      <div class="felder">
+        <div class="s4"><label>Datum</label><input type="date" name="datum" value="{{ offen.tag }}" max="{{ offen.tag }}" required></div>
+        <div class="s4"><label>Betrag (€)</label><input type="text" name="betrag" value="{{ offen.fehlbetrag|euro(false) }}" required inputmode="decimal"></div>
+        {% if a == 'einnahme' %}<div class="s4"><label>Steuersatz (%)</label><input type="text" name="steuersatz" placeholder="{{ '19' if einst.steuer_modus == 'regel' else '–' }}"></div>{% endif %}
+        <div class="s12"><label>{{ 'Text' if a == 'einnahme' else 'Begründung' }}</label><input type="text" name="text" required minlength="3" placeholder="{{ 'z. B. Barverkauf Displayschutzfolie' if a == 'einnahme' else 'z. B. Wechselgeld aus Privatvermögen' }}"></div>
+      </div><br><button>{{ titel }}</button>
+    </form>{% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('main.kasse_vormerkung_verwerfen') }}">{{ csrf() }}<button class="zweit klein">Vorgemerkte Buchung verwerfen</button></form>
+</div>
+{% endif %}
+<div class="zweispaltig">
+<form method="post" action="{{ url_for('main.kasse_buchen') }}" enctype="multipart/form-data" class="karte">{{ csrf() }}
+  <h2>Neue Buchung</h2>
+  <div class="felder">
+    <div class="s4"><label>Datum</label><input type="date" name="datum" value="{{ heute }}" max="{{ heute }}" required></div>
+    <div class="s4"><label>Art</label><select name="art" id="k_art">{% for k in ['einnahme', 'ausgabe', 'einlage', 'entnahme', 'bank_aus', 'bank_ein', 'anfangsbestand'] %}<option value="{{ k }}">{{ arten[k] }}</option>{% endfor %}</select></div>
+    <div class="s4"><label>Betrag (€)</label><input type="text" name="betrag" required inputmode="decimal"></div>
+    <div class="s12 k-einnahme"><label>Barzahlung zu Rechnung (optional)</label><select name="dokument_id"><option value="">– keine (sonstige Bareinnahme) –</option>{% for d in offene_re %}<option value="{{ d.id }}">{{ d.nummer }} · {{ d|kname }} · offen {{ (d.summe_brutto - d.bezahlt_betrag)|euro }}</option>{% endfor %}</select></div>
+    <div class="s8"><label id="k_text_label">Text</label><input type="text" name="text" required minlength="3" placeholder="z. B. Verkauf Ladekabel, Briefmarken, Bareinzahlung Sparkasse"></div>
+    <div class="s4 k-ust"><label>Steuersatz (%)</label><input type="text" name="steuersatz" placeholder="{{ '19' if einst.steuer_modus == 'regel' else '–' }}"></div>
+    <div class="s6 k-ausgabe" hidden><label>Kostenart</label><select name="kostenart"><option value=""></option>{% for k in kostenarten %}<option>{{ k }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>Beleg (Foto/PDF)</label><input type="file" name="beleg" accept=".pdf,.jpg,.jpeg,.png"></div>
+  </div><br><button>Buchen</button>
+</form>
+<form method="post" action="{{ url_for('main.kasse_abschluss') }}" class="karte">{{ csrf() }}
+  <h2>Tagesabschluss / Kassensturz</h2>
+  <div class="felder"><div class="s4"><label>Tag</label><input type="date" name="datum" value="{{ heute }}" max="{{ heute }}"></div>
+    <div class="s4"><label>Soll laut Kassenbuch</label><input type="text" value="{{ bestand|euro }}" disabled></div>
+    <div class="s4"><label>Gezählt (Ist, €)</label><input type="text" name="ist" id="k_ist" inputmode="decimal"></div></div>
+  <details style="margin-top:8px"><summary class="klein">Zählprotokoll (Scheine &amp; Münzen) …</summary>
+    <div class="felder" style="margin-top:6px">{% for w in scheine %}<div class="s2"><label>{{ w|euro }}</label><input type="number" min="0" name="anzahl_{{ w }}" class="k-zaehl" data-wert="{{ w }}" placeholder="0"></div>{% endfor %}</div></details>
+  <div class="felder" style="margin-top:8px"><div class="s12"><label>Begründung bei Differenz</label><input type="text" name="begruendung" placeholder="z. B. Wechselgeld falsch herausgegeben"></div></div><br>
+  <button>Tag abschließen</button>
+  <p class="klein">Eine Differenz wird mit Begründung als eigene Buchung erfasst. Danach kann der Tag nicht mehr bebucht werden.</p>
+  {% if abschluesse %}<table class="liste" style="margin-top:6px">{% for a in abschluesse %}<tr><td>{{ a.datum|datum }}</td><td class="zahl">Soll {{ a.soll|euro }}</td><td class="zahl">Ist {{ a.ist|euro }}</td><td class="zahl" style="color:{{ 'var(--rot)' if a.differenz else 'var(--gruen)' }}">{{ a.differenz|euro if a.differenz else '✓' }}</td><td class="klein">{{ a.begruendung or '' }}</td></tr>{% endfor %}</table>{% endif %}
+</form>
+</div>
+<form class="leiste" method="get" style="margin-top:12px"><label style="margin:0">Zeitraum</label><input type="date" name="von" value="{{ von }}" style="width:auto"><input type="date" name="bis" value="{{ bis }}" style="width:auto"><button class="zweit">Anzeigen</button></form>
+<div class="karte" style="margin-top:10px"><table class="liste"><thead><tr><th>Nr.</th><th>Datum</th><th>Art</th><th>Text</th><th class="zahl">Einnahme</th><th class="zahl">Ausgabe</th><th class="zahl">Bestand</th><th></th></tr></thead><tbody>
+{% for z in zeilen %}{% set b = z.b %}<tr id="k{{ b.id }}"><td>{{ b.lfd_nr }}</td><td>{{ b.datum|datum }}</td><td class="klein">{{ arten[b.art] }}{% if b.kostenart %}<br>{{ b.kostenart }}{% endif %}</td>
+  <td>{{ b.text }}{% if b.dok_nummer %} <a class="klein" href="{{ url_for('main.dokument', did=b.dokument_id) }}">{{ b.dok_nummer }}</a>{% endif %}{% if b.beleg_datei %} <a href="{{ url_for('main.kasse_beleg', bid=b.id) }}" target="_blank" title="Beleg">📎</a>{% endif %}<div class="klein">{{ b.erfasst_am|zeit_sek }} · {{ b.benutzer }}</div></td>
+  <td class="zahl">{{ b.betrag|euro if b.betrag > 0 else '' }}</td><td class="zahl">{{ (-b.betrag)|euro if b.betrag < 0 else '' }}</td><td class="zahl"><b>{{ z.saldo|euro }}</b></td>
+  <td>{% if b.id not in gegengebucht and b.art not in ('gegenbuchung', 'differenz') and not b.zahlung_id and not b.er_zahlung_id and (not letzter or b.datum > letzter.datum or true) %}<details><summary class="klein">korrigieren …</summary><form method="post" action="{{ url_for('main.kasse_gegenbuchung', bid=b.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund"><button class="gefahr klein">Gegenbuchung</button></form></details>{% elif b.id in gegengebucht %}<span class="klein">gegengebucht</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="klein">Keine Buchungen im Zeitraum.</td></tr>{% endfor %}</tbody></table>
+<p class="klein">Barzahlungen auf Rechnungen bzw. Eingangsrechnungen korrigieren Sie durch Stornieren der Zahlung dort – die Gegenbuchung entsteht automatisch.</p></div>
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const art = document.getElementById('k_art');
+const anpassen = () => { document.querySelectorAll('.k-ausgabe').forEach(e => e.hidden = art.value !== 'ausgabe'); document.querySelectorAll('.k-einnahme').forEach(e => e.hidden = art.value !== 'einnahme');
+  const privat = art.value === 'einlage' || art.value === 'entnahme';
+  document.querySelectorAll('.k-ust').forEach(e => { e.hidden = privat; e.querySelector('input').disabled = privat; });
+  document.getElementById('k_text_label').textContent = privat ? 'Begründung (ohne USt)' : 'Text'; };
+art.addEventListener('change', anpassen); anpassen();
+document.querySelectorAll('.k-zaehl').forEach(i => i.addEventListener('input', () => {
+  let s = 0; document.querySelectorAll('.k-zaehl').forEach(x => s += (parseInt(x.value) || 0) * parseInt(x.dataset.wert));
+  document.getElementById('k_ist').value = euroText(s / 100);
+}));
+</script>
+{% endblock %}

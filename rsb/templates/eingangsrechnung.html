@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ ('Eingangsrechnung ' ~ e.lfd_nr) if e else 'Eingangsrechnung erfassen' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>{% if e %}Eingangsrechnung {{ e.lfd_nr }} <span class="marke-status st-{{ {'offen':'warnung','bezahlt':'gesendet','storniert':'fehler'}[e.status] }}">{{ e.status }}</span>{% else %}Eingangsrechnung erfassen{% endif %}</h1>
+  <a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen') }}">← Eingangsrechnungen</a></div>
+{% if e and e.storno_grund %}<div class="meldung fehler">Storniert am {{ e.storniert_am|zeit_sek }}: {{ e.storno_grund }}</div>{% endif %}
+{% set sha = e.datei_sha256 if e else vorlage.sha %}
+<div class="zweispaltig">
+<form method="post" enctype="multipart/form-data" class="karte">{{ csrf() }}<input type="hidden" name="aktion" value="speichern">
+  {% if not e and not vorlage.sha %}<div class="s12"><label>Beleg (PDF, Bild oder XRechnung-XML)</label><input type="file" name="datei" accept=".pdf,.jpg,.jpeg,.png,.xml">
+    <div class="hilfe">Tipp: Bei ZUGFeRD-PDFs und XRechnungen nur die Datei wählen und ohne Beträge auf „erfassen“ klicken – die Angaben werden dann aus der E-Rechnung übernommen.</div></div><br>{% endif %}
+  {% if vorlage.sha and not e %}<p class="klein">Beleg: <b>{{ vorlage.name }}</b> ({{ vorlage.quelle }}) · SHA-256 {{ vorlage.sha[:12] }}… · <a href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">anderen Beleg wählen</a></p>{% endif %}
+  <div class="felder">
+    <div class="s6"><label>Lieferant</label><select name="lieferant_id"><option value="">– nicht angelegt (Name rechts) –</option>{% for l in lieferanten %}<option value="{{ l.id }}" {{ 'selected' if werte.lieferant_id == l.id }}>{{ l.name }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>oder Name</label><input type="text" name="lieferant_name" value="{{ werte.lieferant_name or '' }}"></div>
+    <div class="s4"><label>Rechnungsnummer</label><input type="text" name="nummer" value="{{ werte.nummer or '' }}"></div>
+    <div class="s4"><label>Rechnungsdatum</label><input type="date" name="datum" required value="{{ werte.datum or '' }}"></div>
+    <div class="s4"><label>fällig am</label><input type="date" name="faellig_am" value="{{ werte.faellig_am or '' }}"><div class="hilfe">leer = Zahlungsziel des Lieferanten</div></div>
+    <div class="s3"><label>Netto (€)</label><input type="text" name="netto" id="er_netto" value="{{ werte.netto|euro(false) if werte.netto is number else '' }}"></div>
+    <div class="s3"><label>Steuersatz (%)</label><input type="text" name="steuersatz" id="er_satz" value="{{ werte.steuersatz|menge if werte.steuersatz is number else '19' }}"></div>
+    <div class="s3"><label>Steuer (€)</label><input type="text" name="steuer" id="er_steuer" value="{{ werte.steuer|euro(false) if werte.steuer is number else '' }}"></div>
+    <div class="s3"><label>Brutto (€)</label><input type="text" name="brutto" id="er_brutto" required value="{{ werte.brutto|euro(false) if werte.brutto is number else '' }}"></div>
+    <div class="s6"><label>Kostenart</label><select name="kostenart"><option value=""></option>{% for k in kostenarten %}<option {{ 'selected' if werte.kostenart == k }}>{{ k }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>zu Bestellung</label><select name="bestellung_id"><option value="">–</option>{% for b in bestellungen %}<option value="{{ b.id }}" {{ 'selected' if werte.bestellung_id == b.id }}>{{ b.nummer }} · {{ b.lieferant }}</option>{% endfor %}</select></div>
+    <div class="s12"><label>Beschreibung</label><input type="text" name="beschreibung" value="{{ werte.beschreibung or '' }}"></div>
+  </div><br>
+  {% if not e or e.status != 'storniert' %}<button>{{ 'Änderungen speichern' if e else 'Eingangsrechnung erfassen' }}</button>{% endif %}
+  <p class="klein">Netto oder Brutto genügt – Steuer und fehlender Betrag werden mit dem Steuersatz berechnet. Die Originaldatei wird unverändert archiviert (SHA-256); Änderungen an den Angaben stehen im Änderungsprotokoll. Löschen ist nicht möglich, nur Stornieren mit Grund.</p>
+</form>
+<div>
+  {% if sha %}<div class="karte"><h2>Beleg</h2>
+    {% if e and e.e_daten %}<p><a class="knopf" href="{{ url_for('main.eingangsrechnung_e', eid=e.id) }}">E-Rechnung lesbar anzeigen</a> <a class="knopf zweit" href="{{ url_for('main.eingangsrechnung_e', eid=e.id, pdf=1) }}">als PDF speichern</a></p>{% endif %}
+    <p><a href="{{ url_for('main.eingangsrechnung_datei', sha=sha) }}" target="_blank">{{ (e.datei_name if e else vorlage.name) or 'Beleg öffnen' }}</a> · SHA-256 <span class="klein">{{ sha[:16] }}…</span>{% if e %} · {{ e.quelle }}{% endif %}</p>
+    {% if ((e.datei if e else vorlage.rel) or '').endswith('.pdf') %}<iframe src="{{ url_for('main.eingangsrechnung_datei', sha=sha) }}" style="width:100%;height:520px;border:1px solid var(--linie,#ddd);border-radius:8px"></iframe>{% endif %}
+  </div>{% endif %}
+  {% if e %}
+  <div class="karte"><h2>Zahlungen</h2>
+    <p>Brutto {{ e.brutto|euro }} · bezahlt {{ e.bezahlt|euro }} · <b>offen {{ (e.brutto - e.bezahlt)|euro }}</b></p>
+    <table class="liste">{% for z in zahlungen %}<tr {% if z.storniert_am %}style="text-decoration:line-through;opacity:.6"{% endif %}><td>{{ z.datum|datum }}</td><td>{{ zahlarten.get(z.zahlart, z.zahlart) }}</td><td class="zahl">{{ z.betrag|euro }}</td><td class="klein">{{ z.notiz or '' }}{% if z.storno_grund %} · storniert: {{ z.storno_grund }}{% endif %}</td>
+      <td>{% if not z.storniert_am %}<details><summary class="klein">stornieren …</summary><form method="post">{{ csrf() }}<input type="hidden" name="aktion" value="zahlung_storno"><input type="hidden" name="zahlung_id" value="{{ z.id }}"><input type="text" name="grund" required minlength="3" placeholder="Grund"><button class="gefahr klein">OK</button></form></details>{% endif %}</td></tr>{% else %}<tr><td class="klein">Noch keine Zahlung. Abbuchungen ordnen Sie am einfachsten im Bankabgleich zu.</td></tr>{% endfor %}</table>
+    {% if e.status == 'offen' %}<form method="post" class="felder" style="margin-top:8px">{{ csrf() }}<input type="hidden" name="aktion" value="zahlung">
+      <div class="s3"><label>Datum</label><input type="date" name="datum" value="{{ heute }}"></div><div class="s3"><label>Betrag</label><input type="text" name="betrag" value="{{ (e.brutto - e.bezahlt)|euro(false) }}"></div>
+      <div class="s3"><label>Zahlart</label><select name="zahlart">{% for k, n in zahlarten.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></div>
+      <div class="s3"><label>&nbsp;</label><button>Zahlung erfassen</button></div><input type="hidden" name="notiz" value=""></form>{% endif %}
+  </div>
+  {% if fix_liste %}<form method="post" action="{{ url_for('main.eingangsrechnung_fixkosten', eid=e.id) }}" class="karte">{{ csrf() }}
+    <h2>Gehört zu Fixkosten</h2>
+    <div class="leiste"><select name="fixkosten_id" style="width:auto;max-width:320px"><option value="">– nein –</option>{% for f in fix_liste %}<option value="{{ f.id }}" {{ 'selected' if e.fixkosten_id == f.id }}>{{ f.bezeichnung }} · {{ f.kategorie }}</option>{% endfor %}</select><button class="zweit klein">Speichern</button></div>
+    <p class="klein">Zum Beispiel die Jahresrechnung des Steuerberaters. Die Finanzübersicht zählt den Betrag dann nur einmal, nämlich bei den Fixkosten.</p></form>{% endif %}
+  {% if e.status != 'storniert' %}<details class="karte"><summary>Eingangsrechnung stornieren …</summary><form method="post" class="leiste" style="margin-top:8px">{{ csrf() }}<input type="hidden" name="aktion" value="stornieren"><input type="text" name="grund" required minlength="3" placeholder="Grund (z. B. doppelt erfasst)" style="flex:1"><button class="gefahr">Stornieren</button></form></details>{% endif %}
+  {{ aenderungen_karte(aenderungen) }}
+  {% endif %}
+</div>
+</div>
+{% endblock %}
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const n = document.getElementById('er_netto'), sa = document.getElementById('er_satz'), st = document.getElementById('er_steuer'), br = document.getElementById('er_brutto');
+n.addEventListener('change', () => { if (!n.value) return; const s = zahl(n.value) * zahl(sa.value) / 100; st.value = euroText(s); br.value = euroText(zahl(n.value) + s); });
+br.addEventListener('change', () => { if (!br.value || n.value) return; const b = zahl(br.value), ne = b / (1 + zahl(sa.value) / 100); n.value = euroText(ne); st.value = euroText(b - ne); });
+</script>
+{% endblock %}

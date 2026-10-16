@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ l.name if l else 'Neuer Lieferant' }}{% endblock %}
+{% block inhalt %}
+<div class="kopf"><h1>{{ l.name if l else 'Neuer Lieferant' }}</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.lieferanten') }}">← Lieferanten</a>
+  {% if l %}<a class="knopf zweit" href="{{ url_for('main.bestellung_neu', lieferant_id=l.id) }}">+ Bestellung</a>{% endif %}</div></div>
+<form method="post" class="karte">{{ csrf() }}
+  <div class="felder">
+    {% set w = l or {} %}
+    <div class="s6"><label>Name</label><input type="text" name="name" required value="{{ w.name or '' }}"></div>
+    <div class="s3"><label>Ansprechpartner</label><input type="text" name="ansprechpartner" value="{{ w.ansprechpartner or '' }}"></div>
+    <div class="s3"><label>Meine Kundennummer dort</label><input type="text" name="kundennr_bei" value="{{ w.kundennr_bei or '' }}"></div>
+    <div class="s4"><label>E-Mail (für Bestellungen)</label><input type="email" name="email" value="{{ w.email or '' }}"></div>
+    <div class="s4"><label>Telefon</label><input type="text" name="telefon" value="{{ w.telefon or '' }}"></div>
+    <div class="s4"><label>Webshop</label><input type="url" name="webshop" value="{{ w.webshop or '' }}" placeholder="https://"></div>
+    <div class="s4"><label>Straße</label><input type="text" name="strasse" value="{{ w.strasse or '' }}"></div>
+    <div class="s2"><label>PLZ</label><input type="text" name="plz" value="{{ w.plz or '' }}"></div>
+    <div class="s3"><label>Ort</label><input type="text" name="ort" value="{{ w.ort or '' }}"></div>
+    <div class="s3"><label>Land</label><input type="text" name="land" value="{{ w.land or 'Deutschland' }}"></div>
+    <div class="s4"><label>Zahlungsbedingungen</label><input type="text" name="zahlungsbedingungen" value="{{ w.zahlungsbedingungen or '' }}" placeholder="z. B. 14 Tage netto, Vorkasse, PayPal"></div>
+    <div class="s2"><label>Zahlungsziel (Tage)</label><input type="text" name="zahlungsziel_tage" value="{{ w.zahlungsziel_tage or '' }}"></div>
+    <div class="s2"><label>Lieferzeit (Tage)</label><input type="text" name="lieferzeit_tage" value="{{ w.lieferzeit_tage or '' }}"></div>
+    <div class="s4"><label>IBAN</label><input type="text" name="iban" value="{{ w.iban or '' }}"></div>
+    <div class="s4"><label>USt-IdNr.</label><input type="text" name="ust_idnr" value="{{ w.ust_idnr or '' }}"></div>
+    <div class="s4"><label>Kreditorennummer (DATEV)</label><input type="text" name="kreditornr" value="{{ w.kreditornr or '' }}" placeholder="z. B. 70001"></div>
+    <div class="s8"><label>Notizen</label><input type="text" name="notizen" value="{{ w.notizen or '' }}"></div>
+    {% if l %}<div class="s12"><label class="check"><input type="checkbox" name="aktiv" value="1" {{ 'checked' if l.aktiv }}> aktiv</label></div>{% endif %}
+  </div><br><button>Speichern</button>
+</form>
+{% if l %}
+<div class="karte"><h2>Artikel von diesem Lieferanten</h2>
+  <table class="liste"><thead><tr><th>Artikel</th><th>Lief.-Art.-Nr.</th><th class="zahl">EK hier</th><th class="zahl">EK im Artikel</th><th class="zahl">Lieferantengarantie</th></tr></thead><tbody>
+  {% for x in artikel %}<tr><td><a href="{{ url_for('main.artikel', aid=x.artikel_id) }}#bezugsquellen">{{ x.name }}</a></td><td>{{ x.lieferanten_artnr or '' }}</td><td class="zahl">{{ x.ek|euro if x.ek is not none else '–' }}</td><td class="zahl">{{ x.teilekosten|euro }}</td><td class="zahl">{{ (x.garantie_monate ~ ' Mon.') if x.garantie_monate else '' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="klein">Bezugsquellen tragen Sie beim Artikel ein.</td></tr>{% endfor %}</tbody></table></div>
+<div class="karte"><h2>Bestellungen</h2><table class="liste">{% for b in bestellungen %}<tr><td><a href="{{ url_for('main.bestellung', bid=b.id) }}">{{ b.nummer }}</a></td><td>{{ b.erstellt_am|datum }}</td><td>{{ b.status }}</td><td class="zahl">{{ (b.summe or 0)|round|int|euro }}</td></tr>{% else %}<tr><td class="klein">Keine.</td></tr>{% endfor %}</table></div>
+<div class="karte"><h2>Eingangsrechnungen</h2><table class="liste">{% for e in rechnungen %}<tr><td><a href="{{ url_for('main.eingangsrechnung', eid=e.id) }}">{{ e.lfd_nr }}</a> {{ e.nummer or '' }}</td><td>{{ e.datum|datum }}</td><td>{{ e.status }}</td><td class="zahl">{{ e.brutto|euro }}</td></tr>{% else %}<tr><td class="klein">Keine.</td></tr>{% endfor %}</table></div>
+{{ aenderungen_karte(aenderungen) }}
+{% endif %}
+{% endblock %}

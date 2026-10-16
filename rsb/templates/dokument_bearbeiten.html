@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf, bausteinauswahl %}
+{% from "_aenderungen.html" import aenderungen_karte %}
+{% block titel %}{{ titel }} (Entwurf){% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>{{ titel }} – Entwurf</h1>
+  {% if g.auftrag %}<a class="knopf zweit" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">← Auftrag {{ g.auftrag.auftragsnr }}</a>{% elif d.typ == 'kva' %}<span class="klein">keinem Reparaturauftrag zugeordnet</span>{% endif %}
+  <div class="leiste">
+    <a class="knopf zweit" href="{{ url_for('main.dokument_pdf', did=d.id) }}" target="_blank">PDF-Vorschau öffnen</a>
+  </div>
+</div>
+{% if d.typ == 'gutschrift' %}<div class="meldung info">Gutschrift{% if bezug %} zu Rechnung <a href="{{ url_for('main.dokument', did=bezug.id) }}">{{ bezug.nummer }}</a>{% endif %}: Beträge bitte <b>positiv</b> eingeben – sie werden als Minderung (negativ) gebucht. Die Gutschrift erhält beim Festschreiben eine Nummer aus dem eigenen Nummernkreis ({{ einst.praefix_gutschrift }}).</div>{% endif %}
+{% if pflicht[0] or pflicht[1] %}
+<div class="meldung {{ 'fehler' if pflicht[0] else 'info' }}">
+  {% if pflicht[0] %}<b>Vor dem Festschreiben fehlen noch Pflichtangaben:</b>{% else %}<b>Hinweise:</b>{% endif %}
+  <ul style="margin:6px 0 0;padding-left:20px">{% for f in pflicht[0] %}<li>{{ f }}</li>{% endfor %}{% for h in pflicht[1] %}<li class="klein">{{ h }}</li>{% endfor %}</ul>
+  {% if pflicht[0] %}<div class="klein" style="margin-top:6px"><a href="{{ url_for('main.einstellungen', bereich='firma') }}">Firmendaten ergänzen</a>{% if d.kunde_id %} · <a href="{{ url_for('main.kunde', kid=d.kunde_id) }}">Kunde bearbeiten</a>{% endif %} (danach Seite neu laden)</div>{% endif %}
+</div>
+{% endif %}
+{% if einst.steuer_modus == 'kleinunternehmer' %}
+<div class="meldung info">Kleinunternehmer-Modus: Es wird keine Umsatzsteuer berechnet, der Hinweis nach § 19 UStG wird automatisch gedruckt.</div>
+{% endif %}
+{% if konflikte %}
+<form method="post" action="{{ url_for('main.artikel_preise_aktualisieren') }}" class="meldung warnung">{{ csrf() }}
+  <b>Preise im Katalog aktualisieren?</b> Diese Positionen gibt es schon unter „Leistungen und Artikel“, aber mit anderen Preisen:
+  <table class="liste" style="margin:8px 0;background:transparent">
+    <tr><th></th><th>Bezeichnung</th><th class="zahl">Katalog: Preis / Einkauf</th><th class="zahl">Neu: Preis / Einkauf</th></tr>
+    {% for k in konflikte.liste %}<tr><td><input type="checkbox" name="artikel_id" value="{{ k.artikel_id }}" checked></td><td>{{ k.name }}</td>
+      <td class="zahl">{{ k.alt_preis|euro }} / {{ (k.alt_ek|euro) if k.alt_ek is not none else 'unbekannt' }}</td>
+      <td class="zahl"><b>{{ k.neu_preis|euro }}</b> / {{ (k.neu_ek|euro) if k.neu_ek is not none else 'unverändert' }}</td></tr>{% endfor %}
+  </table>
+  <div class="leiste"><button name="antwort" value="ja">Ja, Katalog aktualisieren</button><button name="antwort" value="nein" class="zweit">Nein</button></div>
+</form>
+{% endif %}
+<form method="post" id="dokform">
+  {{ csrf() }}
+  <div class="karte">
+    <div class="felder">
+      <div class="s8"><label>Kunde</label>
+        <select name="kunde_id" required>
+          <option value="">– bitte wählen –</option>
+          {% for k in kunden %}<option value="{{ k.id }}" {{ 'selected' if d.kunde_id == k.id }}>{{ k.kundennr }} · {{ k|kname }}{{ (' · ' ~ k.ort) if k.ort }}</option>{% endfor %}
+        </select>
+        <div class="hilfe"><a href="{{ url_for('main.kunde') }}">+ neuen Kunden anlegen</a></div></div>
+      <div class="s4"><label>{{ 'Datum' if d.typ == 'kva' else 'Rechnungsdatum' }}</label><input type="date" name="datum" value="{{ d.datum }}"></div>
+      {% if d.typ != 'kva' %}
+      <div class="s4"><label>Leistungsdatum (Reparatur am)</label><input type="date" name="leistungsdatum" value="{{ d.leistungsdatum or '' }}"></div>
+      <div class="s4"><label>… bis (nur bei Zeitraum)</label><input type="date" name="leistungsdatum_bis" value="{{ d.leistungsdatum_bis or '' }}"></div>
+      {% endif %}
+      <div class="s4"><label>{{ 'Gültig (Tage)' if d.typ == 'kva' else 'Zahlungsziel (Tage)' }}</label><input type="number" min="0" name="zahlungsziel_tage" value="{{ d.zahlungsziel_tage }}">
+        <div class="hilfe">{{ 'Gültig bis' if d.typ == 'kva' else 'Fällig am' }} {{ d.faellig_am|datum }} (wird beim Speichern neu berechnet)</div></div>
+      <div class="s12"><label>Betreff (z. B. Gerät und Seriennummer)</label><input type="text" name="betreff" value="{{ d.betreff or '' }}" placeholder="z. B. Reparatur iPhone 13, IMEI …"></div>
+    </div>
+  </div>
+
+  <div class="karte">
+    <h2>Einleitung</h2>
+    {{ bausteinauswahl(bausteine, 'einleitung') }}
+    <textarea name="einleitung" id="t_einleitung">{{ d.einleitung or '' }}</textarea>
+  </div>
+
+  <div class="karte">
+    <div class="kopf" style="margin-bottom:8px"><h2 style="margin:0">Positionen</h2>
+      <div class="leiste">
+        <select id="artikelwahl" style="width:320px">
+          <option value="">+ Leistung/Artikel aus Liste einfügen …</option>
+          {% for a in artikel %}<option value="{{ a.id }}">{{ a.leistungsart }} · {{ a.name }} – {{ a.preis|euro }}</option>{% endfor %}
+        </select>
+        <button type="button" class="zweit" id="leerzeile">+ Freie Position</button>
+      </div>
+    </div>
+    <table class="positionen">
+      <thead><tr><th style="width:40%">Bezeichnung / Beschreibung</th><th>Leistungsart</th><th style="width:70px">Menge</th><th style="width:95px">Einheit</th>
+        <th style="width:95px">Einkauf</th><th style="width:95px">Einzelpreis</th>{% if einst.steuer_modus == 'regel' %}<th style="width:60px">USt %</th>{% endif %}<th style="width:110px" class="zahl">Gesamt</th><th></th></tr></thead>
+      <tbody id="positionen"></tbody>
+    </table>
+    <div class="summenbox" id="summen"></div>
+  </div>
+
+  <div class="karte">
+    <h2>Hinweise (optional, kleiner gedruckt)</h2>
+    {{ bausteinauswahl(bausteine, 'hinweis') }}
+    <textarea name="hinweise" id="t_hinweis">{{ d.hinweise or '' }}</textarea>
+    <br><br>
+    <h2>Schlusstext</h2>
+    {{ bausteinauswahl(bausteine, 'schluss') }}
+    <textarea name="schlusstext" id="t_schluss" style="min-height:110px">{{ d.schlusstext or '' }}</textarea>
+    <div class="hilfe">Platzhalter wie {nummer}, {faellig_am} oder {betrag} werden beim Festschreiben automatisch ersetzt.</div>
+  </div>
+
+  <div class="karte">
+    <div class="leiste">
+      <button name="aktion" value="speichern" class="zweit">Entwurf speichern</button>
+      <button name="aktion" value="vorschau" class="zweit">Speichern &amp; Vorschau</button>
+      <button name="aktion" value="festschreiben" class="gruen" onclick='return confirm({{ ('Kostenvoranschlag jetzt festschreiben?\n\nEr erhält eine fortlaufende Nummer und kann danach nicht mehr geändert werden. Für Änderungen einfach einen neuen KVA erstellen.' if d.typ == 'kva' else titel ~ ' jetzt festschreiben?\n\nSie erhält eine fortlaufende Nummer und kann danach NICHT mehr geändert oder gelöscht werden (nur noch Storno).')|tojson }})'>Festschreiben &amp; Nummer vergeben</button>
+    </div>
+    <p class="hilfe">Entwürfe haben noch keine Nummer und können beliebig geändert oder gelöscht werden.</p>
+  </div>
+</form>
+<form method="post" action="{{ url_for('main.dokument_loeschen', did=d.id) }}" onsubmit="return confirm('Entwurf löschen?')">{{ csrf() }}<button class="gefahr">Entwurf löschen</button></form>
+
+{% if vorschau %}
+<div class="karte" style="margin-top:18px"><h2>Vorschau</h2>
+  <iframe class="pdfrahmen" src="{{ url_for('main.dokument_pdf', did=d.id) }}"></iframe></div>
+{% endif %}
+{{ aenderungen_karte(aenderungen) }}
+{% endblock %}
+
+
+{% block skript %}
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+const ARTIKEL = {{ artikel|tojson }};
+const MIT_GARANTIE = {{ 'true' if d.typ in ('rechnung', 'kva') else 'false' }};
+const BAUSTEINE = {{ bausteine|tojson }};
+const LEISTUNGSARTEN = {{ leistungsarten|tojson }};
+const MIT_UST = {{ 'true' if einst.steuer_modus == 'regel' else 'false' }};
+const POS = [{% for p in positionen %}{{ {'bezeichnung': p.bezeichnung, 'beschreibung': p.beschreibung or '', 'menge': p.menge, 'einheit': p.einheit or '', 'einzelpreis': p.einzelpreis, 'teilekosten': p.teilekosten, 'steuersatz': p.steuersatz, 'leistungsart': p.leistungsart or '', 'artikel_id': p.artikel_id or '', 'garantie_monate': p.garantie_monate}|tojson }},{% endfor %}];
+
+const tbody = document.getElementById('positionen');
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function zeile(p) {
+  const tr = document.createElement('tr');
+  const arten = LEISTUNGSARTEN.map(a => `<option ${a === p.leistungsart ? 'selected' : ''}>${esc(a)}</option>`).join('');
+  tr.innerHTML = `
+    <td><input type="text" name="p_bezeichnung" value="${esc(p.bezeichnung)}" placeholder="Bezeichnung">
+        <textarea name="p_beschreibung" class="beschreibung" placeholder="Beschreibung (optional, mehrzeilig – erscheint unter der Bezeichnung)">${esc(p.beschreibung)}</textarea>
+        <input type="hidden" name="p_artikel_id" value="${esc(p.artikel_id)}">
+        ${MIT_GARANTIE ? `<div class="klein garantie-zeile">Garantie <input type="text" name="p_garantie" value="${p.garantie_monate ?? ''}" placeholder="Std." style="width:52px;padding:2px 6px;display:inline-block"> Monate</div>` : `<input type="hidden" name="p_garantie" value="">`}
+        <input type="hidden" name="p_katalog" value="${p.artikel_id ? '0' : (p.katalog === false ? '0' : '1')}">
+        ${p.artikel_id
+          ? `<input type="hidden" name="p_typ" value=""><div class="klein katalog-info">aus „Leistungen und Artikel“ – Änderungen gelten nur für dieses Dokument</div>`
+          : `<div class="katalog-zeile"><label class="check klein"><input type="checkbox" class="katalog-haken" ${p.katalog === false ? '' : 'checked'}> In Leistungen und Artikel speichern</label>
+             <select name="p_typ" class="klein-select" title="Typ im Katalog"><option value="leistung" ${p.typ === 'material' ? '' : 'selected'}>Leistung</option><option value="material" ${p.typ === 'material' ? 'selected' : ''}>Artikel</option></select></div>`}</td>
+    <td><select name="p_leistungsart"><option></option>${arten}</select></td>
+    <td><input type="text" name="p_menge" value="${esc(String(p.menge ?? 1).replace('.', ','))}"></td>
+    <td><input type="text" name="p_einheit" value="${esc(p.einheit)}"></td>
+    <td><input type="text" name="p_teilekosten" value="${p.teilekosten ? euroText(p.teilekosten / 100) : ''}" placeholder="unbekannt"></td>
+    <td><input type="text" name="p_preis" value="${euroText({{ 'Math.abs' if d.typ == 'gutschrift' }}(p.einzelpreis || 0) / 100)}"></td>
+    ${MIT_UST ? `<td><input type="text" name="p_steuersatz" value="${esc(p.steuersatz ?? 19)}"></td>` : `<input type="hidden" name="p_steuersatz" value="${esc(p.steuersatz ?? 19)}">`}
+    <td class="zahl"><b class="ges"></b><div class="marge"></div></td>
+    <td><button type="button" class="gefahr klein" title="Position entfernen">✕</button></td>`;
+  tr.querySelector('button').onclick = () => { tr.remove(); rechne(); };
+  const haken = tr.querySelector('.katalog-haken');
+  if (haken) haken.onchange = () => { tr.querySelector('[name=p_katalog]').value = haken.checked ? '1' : '0'; };
+  const beschr = tr.querySelector('textarea.beschreibung');
+  const hoehe = () => { beschr.style.height = 'auto'; beschr.style.height = Math.max(34, beschr.scrollHeight + 2) + 'px'; };
+  beschr.addEventListener('input', hoehe);
+  const typ = tr.querySelector('select[name=p_typ]');
+  if (typ) {  // Typ automatisch vorschlagen: mit Einkaufspreis = Artikel, sonst Leistung (bis man selbst wählt)
+    let selbst = !!p.typ;
+    typ.addEventListener('change', () => { selbst = true; });
+    const ek = tr.querySelector('[name=p_teilekosten]');
+    const vorschlag = () => { if (!selbst) typ.value = ek.value.trim() ? 'material' : 'leistung'; };
+    ek.addEventListener('input', vorschlag); vorschlag();
+  }
+  tr.querySelectorAll('input').forEach(i => i.addEventListener('input', rechne));
+  tbody.appendChild(tr);
+  hoehe();
+  rechne();
+}
+function rechne() {
+  let netto = 0, teile = 0; const gruppen = {};
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const m = zahl(tr.querySelector('[name=p_menge]').value);
+    const p = zahl(tr.querySelector('[name=p_preis]').value);
+    const t = zahl(tr.querySelector('[name=p_teilekosten]').value);
+    const s = zahl(tr.querySelector('[name=p_steuersatz]').value);
+    const g = Math.round(m * p * 100) / 100;
+    netto += g; teile += m * t;
+    gruppen[s] = (gruppen[s] || 0) + g;
+    tr.querySelector('.ges').textContent = euro(g);
+    const mg = tr.querySelector('.marge'); const marge = g - m * t;
+    mg.textContent = t ? 'Marge ' + euro(marge) : ''; mg.className = 'marge' + (marge < 0 ? ' neg' : '');
+  });
+  let html = '';
+  let steuer = 0;
+  if (MIT_UST) {
+    html += `<div><span>Netto</span><span>${euro(netto)}</span></div>`;
+    for (const s in gruppen) { const st = Math.round(gruppen[s] * s) / 100; steuer += st; html += `<div><span>USt ${s} %</span><span>${euro(st)}</span></div>`; }
+  }
+  html += `<div class="gesamt"><span>Gesamtbetrag</span><span>${euro(netto + steuer)}</span></div>`;
+  html += `<div class="klein"><span>davon Teilekosten / Marge</span><span>${euro(teile)} / ${euro(netto - teile)}</span></div>`;
+  document.getElementById('summen').innerHTML = html;
+}
+document.getElementById('leerzeile').onclick = () => zeile({ menge: 1, einheit: 'Stk.', steuersatz: 19 });
+document.getElementById('artikelwahl').onchange = e => {
+  const a = ARTIKEL.find(x => String(x.id) === e.target.value);
+  if (a) zeile({ bezeichnung: a.name, beschreibung: a.beschreibung, menge: 1, einheit: a.einheit, einzelpreis: a.preis,
+                 teilekosten: a.teilekosten, steuersatz: a.steuersatz, leistungsart: a.leistungsart, artikel_id: a.id,
+                 garantie_monate: a.garantie_monate });
+  e.target.value = '';
+};
+document.querySelectorAll('select.baustein').forEach(sel => sel.onchange = () => {
+  const b = BAUSTEINE.find(x => String(x.id) === sel.value);
+  if (b) { const ziel = document.getElementById(sel.dataset.ziel); ziel.value = ziel.value.trim() ? ziel.value + '\n\n' + b.text : b.text; }
+  sel.value = '';
+});
+POS.forEach(zeile);
+if (!POS.length) rechne();
+</script>
+{% endblock %}
