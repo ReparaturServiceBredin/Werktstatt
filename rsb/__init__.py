@@ -10,7 +10,7 @@ from . import navigation
 from .hilfen import EingabeFehler, datum_de, euro, kunde_name, menge_text, zeit_de
 from .sicherheit import csrf_pruefen, csrf_token, sitzungs_schluessel
 
-VERSION_NUMMER = "1.0.0"
+VERSION_NUMMER = "1.0.1"
 VERSION = VERSION_NUMMER
 if getattr(sys, "frozen", False):
     # EXE-Version: Programmordner = Ordner der EXE (die Daten liegen am festen Ort, siehe datenort.py)

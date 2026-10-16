@@ -13,7 +13,14 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 
 | Version | Datum | Schwerpunkt |
 |---|---|---|
+| 1.0.1 | 16.10.2026 | Updates kommen aus dem richtigen Projekt |
 | 1.0.0 | 16.10.2026 | Erste Version für die Kfz-Werkstatt |
+
+## 1.0.1 – 16.10.2026
+### Behoben
+- Die automatische Aktualisierung sucht neue Versionen im richtigen GitHub-Projekt.
+
+---
 
 ## 1.0.0 – 16.10.2026
 Erste Version von Werkstatt Sauter. Sie baut auf der bewährten Buchhaltung von Reparatur Service Bredin auf
