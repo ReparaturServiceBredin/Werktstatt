@@ -3,7 +3,7 @@ import hashlib
 import io
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, send_file,
@@ -151,7 +151,10 @@ def start():
     letzte = con.execute(
         "SELECT d.*, k.firma, k.vorname, k.nachname, k.typ AS ktyp FROM dokumente d "
         "LEFT JOIN kunden k ON k.id=d.kunde_id ORDER BY d.geaendert_am DESC LIMIT 8").fetchall()
-    return render_template("start.html", zahlen=zahlen, letzte=letzte, jahr=jahr)
+    from . import kalender as kal_
+    from .hilfen import heute_datum
+    return render_template("start.html", zahlen=zahlen, letzte=letzte, jahr=jahr,
+                           heute_termine=kal_.heute_offen(con, heute_datum(), AUFTRAG_SQL))
 
 
 # ====================================================================== Kunden
@@ -1602,7 +1605,7 @@ EINSTELLUNGS_BEREICHE = {
                     "ds_leihe_jahre", "ds_vorschau_tage", "ds_zugang_tage", "ds_email_jahre", "ds_verantwortlicher"],
     "einkauf": ["mindest_marge_prozent", "praefix_bestellung", "praefix_eingangsrechnung", "kostenarten",
                 "er_imap_ordner", "fixkosten_kategorien", "fixkosten_hinweis_tage", "wareneinsatz_kostenarten"],
-    "annahme": ["garantie_monate", "garantie_text", "kva_gebuehren", "annahme_kva_text", "annahme_zubehoer", "checklisten",
+    "annahme": ["garantie_monate", "garantie_text", "kva_gebuehren", "annahme_kva_text", "annahme_zubehoer", "checklisten", "kalender_von", "kalender_bis", "kalender_samstag", "dauer_je_leistung",
                 "annahme_datenschutz", "annahme_abholbedingungen",
                 "abholschein_text", "handy_im_netz", "handy_adresse"],
     "mahnwesen": ["mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage", "mahngebuehr_cent",
@@ -1617,8 +1620,8 @@ EINSTELLUNGS_BEREICHE = {
                  "interessent_loeschen_monate"],
 }
 JA_NEIN = {f"ben_{a}_aktiv" for a in ben.ANLAESSE} | {"ds_auto", "benachrichtigung_vorschau", "handy_im_netz", "zinsen_aktiv", "historie_aktiv", "gesendet_aktiv", "gesendet_gleiche_zugangsdaten", "update_auto", "faltmarken", "girocode", "bcc_an_mich", "backup_auto", "anfragen_aktiv", "imap_verschieben",
-           "anfrage_auto_kunde"}
-GANZZAHL = {"fixkosten_hinweis_tage", "ds_kunde_inaktiv_jahre", "ds_fotos_jahre", "ds_leihe_jahre", "ds_vorschau_tage", "ds_zugang_tage", "ds_email_jahre", "datev_kontenlaenge", "datev_debitor_start", "datev_kreditor_start", "mindest_marge_prozent", "garantie_monate", "mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage",
+           "anfrage_auto_kunde", "kalender_samstag"}
+GANZZAHL = {"kalender_von", "kalender_bis", "fixkosten_hinweis_tage", "ds_kunde_inaktiv_jahre", "ds_fotos_jahre", "ds_leihe_jahre", "ds_vorschau_tage", "ds_zugang_tage", "ds_email_jahre", "datev_kontenlaenge", "datev_debitor_start", "datev_kreditor_start", "mindest_marge_prozent", "garantie_monate", "mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage",
             "zinsen_aufschlag_privat", "zinsen_aufschlag_firma", "aufbewahrung_belege_jahre", "aufbewahrung_briefe_jahre", "historie_zeitraum_tage", "gesendet_imap_port", "vertrag_erinnerung_tage", "zahlungsziel_privat", "zahlungsziel_firma", "kva_gueltig_tage", "anzahlung_prozent", "mahnstufen", "smtp_port",
             "backup_behalten", "regel_steuersatz", "anfragen_intervall_min", "imap_port", "anfrage_schwelle_unsicher",
             "anfrage_schwelle_spam", "interessent_loeschen_monate"}
@@ -2156,6 +2159,7 @@ from . import annahme_pdf as ann_pdf  # noqa: E402
 from . import auftraege as auf  # noqa: E402
 from . import fotos as fot  # noqa: E402
 from . import checkliste as ckl  # noqa: E402
+from . import kalender as kal  # noqa: E402
 
 AUFTRAG_SQL = (
     "SELECT a.*, k.kundennr, k.firma, k.vorname, k.nachname, k.typ AS ktyp, k.telefon AS ktelefon, "
@@ -2255,6 +2259,12 @@ def _fahrzeug_felder():
             except ValueError:
                 raise EingabeFehler(f"Bitte ein gültiges Datum bei „{name}“ angeben.")
         werte[feld] = v or None
+    if _f("termin_beginn"):
+        werte["termin_beginn"] = kal.beginn_pruefen(_f("termin_beginn"))
+        werte["termin_dauer"] = kal.dauer_pruefen(_f("termin_dauer"), kal.dauer_vorschlag(
+            dbm.einstellungen(), ", ".join(request.form.getlist("leistung")) or _f("leistungsart")))
+    else:
+        werte["termin_beginn"] = werte["termin_dauer"] = None
     return werte
 
 
@@ -2270,7 +2280,7 @@ def _norm(x):
 
 FELD_NAMEN = {"geraet": "Fahrzeug", "leistungsart": "Leistungen", "seriennummer": "FIN",
               "kennzeichen": "Kennzeichen", "km_stand": "Kilometerstand", "erstzulassung": "Erstzulassung",
-              "hu_bis": "HU/TÜV fällig",
+              "hu_bis": "HU/TÜV fällig", "termin_beginn": "Termin", "termin_dauer": "Termin-Dauer",
               "zubehoer": "Zubehör", "fehler": "Fehlerbeschreibung", "notizen": "Notizen", "kunde_id": "Kunde",
               "zustand_eingang": "Zustand bei Eingang", "kosten_obergrenze": "Kosten-Obergrenze",
               "kva_gewuenscht": "KVA gewünscht", "kva_gebuehr": "KVA-Pauschale", "geraetetyp": "Fahrzeugart",
@@ -2447,6 +2457,47 @@ def auftrag(aid):
                            geaendert_seit_unterschrift=ann.geaendert_seit_unterschrift(con, aid),
                            zugang_text=ann.zugang_text(a), checkliste=ckl.liste(con, aid),
                            leistungen_gewaehlt=ckl.leistungen(a["leistungsart"]))
+
+
+@bp.route("/kalender")
+def kalender():
+    con = dbm.get_db()
+    einst = dbm.einstellungen(con)
+    from .hilfen import heute_datum
+    heute_d = heute_datum()
+    montag = kal.montag_aus(request.args.get("datum"), heute_d)
+    w = kal.woche(con, montag, einst, AUFTRAG_SQL)
+    return render_template("kalender.html", w=w, heute=heute_d, ungeplant=kal.ungeplant(con, AUFTRAG_SQL),
+                           vorher=(montag - timedelta(days=7)).isoformat(), nachher=(montag + timedelta(days=7)).isoformat(),
+                           kw=montag.isocalendar()[1], status_namen=auf.TAFEL,
+                           dauer={a["id"]: kal.dauer_vorschlag(einst, a["leistungsart"])
+                                  for a in kal.ungeplant(con, AUFTRAG_SQL)})
+
+
+@bp.route("/auftraege/<int:aid>/termin", methods=["POST"])
+def auftrag_termin(aid):
+    con = dbm.get_db()
+    _auftrag_laden(aid)
+    fetch = request.headers.get("X-Requested-With") == "fetch"
+    try:
+        with dbm.Transaktion(con):
+            if request.form.get("entfernen"):
+                kal.setzen(con, aid, None, None, dbm.einstellungen(con))
+            else:
+                a = con.execute("SELECT termin_dauer FROM auftraege WHERE id=?", (aid,)).fetchone()
+                dauer = request.form.get("dauer")
+                if request.form.get("aendern"):  # +/− an der Terminkarte
+                    dauer = max(kal.RASTER, (a["termin_dauer"] or kal.STANDARD_DAUER) + int(request.form["aendern"]))
+                beginn = request.form.get("beginn") or con.execute(
+                    "SELECT termin_beginn FROM auftraege WHERE id=?", (aid,)).fetchone()[0]
+                kal.setzen(con, aid, beginn, dauer, dbm.einstellungen(con))
+    except (EingabeFehler, ValueError) as e:
+        if fetch:
+            return jsonify(ok=False, fehler=str(e)), 400
+        flash(str(e), "fehler")
+    if fetch:
+        return jsonify(ok=True)
+    return redirect(request.form.get("weiter") or url_for("main.kalender"))
 
 
 @bp.route("/auftraege/<int:aid>/checkliste", methods=["POST"])

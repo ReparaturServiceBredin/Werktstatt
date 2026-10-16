@@ -32,7 +32,8 @@ def naechste_auftragsnr(con):
 
 ANNAHME_FELDER = ("zustand_eingang", "kosten_obergrenze", "kva_gewuenscht", "kva_gebuehr", "fertig_bis", "zugang_art",
                   "auftragsart", "garantie_bezug_id", "garantie_monate", "interne_kosten", "interne_kosten_notiz",
-                  "geraetetyp", "kennzeichen", "km_stand", "erstzulassung", "hu_bis")
+                  "geraetetyp", "kennzeichen", "km_stand", "erstzulassung", "hu_bis", "termin_beginn",
+                  "termin_dauer")
 
 
 def anlegen(con, kunde_id, geraet="", fehler="", leistungsart="", seriennummer="", zubehoer="", notizen="",

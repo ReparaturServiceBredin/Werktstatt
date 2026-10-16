@@ -372,6 +372,13 @@
       <div class="hilfe">Weitere Fahrzeugarten einfach als neue Zeile ergänzen. Pro Auftrag änderbar, auch „kostenlos“. Bei Annahme des KVA wird die Pauschale verrechnet, bei Ablehnung schlägt das Programm einen Rechnungsentwurf vor.</div></div>
     <div class="s12" id="checklisten"><label>Checklisten je Leistung</label><textarea name="checklisten" style="min-height:320px;font-family:monospace">{{ einst.checklisten or '' }}</textarea>
       <div class="hilfe">Je Leistung ein Block: in eckigen Klammern der Name der Leistung, genau wie unter Firmendaten → Leistungsarten (z. B. <code>[Ölwechsel]</code>), darunter ein Arbeitsschritt je Zeile. Wird die Leistung in einem Auftrag angekreuzt, erscheinen die Schritte dort zum Abhaken. Bestehende Aufträge behalten ihre Liste.</div></div>
+    <div class="s12" id="kalender"><h3 style="margin:8px 0 0">Kalender</h3></div>
+    <div class="s3"><label>Kalender ab (Uhr)</label><input type="number" min="0" max="23" name="kalender_von" value="{{ einst.kalender_von }}"></div>
+    <div class="s3"><label>Kalender bis (Uhr)</label><input type="number" min="1" max="24" name="kalender_bis" value="{{ einst.kalender_bis }}"></div>
+    <div class="s6"><label class="check" style="margin-top:26px"><input type="checkbox" name="kalender_samstag" value="1" {{ 'checked' if einst.kalender_samstag }}> Samstag im Kalender anzeigen</label></div>
+    <div class="s6"><label>Richtzeit je Leistung („Leistung = Minuten“ je Zeile)</label><textarea name="dauer_je_leistung" style="min-height:150px">{{ einst.dauer_je_leistung or '' }}</textarea>
+      <div class="hilfe">Beim Einplanen wird die Dauer aus den gewählten Leistungen zusammengezählt (z. B. Reifenwechsel + Auswuchten = 60 Minuten). Im Kalender und im Auftrag jederzeit änderbar.</div></div>
+    <div class="s6"></div>
     <div class="s12"><label>Hinweis zur KVA-Pauschale auf dem Annahmeschein (Platzhalter {KVA-Gebühr})</label><textarea name="annahme_kva_text" style="min-height:80px">{{ einst.annahme_kva_text }}</textarea>
       <div class="hilfe">Erscheint auf dem Annahmeschein und vor der Unterschrift deutlich hervorgehoben.</div></div>
     <div class="s12"><label>Text der freiwilligen Garantie (Rechnung und Abholschein)</label><textarea name="garantie_text" style="min-height:130px">{{ einst.garantie_text }}</textarea>

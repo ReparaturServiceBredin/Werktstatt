@@ -6,6 +6,7 @@
   <h1>Übersicht</h1>
   <div class="leiste">
     <a class="knopf" href="{{ url_for('main.auftraege') }}">Auftragstafel</a>
+    <a class="knopf zweit" href="{{ url_for('main.kalender') }}">Kalender</a>
     <a class="knopf zweit" href="{{ url_for('main.dokument_neu') }}">+ Neue Rechnung</a>
     <a class="knopf zweit" href="{{ url_for('main.kunde') }}">+ Neuer Kunde</a>
   </div>
@@ -16,6 +17,19 @@
 {% if einst.abo_modus == 'automatisch' and not einst.smtp_host and zahlen.vertraege_aktiv %}<div class="meldung warnung">Vertragsrechnungen gehen automatisch raus, aber der <a href="{{ url_for('main.einstellungen', bereich='email') }}">E-Mail-Zugang</a> ist noch nicht eingerichtet – sie werden nur festgeschrieben, nicht versendet.</div>{% endif %}
 {% if zahlen.anfragen %}<div class="meldung info"><b>{{ zahlen.anfragen }} neue Anfrage(n)</b> aus dem Kontaktformular – <a href="{{ url_for('main.anfragen_liste') }}">jetzt ansehen</a></div>{% endif %}
 {% if einst.anfragen_letzter_fehler %}<div class="meldung fehler">Abruf der Anfragen fehlgeschlagen: {{ einst.anfragen_letzter_fehler }}</div>{% endif %}
+<div class="karte">
+  <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Heute in der Werkstatt</h2><a class="klein" href="{{ url_for('main.kalender') }}">Zum Kalender →</a></div>
+  {% if heute_termine %}
+  <table class="liste"><tbody>
+    {% for a in heute_termine %}{% set ende = termin_text(a.termin_beginn, a.termin_dauer).split(', ')[1] %}
+    <tr><td style="white-space:nowrap"><b>{{ ende }}</b></td>
+      <td><a href="{{ url_for('main.auftrag', aid=a.id) }}"><b>{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}</b></a>
+        {% if a.kennzeichen %} <span class="kennzeichen">{{ a.kennzeichen }}</span>{% endif %} <span class="klein">{{ a.geraet or '' }}</span></td>
+      <td>{{ a.leistungsart or '' }}</td>
+      <td class="zahl klein">{% if a.ckl_gesamt %}☑ {{ a.ckl_erledigt }}/{{ a.ckl_gesamt }}{% endif %} {{ {'offen': 'offen', 'in_arbeit': 'in Arbeit', 'erledigt': 'erledigt'}[a.status] }}</td></tr>
+    {% endfor %}</tbody></table>
+  {% else %}<p class="klein">Für heute ist noch nichts eingeplant.</p>{% endif %}
+</div>
 <div class="raster">
   {% for st, name in [('offen','Aufträge offen'),('in_arbeit','In Arbeit'),('erledigt','Erledigt (30 Tage)')] %}
   <a class="kachel kachel-link s-rand-{{ st }}" href="{{ url_for('main.auftraege') }}"><div class="label">{{ name }}</div><div class="wert">{{ zahlen.auftraege.get(st, 0) }}</div></a>

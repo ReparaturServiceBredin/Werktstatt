@@ -19,6 +19,9 @@
   <div class="s3"><label>Erstzulassung</label><input type="date" name="erstzulassung" value="{{ w.erstzulassung or '' }}"></div>
   <div class="s3"><label>HU/TÜV fällig</label><input type="month" name="hu_bis" value="{{ w.hu_bis or '' }}"></div>
   <div class="s12" id="sn-hinweis" hidden></div>
+  <div class="s3"><label>Termin (Kalender)</label><input type="datetime-local" name="termin_beginn" step="900" value="{{ (w.termin_beginn or '')[:16] }}"></div>
+  <div class="s3"><label>Dauer (Minuten)</label><input type="number" min="15" step="15" name="termin_dauer" value="{{ w.termin_dauer or '' }}" placeholder="laut Leistungen">
+    <div class="hilfe">Leer = Richtzeit der Leistungen. Einplanen geht auch per Ziehen im <a href="{{ url_for('main.kalender', datum=(w.termin_beginn or '')[:10] or none) }}">Kalender</a>.</div></div>
   <div class="s3"><label>Voraussichtlich fertig am</label><input type="date" name="fertig_bis" value="{{ w.fertig_bis or '' }}"></div>
   <div class="s12"><label>Auftrag / Beanstandung laut Kunde</label><textarea name="fehler" placeholder="z. B. Ölwechsel mit Filter, Sommerreifen montieren, Motorkontrollleuchte an">{{ w.fehler or '' }}</textarea></div>
   <div class="s12"><label>Zustand bei Eingang (Kratzer, Dellen, Steinschlag, Tankfüllung …)</label><textarea name="zustand_eingang" style="min-height:60px">{{ w.zustand_eingang or '' }}</textarea>

@@ -72,3 +72,60 @@ def test_annahmeschein_zeigt_fahrzeug(client, con):
     seite = client.get(f"/auftraege/{aid}/unterschreiben/annahme").get_data(as_text=True)
     assert "HN-AB 123" in seite and "WVWZZZ1KZAW000001" in seite and "123.456 km" in seite
     assert "Ölwechsel, Reifenwechsel" in seite
+
+
+def test_kalender_einplanen_verschieben_entfernen(client, con):
+    from rsb import kalender as kal
+    aid = auftrag(client, kunde_anlegen(client))
+    seite = client.get("/kalender?datum=2026-10-21").get_data(as_text=True)
+    assert "Nicht eingeplant" in seite and 'data-dauer="75"' in seite  # Ölwechsel 45 + Reifenwechsel 30
+    r = client.post(f"/auftraege/{aid}/termin", headers={"X-Requested-With": "fetch"},
+                    data={"csrf": "test-token", "beginn": "2026-10-21T08:07"})
+    assert r.get_json()["ok"]
+    a = con.execute("SELECT termin_beginn, termin_dauer FROM auftraege WHERE id=?", (aid,)).fetchone()
+    assert (a["termin_beginn"], a["termin_dauer"]) == ("2026-10-21T08:00", 75)  # auf Viertelstunde gerundet
+    seite = client.get("/kalender?datum=2026-10-23").get_data(as_text=True)  # gleiche Woche
+    assert "08:00–09:15" in seite and "HN-AB 123" in seite and "KW 43" in seite
+    assert "📅 Mi 21.10.2026, 08:00–09:15 Uhr" in client.get("/auftraege").get_data(as_text=True)
+    post(client, f"/auftraege/{aid}/termin", aendern="15")
+    assert con.execute("SELECT termin_dauer FROM auftraege WHERE id=?", (aid,)).fetchone()[0] == 90
+    post(client, f"/auftraege/{aid}/termin", beginn="2026-10-22T13:30")
+    post(client, f"/auftraege/{aid}/termin", entfernen="1")
+    assert con.execute("SELECT termin_beginn FROM auftraege WHERE id=?", (aid,)).fetchone()[0] is None
+    verlauf = [v["ereignis"] for v in con.execute("SELECT ereignis FROM auftrag_verlauf WHERE auftrag_id=?", (aid,))]
+    assert {"Termin geplant", "Termin verschoben", "Termin entfernt"} <= set(verlauf)
+    # ungültige Eingaben
+    r = client.post(f"/auftraege/{aid}/termin", headers={"X-Requested-With": "fetch"},
+                    data={"csrf": "test-token", "beginn": "morgen"})
+    assert r.status_code == 400 and not r.get_json()["ok"]
+    assert kal.text("2026-10-21T08:00", 75) == "Mi 21.10.2026, 08:00–09:15 Uhr"
+
+
+def test_ueberschneidende_termine_nebeneinander(client, con):
+    kid = kunde_anlegen(client)
+    ids = [auftrag(client, kid) for _ in range(3)]
+    for aid, beginn in zip(ids, ["2026-10-21T08:00", "2026-10-21T08:30", "2026-10-21T10:00"]):
+        post(client, f"/auftraege/{aid}/termin", beginn=beginn)
+    from rsb import kalender as kal, db as dbm
+    from rsb.views import AUFTRAG_SQL
+    from datetime import date
+    w = kal.woche(con, date(2026, 10, 19), dbm.einstellungen(con), AUFTRAG_SQL)
+    mi = next(t for t in w["tage"] if t["datum"] == date(2026, 10, 21))
+    assert [(t["bahn"], t["bahnen"]) for t in mi["termine"]] == [(0, 2), (1, 2), (0, 1)]
+
+
+def test_termin_im_auftragsformular(client, con):
+    aid = auftrag(client, kunde_anlegen(client), termin_beginn="2026-10-24T09:00", termin_dauer="")
+    a = con.execute("SELECT termin_beginn, termin_dauer FROM auftraege WHERE id=?", (aid,)).fetchone()
+    assert (a["termin_beginn"], a["termin_dauer"]) == ("2026-10-24T09:00", 75)
+    assert "Kalender" in client.get("/einstellungen/annahme").get_data(as_text=True)
+
+
+def test_heute_auf_der_uebersicht_und_kalender_skript(client, con):
+    from rsb.hilfen import heute_datum
+    aid = auftrag(client, kunde_anlegen(client))
+    post(client, f"/auftraege/{aid}/termin", beginn=f"{heute_datum().isoformat()}T09:00")
+    seite = client.get("/").get_data(as_text=True)
+    assert "Heute in der Werkstatt" in seite and "09:00–10:15 Uhr" in seite and "HN-AB 123" in seite
+    k = client.get("/kalender").get_data(as_text=True)
+    assert "const PX = ," not in k and "kal-jetzt" in k

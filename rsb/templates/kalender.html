@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Kalender{% endblock %}
+{% macro kname(a) %}{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}{% endmacro %}
+{% macro dauer_text(m) %}{{ (m // 60) ~ ' h' if m >= 60 }}{{ (' ' if m >= 60 and m % 60) }}{{ (m % 60) ~ ' min' if m % 60 }}{% endmacro %}
+{% block inhalt %}
+{% set px = 80 %}{# Höhe einer Stunde in Pixeln #}
+<div class="kopf">
+  <div>
+    <h1>Kalender</h1>
+    <div class="klein">KW {{ kw }} · {{ w.montag|datum }} – {{ w.sonntag|datum }}</div>
+  </div>
+  <div class="leiste">
+    <a class="knopf zweit" href="{{ url_for('main.kalender', datum=vorher) }}" aria-label="Vorige Woche">←</a>
+    <a class="knopf zweit" href="{{ url_for('main.kalender') }}">Heute</a>
+    <a class="knopf zweit" href="{{ url_for('main.kalender', datum=nachher) }}" aria-label="Nächste Woche">→</a>
+    <form method="get" class="leiste" style="margin:0"><input type="date" name="datum" value="{{ w.montag.isoformat() }}" onchange="this.form.submit()" aria-label="Woche wählen"></form>
+  </div>
+</div>
+<p class="klein">Aufträge aus der Liste links mit der Maus auf Tag und Uhrzeit ziehen. Termine lassen sich verschieben, mit <b>−</b>/<b>+</b> kürzen oder verlängern und zurück in die Liste ziehen. Klick öffnet den Auftrag. Termin und Dauer lassen sich auch im Auftrag unter „Auftragsdaten“ eintragen.</p>
+
+<div class="kal-layout">
+  <aside class="karte kal-ungeplant" data-ziel="ungeplant">
+    <h2>Nicht eingeplant <span class="zahl">{{ ungeplant|length }}</span></h2>
+    {% for a in ungeplant %}
+    <div class="kal-eintrag kal-st-{{ 'wartet_teil' if a.status == 'in_arbeit' and a.wartet_teil_seit else a.status }}" draggable="true" data-id="{{ a.id }}" data-dauer="{{ dauer[a.id] }}" data-url="{{ url_for('main.auftrag', aid=a.id) }}">
+      <div class="kal-zeile"><b>{{ kname(a) }}</b><span class="klein">{{ dauer_text(dauer[a.id]) }}</span></div>
+      <div class="klein">{{ a.geraet or '' }}{% if a.kennzeichen %} <span class="kennzeichen">{{ a.kennzeichen }}</span>{% endif %}</div>
+      {% if a.leistungsart %}<div class="klein"><b>{{ a.leistungsart }}</b></div>{% endif %}
+      <div class="klein">{{ a.auftragsnr }}{% if a.fertig_bis %} · fertig bis {{ a.fertig_bis|datum }}{% endif %}</div>
+    </div>
+    {% else %}
+    <p class="klein">Alle offenen Aufträge sind eingeplant. Neue Aufträge erscheinen hier.</p>
+    {% endfor %}
+    <a class="knopf zweit klein" href="{{ url_for('main.auftrag_neu') }}" style="margin-top:8px">+ Neuer Auftrag</a>
+  </aside>
+
+  <div class="kal-rahmen">
+    <div class="kal-raster" style="--tage: {{ w.tage|length }}; --px: {{ px }}px">
+      <div class="kal-ecke"></div>
+      {% for t in w.tage %}
+      <div class="kal-tagkopf{{ ' heute' if t.datum == heute }}">
+        <b>{{ t.name }} {{ t.datum.strftime('%d.%m.') }}</b>
+        <span class="klein">{% if t.termine %}{{ t.termine|length }} Termin{{ 'e' if t.termine|length != 1 }} · {{ dauer_text(t.minuten) }}{% else %}frei{% endif %}</span>
+      </div>
+      {% endfor %}
+      <div class="kal-zeiten" style="height: {{ (w.bis - w.von) * px }}px">
+        {% for h in range(w.von, w.bis) %}<div style="height: {{ px }}px">{{ '%02d' % h }}:00</div>{% endfor %}
+      </div>
+      {% for t in w.tage %}
+      <div class="kal-tag{{ ' heute' if t.datum == heute }}" data-datum="{{ t.datum.isoformat() }}" data-von="{{ w.von }}" style="height: {{ (w.bis - w.von) * px }}px">
+        {% for x in t.termine %}{% set a = x.a %}
+        <div class="kal-termin kal-st-{{ 'wartet_teil' if a.status == 'in_arbeit' and a.wartet_teil_seit else a.status }}" draggable="true"
+             data-id="{{ a.id }}" data-dauer="{{ x.dauer }}" data-url="{{ url_for('main.auftrag', aid=a.id) }}"
+             title="{{ x.von }}–{{ x.bis }} · {{ kname(a) }}{{ (' · ' ~ a.kennzeichen) if a.kennzeichen }}{{ (' · ' ~ a.leistungsart) if a.leistungsart }}"
+             style="top: {{ (x.start - w.von * 60) * px / 60 }}px; height: {{ [x.dauer * px / 60 - 2, 20]|max }}px; left: calc({{ x.bahn }} * 100% / {{ x.bahnen }}); width: calc(100% / {{ x.bahnen }} - 3px)">
+          <span class="kal-knoepfe">
+            <button type="button" data-aendern="-15" title="15 Minuten kürzer" aria-label="15 Minuten kürzer">−</button>
+            <button type="button" data-aendern="15" title="15 Minuten länger" aria-label="15 Minuten länger">+</button>
+            <button type="button" data-entfernen="1" title="Termin entfernen" aria-label="Termin entfernen">✕</button>
+          </span>
+          <div class="kal-z"><b>{{ x.von }}</b> <b>{{ kname(a) }}</b></div>
+          <div class="kal-z">{% if a.kennzeichen %}<span class="kennzeichen">{{ a.kennzeichen }}</span> {% endif %}{{ a.geraet or '' }}</div>
+          {% if a.leistungsart %}<div class="kal-z"><b>{{ a.leistungsart }}</b></div>{% endif %}
+          <div class="kal-z">bis {{ x.bis }}{% if a.ckl_gesamt %} · ☑ {{ a.ckl_erledigt }}/{{ a.ckl_gesamt }}{% endif %}</div>
+        </div>
+        {% endfor %}
+        {% if t.datum == heute %}<div class="kal-jetzt" hidden></div>{% endif %}
+        <div class="kal-vorschau" hidden></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<form id="kal-form" hidden>{{ csrf() }}</form>
+{% endblock %}
+{% block skript %}
+<script>
+(function () {
+  const PX = parseFloat(getComputedStyle(document.querySelector('.kal-raster')).getPropertyValue('--px')) || 64, RASTER = 15;
+  const csrf = document.querySelector('#kal-form [name=csrf]').value;
+  let gezogen = null;
+
+  async function senden(id, felder) {
+    const d = new FormData();
+    d.append('csrf', csrf);
+    Object.entries(felder).forEach(([k, v]) => d.append(k, v));
+    const r = await fetch(`/auftraege/${id}/termin`, { method: 'POST', body: d, headers: { 'X-Requested-With': 'fetch' } });
+    const j = r.ok ? await r.json() : await r.json().catch(() => null);
+    if (!j || !j.ok) { alert((j && j.fehler) || 'Speichern fehlgeschlagen. Bitte Seite neu laden.'); return; }
+    location.reload();
+  }
+
+  function minuteAus(tag, ev) {
+    const y = ev.clientY - tag.getBoundingClientRect().top - (gezogen ? gezogen.versatz : 0);
+    const m = Math.round((y / PX * 60) / RASTER) * RASTER;
+    return Math.max(0, m) + Number(tag.dataset.von) * 60;
+  }
+  const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+
+  document.querySelectorAll('[draggable=true]').forEach(el => {
+    el.addEventListener('dragstart', ev => {
+      const r = el.getBoundingClientRect();
+      gezogen = { id: el.dataset.id, dauer: Number(el.dataset.dauer) || 60,
+                  versatz: el.classList.contains('kal-termin') ? ev.clientY - r.top : 0 };
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', el.dataset.id);
+      setTimeout(() => el.classList.add('zieht'), 0);
+    });
+    el.addEventListener('dragend', () => { el.classList.remove('zieht'); document.querySelectorAll('.kal-vorschau').forEach(v => v.hidden = true); });
+    el.addEventListener('click', ev => { if (!ev.target.closest('button')) location = el.dataset.url; });
+  });
+
+  document.querySelectorAll('.kal-tag').forEach(tag => {
+    const vorschau = tag.querySelector('.kal-vorschau');
+    tag.addEventListener('dragover', ev => {
+      if (!gezogen) return;
+      ev.preventDefault();
+      const m = minuteAus(tag, ev), von = Number(tag.dataset.von) * 60;
+      vorschau.hidden = false;
+      vorschau.style.top = ((m - von) * PX / 60) + 'px';
+      vorschau.style.height = (gezogen.dauer * PX / 60) + 'px';
+      vorschau.textContent = hhmm(m) + '–' + hhmm(m + gezogen.dauer);
+    });
+    tag.addEventListener('dragleave', ev => { if (!tag.contains(ev.relatedTarget)) vorschau.hidden = true; });
+    tag.addEventListener('drop', ev => {
+      ev.preventDefault();
+      if (!gezogen) return;
+      senden(gezogen.id, { beginn: tag.dataset.datum + 'T' + hhmm(minuteAus(tag, ev)) });
+    });
+  });
+
+  const liste = document.querySelector('.kal-ungeplant');
+  liste.addEventListener('dragover', ev => { if (gezogen) { ev.preventDefault(); liste.classList.add('ziel'); } });
+  liste.addEventListener('dragleave', () => liste.classList.remove('ziel'));
+  liste.addEventListener('drop', ev => {
+    ev.preventDefault(); liste.classList.remove('ziel');
+    const t = document.querySelector(`.kal-termin[data-id="${gezogen && gezogen.id}"]`);
+    if (gezogen && t) senden(gezogen.id, { entfernen: '1' });
+  });
+
+  document.querySelectorAll('.kal-termin button').forEach(b => b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const id = b.closest('.kal-termin').dataset.id;
+    if (b.dataset.entfernen) senden(id, { entfernen: '1' }); else senden(id, { aendern: b.dataset.aendern });
+  }));
+
+  // Linie „jetzt“ im heutigen Tag
+  const jetzt = document.querySelector('.kal-jetzt');
+  if (jetzt) {
+    const tag = jetzt.closest('.kal-tag'), d = new Date();
+    const m = d.getHours() * 60 + d.getMinutes() - Number(tag.dataset.von) * 60;
+    if (m >= 0 && m * PX / 60 <= tag.offsetHeight) { jetzt.style.top = (m * PX / 60) + 'px'; jetzt.hidden = false; }
+  }
+})();
+</script>
+{% endblock %}

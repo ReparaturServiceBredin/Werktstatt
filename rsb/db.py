@@ -217,6 +217,12 @@ STANDARD_EINSTELLUNGEN = {
     "annahme_zubehoer": "Fahrzeugschlüssel\nZweitschlüssel\nFahrzeugschein\nServiceheft\nFelgenschloss-Adapter\n"
                         "Sommerräder\nWinterräder\nRadkappen\nWarndreieck / Verbandskasten",
     "checklisten": CHECKLISTEN_STANDARD,
+    # Werkstattkalender
+    "kalender_von": 7,                      # erste Stunde im Kalender
+    "kalender_bis": 18,                     # letzte Stunde (Ende)
+    "kalender_samstag": True,
+    "dauer_je_leistung": ("Ölwechsel = 45\nFehlerspeicher auslesen = 30\nReifenwechsel = 30\nReifenmontage = 60\n"
+                          "Auswuchten = 30\nInspektion = 120\nBremsen = 90\nSonstiges = 60"),
     "annahme_kva_gebuehr_cent": 0,          # (bis 0.20) Vorschlag für neue Aufträge – ersetzt durch kva_gebuehren
     # KVA-Pauschale je Gerätetyp (brutto, „Gerätetyp = Betrag“ je Zeile); bei Annahme verrechnet, bei Ablehnung fällig
     "kva_gebuehren": "PKW = 29,00\nSUV / Van = 29,00\nTransporter = 39,00\nMotorrad = 19,00",
@@ -405,6 +411,8 @@ MIGRATIONEN = [
     ("auftraege", "km_stand", "INTEGER"),
     ("auftraege", "erstzulassung", "TEXT"),
     ("auftraege", "hu_bis", "TEXT"),
+    ("auftraege", "termin_beginn", "TEXT"),
+    ("auftraege", "termin_dauer", "INTEGER"),
     ("kunden", "interessent", "INTEGER NOT NULL DEFAULT 0"),
     ("kunden", "quelle", "TEXT"),
     ("vertraege", "abgerechnet_bis", "TEXT"),

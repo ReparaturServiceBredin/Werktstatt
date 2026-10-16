@@ -6,6 +6,7 @@
   <div class="a-name">{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}</div>
   {% if a.geraet or a.kennzeichen %}<div class="a-geraet">{{ a.geraet or '' }}{% if a.kennzeichen %} <span class="kennzeichen">{{ a.kennzeichen }}</span>{% endif %}</div>{% endif %}
   {% if a.leistungsart %}<div class="klein"><b>{{ a.leistungsart }}</b></div>{% endif %}
+  {% if a.termin_beginn and a.status != 'erledigt' %}<a class="a-termin klein" href="{{ url_for('main.kalender', datum=a.termin_beginn[:10]) }}" title="Im Kalender zeigen">📅 {{ termin_text(a.termin_beginn, a.termin_dauer) }}</a>{% endif %}
   {% if a.fehler %}<div class="klein">{{ a.fehler|truncate(70) }}</div>{% endif %}
   {% if a.ckl_gesamt %}<div class="a-ckl{{ ' fertig' if a.ckl_erledigt == a.ckl_gesamt }}" title="Checkliste">☑ {{ a.ckl_erledigt }}/{{ a.ckl_gesamt }} erledigt</div>{% endif %}
   {% if ts == 'wartet_teil' %}<div class="a-teil">🔧 {{ a.teil_info or 'Ersatzteil' }}{% if a.teil_erwartet %} · erwartet {{ a.teil_erwartet|datum }}{% endif %}</div>{% endif %}

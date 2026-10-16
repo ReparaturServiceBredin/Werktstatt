@@ -13,8 +13,33 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 
 | Version | Datum | Schwerpunkt |
 |---|---|---|
+| 1.1.0 | 16.10.2026 | Werkstattkalender: Aufträge per Ziehen einplanen |
 | 1.0.1 | 16.10.2026 | Updates kommen aus dem richtigen Projekt |
 | 1.0.0 | 16.10.2026 | Erste Version für die Kfz-Werkstatt |
+
+## 1.1.0 – 16.10.2026
+Neu: Werkstattkalender. Vor der Erweiterung der Datenbank legt das Programm automatisch eine Sicherung an.
+
+### Neu: Kalender (*Werkstatt → Kalender*)
+- Wochenansicht Montag bis Samstag mit Uhrzeiten. Links stehen alle offenen Aufträge ohne Termin.
+- **Einplanen per Ziehen:** Auftrag mit der Maus auf Tag und Uhrzeit ziehen. Der Termin rastet auf die
+  Viertelstunde ein, eine Vorschau zeigt beim Ziehen Beginn und Ende.
+- **Verschieben** durch erneutes Ziehen, **zurück in die Liste** ziehen entfernt den Termin.
+  Mit **−** und **+** an der Terminkarte wird der Termin 15 Minuten kürzer bzw. länger.
+- Jede Terminkarte zeigt Uhrzeit, Kunde, Kennzeichen, Fahrzeug, Leistungen und den Stand der Checkliste.
+  Klick öffnet den Auftrag. Überschneidende Termine stehen nebeneinander.
+- **Dauer automatisch:** Die Richtzeiten der Leistungen werden zusammengezählt (z. B. Reifenwechsel 30 +
+  Auswuchten 30 = 60 Minuten). Richtzeiten, Uhrzeiten und Samstag unter
+  *Einstellungen → Annahme & Abholung → Kalender*.
+- Je Tag: Anzahl der Termine und verplante Zeit. Heute ist hervorgehoben, eine rote Linie zeigt die aktuelle Uhrzeit.
+- Termine stehen im Verlauf des Auftrags (geplant, verschoben, entfernt).
+
+### Außerdem
+- Im Auftrag unter „Auftragsdaten“: Termin und Dauer direkt eintragen.
+- Auftragstafel: Karten zeigen den Termin, Klick darauf öffnet die Woche im Kalender.
+- Übersicht: neue Karte „Heute in der Werkstatt“ mit allen Terminen des Tages.
+
+---
 
 ## 1.0.1 – 16.10.2026
 ### Behoben

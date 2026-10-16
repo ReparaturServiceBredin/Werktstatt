@@ -10,7 +10,7 @@ from . import navigation
 from .hilfen import EingabeFehler, datum_de, euro, kunde_name, menge_text, zeit_de
 from .sicherheit import csrf_pruefen, csrf_token, sitzungs_schluessel
 
-VERSION_NUMMER = "1.0.1"
+VERSION_NUMMER = "1.1.0"
 VERSION = VERSION_NUMMER
 if getattr(sys, "frozen", False):
     # EXE-Version: Programmordner = Ordner der EXE (die Daten liegen am festen Ort, siehe datenort.py)
@@ -79,7 +79,8 @@ def create_app(daten_dir=None, testing=False):
         from .garantie import standard_monate
         return standard_monate(dbm.einstellungen())
 
-    app.jinja_env.globals.update(csrf_token=csrf_token, version=VERSION, zubehoer_teilen=zubehoer_teilen,
+    from .kalender import text as termin_text
+    app.jinja_env.globals.update(termin_text=termin_text, csrf_token=csrf_token, version=VERSION, zubehoer_teilen=zubehoer_teilen,
                                  einst_garantie=einst_garantie, kva_gebuehren_liste=kva_gebuehren_liste,
                                  zugang_arten=ZUGANG_ARTEN)
 

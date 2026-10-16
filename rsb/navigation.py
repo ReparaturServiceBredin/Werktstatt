@@ -32,6 +32,8 @@ SEITENLEISTE = [
                 zaehler_titel="neue Anfragen", stichworte="Kontaktformular Posteingang"),
         Eintrag("auftraege", "Aufträge", "wrench", "main.auftraege", "offene_auftraege",
                 zaehler_titel="offene Aufträge", stichworte="Tafel Reparatur Annahme Abholung"),
+        Eintrag("kalender", "Kalender", "calendar-days", "main.kalender",
+                stichworte="Termine Wochenplan Planung Einplanen Werkstattplaner"),
         Eintrag("leihgeraete", "Leihgeräte", "laptop", "main.leihgeraete", "leihen_ueberfaellig", True,
                 "überfällige Rückgaben", "Leihe Ersatzgerät"),
     ]),
@@ -74,7 +76,7 @@ REITER = {
 
 # Welcher Menüpunkt ist bei welchem Endpoint aktiv (erster passender Präfix gewinnt, ohne „main.“)
 ZUORDNUNG = [
-    ("start", "start"), ("anfrage", "anfragen"), ("auftr", "auftraege"),
+    ("start", "start"), ("kalender", "kalender"), ("anfrage", "anfragen"), ("auftr", "auftraege"),
     ("geraet_pruefen", "auftraege"), ("beleg", "auftraege"), ("foto", "auftraege"),
     ("leihe_ausgeben", "leihgeraete"), ("leih", "leihgeraete"), ("kunde", "kunden"), ("vertr", "vertraege"),
     ("dokument", "rechnungen"), ("kostenvoranschlaege", "rechnungen"), ("offene_posten", "rechnungen"),

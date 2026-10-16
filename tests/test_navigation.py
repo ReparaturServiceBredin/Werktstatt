@@ -37,7 +37,7 @@ def test_jede_seite_hat_einen_menuepunkt(app):
              and r.endpoint not in ohne and not nav.aktiver_schluessel(r.endpoint)]
     assert fehlt == []
     namen = {e.titel for _, e in nav.alle_eintraege()}
-    assert {"Übersicht", "Anfragen", "Aufträge", "Leihgeräte", "Kunden", "Verträge & Lizenzen", "Rechnungen",
+    assert {"Übersicht", "Anfragen", "Aufträge", "Kalender", "Leihgeräte", "Kunden", "Verträge & Lizenzen", "Rechnungen",
             "Leistungen & Artikel", "Lager", "Einkauf", "Bankabgleich", "Kassenbuch", "Fixkosten", "Finanzen",
             "DATEV-Export",
             "Einstellungen"} == namen

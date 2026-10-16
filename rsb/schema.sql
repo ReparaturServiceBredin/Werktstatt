@@ -343,7 +343,10 @@ CREATE TABLE IF NOT EXISTS auftraege (
     kennzeichen     TEXT,
     km_stand        INTEGER,
     erstzulassung   TEXT,
-    hu_bis          TEXT                -- nächste HU/TÜV (Monat, JJJJ-MM)
+    hu_bis          TEXT,               -- nächste HU/TÜV (Monat, JJJJ-MM)
+    -- Werkstattkalender: geplanter Termin (Beginn JJJJ-MM-TTTHH:MM, Dauer in Minuten)
+    termin_beginn   TEXT,
+    termin_dauer    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ix_auftraege_status ON auftraege(status);
 

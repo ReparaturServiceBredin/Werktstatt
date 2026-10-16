@@ -578,3 +578,37 @@ a.fin-kat:hover { text-decoration: none; background: var(--flaeche-2); }
 .a-ckl { font-size: 12px; }
 .a-ckl.fertig { color: var(--gruen); font-weight: 700; }
 .kennzeichen { display: inline-block; font-family: monospace; font-weight: 700; font-size: 12px; padding: 0 5px; border: 1.5px solid var(--text); border-radius: 3px; background: var(--flaeche); color: var(--text); white-space: nowrap; }
+
+/* Werkstattkalender */
+.kal-layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+.kal-ungeplant { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; margin: 0; }
+.kal-ungeplant.ziel { outline: 2px dashed var(--blau); outline-offset: -4px; }
+.kal-ungeplant h2 { margin-top: 0; }
+.kal-eintrag { border: 1px solid var(--rand); border-left: 4px solid var(--grau); border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; background: var(--flaeche); cursor: grab; }
+.kal-eintrag:hover, .kal-termin:hover { box-shadow: var(--schatten); }
+.kal-zeile { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.kal-rahmen { overflow-x: auto; border: 1px solid var(--rand); border-radius: 8px; background: var(--flaeche); }
+.kal-raster { display: grid; grid-template-columns: 52px repeat(var(--tage), minmax(150px, 1fr)); min-width: calc(52px + var(--tage) * 150px); }
+.kal-ecke, .kal-tagkopf { position: sticky; top: 0; z-index: 3; background: var(--flaeche); border-bottom: 1px solid var(--rand); }
+.kal-tagkopf { padding: 6px 8px; border-left: 1px solid var(--rand); display: flex; flex-direction: column; }
+.kal-tagkopf.heute b { color: var(--blau); }
+.kal-zeiten div { font-size: 11px; color: var(--grau); text-align: right; padding-right: 6px; transform: translateY(-7px); box-sizing: border-box; }
+.kal-zeiten div:first-child { transform: none; }
+.kal-tag { position: relative; border-left: 1px solid var(--rand);
+  background-image: repeating-linear-gradient(to bottom, var(--rand) 0 1px, transparent 1px calc(var(--px) / 2), var(--linie) calc(var(--px) / 2) calc(var(--px) / 2 + 1px), transparent calc(var(--px) / 2 + 1px) var(--px)); }
+.kal-tag.heute { background-color: var(--blau-hell); }
+.kal-termin { position: absolute; box-sizing: border-box; border: 1px solid var(--rand); border-left: 4px solid var(--grau); border-radius: 5px; background: var(--flaeche); padding: 2px 5px; overflow: hidden; font-size: 12px; line-height: 17px; cursor: grab; z-index: 1; margin-left: 2px; }
+.kal-z { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kal-z .kennzeichen { font-size: 11px; line-height: 13px; }
+.kal-termin.zieht, .kal-eintrag.zieht { opacity: .4; }
+.kal-knoepfe { position: absolute; top: 2px; right: 2px; display: none; gap: 2px; background: var(--flaeche); border-radius: 4px; }
+.kal-termin:hover .kal-knoepfe, .kal-termin:focus-within .kal-knoepfe { display: inline-flex; }
+.kal-knoepfe button { padding: 0 6px; min-height: 0; line-height: 18px; font-size: 13px; border-radius: 3px; background: var(--grau-hell); color: var(--text); border: 1px solid var(--rand); }
+.kal-vorschau { position: absolute; left: 2px; right: 3px; border: 2px dashed var(--blau); border-radius: 5px; background: var(--blau-hell); color: var(--blau); font-size: 12px; font-weight: 700; padding: 2px 5px; pointer-events: none; z-index: 2; box-sizing: border-box; }
+.kal-jetzt { position: absolute; left: 0; right: 0; height: 2px; background: var(--rot); z-index: 2; pointer-events: none; }
+.kal-st-offen { border-left-color: var(--grau); }
+.kal-st-in_arbeit { border-left-color: #c46f1b; }
+.kal-st-wartet_teil { border-left-color: var(--text-lila); }
+.kal-st-erledigt { border-left-color: var(--gruen); opacity: .75; }
+@media (max-width: 900px) { .kal-layout { grid-template-columns: 1fr; } .kal-ungeplant { position: static; max-height: none; } }
+.a-termin { display: block; font-weight: 700; color: var(--blau); text-decoration: none; }
