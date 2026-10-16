@@ -175,6 +175,29 @@ def port_belegt(host, port):
         return s.connect_ex((host if host != "0.0.0.0" else "127.0.0.1", port)) == 0
 
 
+STANDARD_PORT = 5100  # nicht 5000: dort läuft ggf. die RSB-Buchhaltung auf demselben PC
+
+
+def eigenes_programm(host, port):
+    """Läuft auf diesem Port wirklich Werkstatt Sauter (und nicht ein anderes Programm)?"""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}/version",
+                                    timeout=2) as r:
+            return json.loads(r.read().decode("utf-8")).get("programm") == "Werkstatt Sauter"
+    except Exception:
+        return False
+
+
+def freier_port(host, port):
+    """Ist der Port von einem fremden Programm belegt, den nächsten freien nehmen."""
+    for p in range(port, port + 20):
+        if not port_belegt(host, p) or eigenes_programm(host, p):
+            return p
+    return port
+
+
 def fenster_modus(db_pfad):
     try:
         con = dbm.verbinden(db_pfad)
@@ -203,7 +226,9 @@ def main():
     os.environ["RSB_DATEN"] = str(ermitteln())  # ein fester Datenordner – auch für Neustart nach Update
     daten_db = os.path.join(os.environ["RSB_DATEN"], "werkstatt.db")
     host = os.environ.get("RSB_HOST") or ("0.0.0.0" if os.path.exists(daten_db) and im_netz(daten_db) else "127.0.0.1")
-    port = int(os.environ.get("RSB_PORT", "5000"))
+    port = int(os.environ.get("RSB_PORT") or 0) or freier_port(
+        os.environ.get("RSB_HOST") or "127.0.0.1", STANDARD_PORT)
+    os.environ["RSB_PORT"] = str(port)  # Neustart nach Update nutzt denselben Port
     adresse = f"http://{'localhost' if host in ('127.0.0.1', '0.0.0.0') else host}:{port}"
 
     if os.environ.get("RSB_WARTE_AUF_PORT"):
@@ -212,7 +237,7 @@ def main():
             if not port_belegt(host, port):
                 break
             time.sleep(0.5)
-    elif port_belegt(host, port):
+    elif port_belegt(host, port) and eigenes_programm(host, port):
         print("Das Programm läuft bereits – öffne das Fenster.")
         fenster.oeffnen(adresse, fenster_modus(daten_db))
         time.sleep(1)

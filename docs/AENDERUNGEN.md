@@ -13,9 +13,20 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 
 | Version | Datum | Schwerpunkt |
 |---|---|---|
+| 1.1.1 | 16.10.2026 | Läuft störungsfrei neben der RSB-Buchhaltung auf demselben PC |
 | 1.1.0 | 16.10.2026 | Werkstattkalender: Aufträge per Ziehen einplanen |
 | 1.0.1 | 16.10.2026 | Updates kommen aus dem richtigen Projekt |
 | 1.0.0 | 16.10.2026 | Erste Version für die Kfz-Werkstatt |
+
+## 1.1.1 – 16.10.2026
+### Behoben
+- **Neben der RSB-Buchhaltung auf demselben PC:** Werkstatt Sauter nutzt jetzt die Adresse `localhost:5100`
+  statt `localhost:5000`. Ist diese belegt, nimmt das Programm selbst die nächste freie.
+- Beim Start prüft das Programm, ob unter der Adresse wirklich Werkstatt Sauter läuft. Vorher konnte sich
+  versehentlich das Fenster des anderen Programms öffnen.
+- Eigene Anmeldung im Browser. Die beiden Programme melden sich nicht mehr gegenseitig ab.
+
+---
 
 ## 1.1.0 – 16.10.2026
 Neu: Werkstattkalender. Vor der Erweiterung der Datenbank legt das Programm automatisch eine Sicherung an.

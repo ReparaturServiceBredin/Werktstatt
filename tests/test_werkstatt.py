@@ -129,3 +129,20 @@ def test_heute_auf_der_uebersicht_und_kalender_skript(client, con):
     assert "Heute in der Werkstatt" in seite and "09:00–10:15 Uhr" in seite and "HN-AB 123" in seite
     k = client.get("/kalender").get_data(as_text=True)
     assert "const PX = ," not in k and "kal-jetzt" in k
+
+
+def test_getrennt_von_der_rsb_buchhaltung(app, client, monkeypatch):
+    """Eigenes Cookie, eigener Port, eigener Datenordner: beide Programme laufen auf einem PC nebeneinander."""
+    import socket
+    from rsb import __main__ as start, datenort
+    assert app.config["SESSION_COOKIE_NAME"] == "werkstatt_sauter"
+    assert client.get("/version").get_json()["programm"] == "Werkstatt Sauter"
+    assert start.STANDARD_PORT != 5000
+    assert datenort.fester_ort().parts[-2] == "Werkstatt-Sauter"
+    # Port belegt durch ein fremdes Programm → nächster freier Port
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(1)
+    belegt = s.getsockname()[1]
+    try:
+        assert start.freier_port("127.0.0.1", belegt) != belegt
+    finally:
+        s.close()

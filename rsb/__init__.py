@@ -10,7 +10,8 @@ from . import navigation
 from .hilfen import EingabeFehler, datum_de, euro, kunde_name, menge_text, zeit_de
 from .sicherheit import csrf_pruefen, csrf_token, sitzungs_schluessel
 
-VERSION_NUMMER = "1.1.0"
+PROGRAMM = "Werkstatt Sauter"
+VERSION_NUMMER = "1.1.1"
 VERSION = VERSION_NUMMER
 if getattr(sys, "frozen", False):
     # EXE-Version: Programmordner = Ordner der EXE (die Daten liegen am festen Ort, siehe datenort.py)
@@ -32,6 +33,7 @@ def create_app(daten_dir=None, testing=False):
         SECRET_KEY=sitzungs_schluessel(daten),
         PERMANENT_SESSION_LIFETIME=timedelta(hours=10),
         SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_NAME="werkstatt_sauter",  # eigenes Cookie: localhost teilt Cookies über alle Ports
         SESSION_COOKIE_HTTPONLY=True,
         MAX_CONTENT_LENGTH=60 * 1024 * 1024,  # Fotos vom Handy können groß sein
         TESTING=testing,

@@ -3618,8 +3618,8 @@ from . import update as upd  # noqa: E402
 
 @bp.route("/version")
 def version_info():
-    from . import VERSION_NUMMER
-    return jsonify(version=VERSION_NUMMER, gestartet=current_app.config.get("GESTARTET"))
+    from . import PROGRAMM, VERSION_NUMMER
+    return jsonify(programm=PROGRAMM, version=VERSION_NUMMER, gestartet=current_app.config.get("GESTARTET"))
 
 
 @bp.route("/update/pruefen", methods=["POST"])

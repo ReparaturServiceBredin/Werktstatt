@@ -19,6 +19,7 @@ permissions:
   contents: write
 
 env:
+  TZ: "Europe/Berlin"  # Tests mit deutscher Zeit (sonst scheitern sie zwischen 0 und 2 Uhr am Datumswechsel)
   PYTHONUTF8: "1"   # Umlaute/Sonderzeichen in Python-Ausgaben auch unter Windows
 
 concurrency:
