@@ -5,10 +5,10 @@
 <div class="kopf">
   <h1>Übersicht</h1>
   <div class="leiste">
-    <a class="knopf" href="{{ url_for('main.auftraege') }}">Auftragstafel</a>
-    <a class="knopf zweit" href="{{ url_for('main.kalender') }}">Kalender</a>
+    <a class="knopf" href="{{ url_for('main.kalender') }}">Aufträge</a>
+    <a class="knopf zweit" href="{{ url_for('main.auftrag_neu') }}">+ Neuer Auftrag</a>
+    <a class="knopf zweit" href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">+ Beleg</a>
     <a class="knopf zweit" href="{{ url_for('main.dokument_neu') }}">+ Neue Rechnung</a>
-    <a class="knopf zweit" href="{{ url_for('main.kunde') }}">+ Neuer Kunde</a>
   </div>
 </div>
 {% if not einst.strasse or not einst.iban or not einst.steuernummer %}
@@ -34,10 +34,6 @@
   {% for st, name in [('offen','Aufträge offen'),('in_arbeit','In Arbeit'),('erledigt','Erledigt (30 Tage)')] %}
   <a class="kachel kachel-link s-rand-{{ st }}" href="{{ url_for('main.auftraege') }}"><div class="label">{{ name }}</div><div class="wert">{{ zahlen.auftraege.get(st, 0) }}</div></a>
   {% endfor %}
-</div>
-<div class="raster">
-  <a class="kachel kachel-link" href="{{ url_for('main.vertraege_liste') }}"><div class="label">Verträge &amp; Lizenzen</div><div class="wert">{{ zahlen.vertraege_aktiv }}</div><div class="klein">{{ zahlen.vertraege_monatlich|euro }} regelmäßig pro Monat</div></a>
-  <a class="kachel kachel-link {{ 's-rand-in_arbeit' if zahlen.vertraege_laeuft_ab }}" href="{{ url_for('main.vertraege_liste', filter='laeuft_ab') }}"><div class="label">Laufen bald ab</div><div class="wert">{{ zahlen.vertraege_laeuft_ab }}</div><div class="klein">Lizenzen/Garantien</div></a>
 </div>
 <div class="raster">
   <div class="kachel"><div class="label">Umsatz {{ jahr }}</div><div class="wert">{{ zahlen.umsatz_jahr|euro }}</div></div>

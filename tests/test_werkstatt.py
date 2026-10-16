@@ -146,3 +146,28 @@ def test_getrennt_von_der_rsb_buchhaltung(app, client, monkeypatch):
         assert start.freier_port("127.0.0.1", belegt) != belegt
     finally:
         s.close()
+
+
+def test_beleg_bar_bezahlt_landet_im_kassenbuch(client, con):
+    # leere Kasse: Beleg bleibt gespeichert, Zahlung nicht (Kasse darf nie ins Minus)
+    post(client, "/eingangsrechnungen/neu", lieferant_name="Tankstelle", datum="2026-10-14", brutto="10,00",
+         steuersatz="19", sofort_bezahlt="bar")
+    assert con.execute("SELECT status FROM eingangsrechnungen").fetchone()[0] == "offen"
+    post(client, "/kasse/buchen", art="anfangsbestand", betrag="200,00", text="Wechselgeld", datum="2026-10-01")
+    r = post(client, "/eingangsrechnungen/neu", lieferant_name="ATU", datum="2026-10-15", brutto="59,50",
+             steuersatz="19", kostenart="Wareneinkauf / Ersatzteile", beschreibung="Motoröl 5W-30",
+             sofort_bezahlt="bar")
+    assert r.status_code == 302
+    e = con.execute("SELECT * FROM eingangsrechnungen ORDER BY id DESC").fetchone()
+    assert e["status"] == "bezahlt" and e["brutto"] == 5950
+    k = con.execute("SELECT * FROM kassenbuch WHERE art='ausgabe'").fetchone()
+    assert k and abs(k["betrag"]) == 5950
+
+
+def test_menue_schlank_und_auftraege_mit_kalender(client):
+    html = client.get("/kalender").get_data(as_text=True)
+    menue = html.split('class="nav"')[1].split("</nav>")[0]
+    for weg in ("Leihgeräte", "Lager", "Einkauf", "Verträge", "Bankabgleich", "Fixkosten", "DATEV", "Anfragen"):
+        assert weg not in menue
+    assert 'class="bereichsreiter"' in html and ">Tafel" in html and 'data-titel="Aufträge"' in menue
+    assert "Leihgerät ausgeben" not in client.get("/auftraege/neu").get_data(as_text=True)

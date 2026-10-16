@@ -13,10 +13,35 @@ Alle Versionen von Werkstatt Sauter mit Neuerungen, Änderungen und Fehlerbehebu
 
 | Version | Datum | Schwerpunkt |
 |---|---|---|
+| 1.2.0 | 17.10.2026 | Schlank: nur Aufträge, Rechnungen, Belege, Kasse und Finanzen |
 | 1.1.1 | 16.10.2026 | Läuft störungsfrei neben der RSB-Buchhaltung auf demselben PC |
 | 1.1.0 | 16.10.2026 | Werkstattkalender: Aufträge per Ziehen einplanen |
 | 1.0.1 | 16.10.2026 | Updates kommen aus dem richtigen Projekt |
 | 1.0.0 | 16.10.2026 | Erste Version für die Kfz-Werkstatt |
+
+## 1.2.0 – 17.10.2026
+Das Programm ist auf das Wesentliche reduziert. Es wurden keine Daten gelöscht, die ausgeblendeten Bereiche
+lassen sich bei Bedarf wieder einschalten.
+
+### Menü
+- **Werkstatt:** Aufträge, Kunden
+- **Rechnungen:** Rechnungen (mit KVA, offenen Posten, Mahnwesen), Leistungen & Artikel
+- **Buchhaltung:** Belege & Ausgaben, Kassenbuch, Finanzen
+- Ausgeblendet: Leihgeräte, Anfragen, Verträge & Lizenzen, Lager, Einkauf (Bestellungen, Lieferanten),
+  Bankabgleich, Fixkosten, DATEV-Export.
+
+### Aufträge und Kalender zusammen
+- Ein Menüpunkt **Aufträge** mit zwei Reitern: **Kalender** (Wochenplan zum Einplanen per Ziehen) und **Tafel**.
+- Im Auftrag sind die Reiter „Material“ und „Leihgerät“ entfallen.
+
+### Belege & Ausgaben
+- Rechnungen und Quittungen fotografieren bzw. als PDF hochladen, Betrag und Kostenart eintragen, fertig.
+- Neu beim Erfassen: **„Schon bezahlt?“** – bar, Karte, Überweisung, Lastschrift oder PayPal. Bar bezahlte Belege
+  landen automatisch im Kassenbuch. Reicht der Kassenbestand nicht, bleibt der Beleg trotzdem gespeichert und
+  das Programm sagt, was zu tun ist.
+- „+ Neu“ oben rechts: neuer Beleg und Kassenbuchung mit einem Klick.
+
+---
 
 ## 1.1.1 – 16.10.2026
 ### Behoben

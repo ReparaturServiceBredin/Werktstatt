@@ -39,8 +39,6 @@
   <a href="#checkliste" data-reiter="checkliste">Checkliste{% if checkliste %} <span class="zahl" id="ckl-reiter">{{ checkliste|selectattr('erledigt_am')|list|length }}/{{ checkliste|length }}</span>{% endif %}</a>
   <a href="#annahmeschein" data-reiter="annahmeschein">Annahme / Abholung {{ '✓' if belege|selectattr('art', 'equalto', 'annahme')|list else '' }}</a>
   <a href="#kostenvoranschlag" data-reiter="kostenvoranschlag">Kostenvoranschlag {{ '✓' if a.kva_id else '' }}</a>
-  <a href="#material" data-reiter="material">Material {% set mat = material|selectattr('status', 'in', ['reserviert', 'ausgebucht'])|list %}{% if mat %}<span class="zahl">{{ mat|length }}</span>{% endif %}</a>
-  <a href="#leihgeraet" data-reiter="leihgeraet">Leihgerät{% if a.leihen_offen %} <span class="zahl" {% if a.leihe_bis and a.leihe_bis < heute %}style="background:var(--rot-hell);color:var(--rot)"{% endif %}>🔁 {{ a.leihen_offen }}</span>{% endif %}</a>
   <a href="#fotos" data-reiter="fotos">Fotos <span class="zahl">{{ gueltige_fotos|length }}</span></a>
   <a href="#verlauf" data-reiter="verlauf">Verlauf <span class="zahl">{{ verlauf|length }}</span></a>
 </nav>
@@ -187,65 +185,9 @@
   </div>
 </section>
 
-<section data-bereich="material">
-  <div class="karte">
-    <h2>Material / Ersatzteile aus dem Lager</h2>
-    <form method="post" action="{{ url_for('main.auftrag_material', aid=a.id) }}" class="leiste">{{ csrf() }}
-      <select name="artikel_id" style="flex:1;min-width:240px" required><option value="">– lagerführenden Artikel wählen –</option>
-        {% for x in lager_artikel %}<option value="{{ x.id }}">{{ x.name }} · Bestand {{ x.bestand|menge }}{{ (' · ' ~ x.lagerort) if x.lagerort }}{{ (' · passt: ' ~ x.kompatibilitaet|truncate(40)) if x.kompatibilitaet }}</option>{% endfor %}</select>
-      <input type="text" name="menge" value="1" style="width:70px" inputmode="decimal">
-      <button>Reservieren</button></form>
-    <div class="leiste" style="margin-top:6px"><a class="knopf zweit klein" href="{{ url_for('main.bestellung_neu', auftrag_id=a.id) }}">🛒 Teil für diesen Auftrag bestellen</a>
-      {% for b in bestellungen_auftrag %}<a class="klein" href="{{ url_for('main.bestellung', bid=b.id) }}">{{ b.nummer }} ({{ b.lieferant }}, {{ b.status }}{{ (', erwartet ' ~ (b.erwartet_am|datum)) if b.erwartet_am and b.status in ('bestellt', 'teilweise') }})</a>{% endfor %}</div>
-    {% if a.kva_id %}<form method="post" action="{{ url_for('main.auftrag_material', aid=a.id) }}" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="aus_kva" value="1"><button class="zweit klein">Lagerartikel aus dem KVA übernehmen</button></form>{% endif %}
-    <table class="liste" style="margin-top:10px"><thead><tr><th>Artikel</th><th class="zahl">Menge</th><th>Status</th><th class="zahl">EK</th><th></th></tr></thead><tbody>
-    {% for m in material %}<tr><td><a href="{{ url_for('main.artikel', aid=m.artikel_id) }}#lager">{{ m.name }}</a>{% if m.lagerort %} <span class="klein">({{ m.lagerort }})</span>{% endif %}<div class="klein">{{ m.erstellt_am|zeit_sek }} · {{ m.benutzer }}{{ (' · aus ' ~ m.quelle) if m.quelle and m.quelle != 'manuell' }}</div></td>
-      <td class="zahl">{{ m.menge|menge }} {{ m.einheit or '' }}</td>
-      <td>{{ res_status[m.status] }}{% if m.storno_grund %}<div class="klein">{{ m.storno_grund }}</div>{% endif %}{% set lg = lief_garantie.get(m.id) %}{% if lg %}<div class="klein">von {{ lg.lieferant }} ({{ lg.nummer }}){% if lg.garantie_bis %} · Lieferantengarantie bis {{ lg.garantie_bis|datum }}{% endif %}</div>{% endif %}</td>
-      <td class="zahl">{{ ((m.ek_buchung if m.ek_buchung is not none else m.teilekosten or 0) * m.menge)|round|int|euro }}</td>
-      <td class="zahl">{% if m.status in ('reserviert', 'ausgebucht') %}<details><summary class="klein">{{ 'freigeben' if m.status == 'reserviert' else 'zurückbuchen' }} …</summary>
-        <form method="post" action="{{ url_for('main.material_stornieren', rid=m.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund"><button class="gefahr klein">OK</button></form></details>{% endif %}</td></tr>
-    {% else %}<tr><td colspan="5" class="klein">Noch kein Material reserviert.</td></tr>{% endfor %}</tbody></table>
-    <p class="klein">Reserviertes Material wird beim Erledigen automatisch aus dem Lager ausgebucht; beim Storno der Rechnung wird es wieder eingebucht. Die Rechnungspositionen legen Sie wie gewohnt im KVA bzw. in der Rechnung fest.</p>
-  </div>
-</section>
+{# Bereich „material“ ist in Werkstatt Sauter ausgeblendet #}
 
-<section data-bereich="leihgeraet">
-  {% for le in leihen if not le.rueckgabe_am and not le.storniert_am %}
-  <div class="karte" {% if le.ueberfaellig %}style="border-color:var(--rot)"{% endif %}>
-    <div class="kopf" style="margin-bottom:8px"><h2 style="margin:0">🔁 {{ le.bezeichnung }} <span class="marke-status lg-verliehen">verliehen</span>{% if le.ueberfaellig %} <span class="marke-status st-fehler">Rückgabe überfällig</span>{% endif %}</h2>
-      <a class="knopf" href="{{ url_for('main.leihe_rueckgabe', lid=le.id) }}">Leihgerät zurücknehmen</a></div>
-    <table class="liste" style="max-width:720px">
-      <tr><td>Leihvertrag</td><td><a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.leihnr }}</b></a></td></tr>
-      <tr><td>Ausgabe</td><td>{{ le.ausgabe_am|zeit_sek }}</td></tr>
-      <tr><td>Rückgabe bis</td><td {% if le.ueberfaellig %}style="color:var(--rot);font-weight:700"{% endif %}>{{ le.rueckgabe_geplant|datum if le.rueckgabe_geplant else 'offen' }}</td></tr>
-      <tr><td>Kaution</td><td>{{ (le.kaution_betrag|euro ~ ' (' ~ le.kaution_zahlart ~ ')') if le.kaution_erhalten else 'keine' }}</td></tr>
-    </table><br>
-    <div class="leiste">
-      <a class="knopf zweit" href="{{ url_for('main.leihe_pdf', lid=le.id, art='ausgabe') }}" target="_blank">Leihvertrag / Übergabeprotokoll (PDF)</a>
-      <a class="knopf zweit" href="{{ url_for('main.leihe_email', lid=le.id, art='ausgabe') }}">Per E-Mail senden</a>
-      <a class="knopf zweit" href="{{ url_for('main.leihe', lid=le.id) }}">Details &amp; Fotos</a>
-    </div>
-  </div>
-  {% endfor %}
-  <div class="karte">
-    <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Leihgerät</h2>
-      {% if not a.intern %}<a class="knopf {{ 'zweit' if a.leihen_offen }}" href="{{ url_for('main.leihe_ausgeben', aid=a.id) }}">Leihgerät ausgeben</a>{% endif %}</div>
-    {% set fruehere = leihen|selectattr('rueckgabe_am')|list + leihen|selectattr('storniert_am')|list %}
-    {% if not leihen %}<p class="klein">Zu diesem Auftrag wurde noch kein Leihgerät ausgegeben.</p>{% endif %}
-    {% if fruehere %}
-    <table class="liste"><thead><tr><th>Leihvertrag</th><th>Gerät</th><th>Ausgabe – Rückgabe</th><th>Zustand</th><th class="zahl">Gebühr</th><th class="zahl">Schaden</th><th>Abrechnung</th></tr></thead><tbody>
-    {% for le in fruehere %}<tr>
-      <td><a href="{{ url_for('main.leihe', lid=le.id) }}"><b>{{ le.leihnr }}</b></a>{% if le.storniert_am %} <span class="marke-status st-storniert">storniert</span>{% endif %}</td>
-      <td>{{ le.bezeichnung }}</td>
-      <td>{{ le.ausgabe_am|zeit }}{% if le.rueckgabe_am %} – {{ le.rueckgabe_am|zeit }}{% endif %}</td>
-      <td>{{ {'einwandfrei': 'einwandfrei', 'schaden': 'Schaden'}.get(le.zustand_rueckgabe, '–') }}</td>
-      <td class="zahl">{{ le.gebuehr_berechnet|euro if le.gebuehr_berechnet is not none else '' }}</td>
-      <td class="zahl">{{ (le.schaeden|sum(attribute='betrag'))|euro if le.schaeden else '' }}</td>
-      <td>{% if le.offen_abzurechnen %}<form method="post" action="{{ url_for('main.leihe_abrechnen', lid=le.id) }}">{{ csrf() }}<button class="zweit klein">abrechnen</button></form>{% elif le.rechnung_id %}<a href="{{ url_for('main.dokument', did=le.rechnung_id) }}">in Rechnung</a>{% endif %}</td></tr>
-    {% endfor %}</tbody></table>{% endif %}
-  </div>
-</section>
+{# Bereich „leihgeraet“ ist in Werkstatt Sauter ausgeblendet #}
 
 <section data-bereich="fotos">
   <div class="karte">

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_status.html" import csrf %}
 {% from "_aenderungen.html" import aenderungen_karte %}
-{% block titel %}{{ ('Eingangsrechnung ' ~ e.lfd_nr) if e else 'Eingangsrechnung erfassen' }}{% endblock %}
+{% block titel %}{{ ('Beleg ' ~ e.lfd_nr) if e else 'Beleg erfassen' }}{% endblock %}
 {% block inhalt %}
-<div class="kopf"><h1>{% if e %}Eingangsrechnung {{ e.lfd_nr }} <span class="marke-status st-{{ {'offen':'warnung','bezahlt':'gesendet','storniert':'fehler'}[e.status] }}">{{ e.status }}</span>{% else %}Eingangsrechnung erfassen{% endif %}</h1>
-  <a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen') }}">← Eingangsrechnungen</a></div>
+<div class="kopf"><h1>{% if e %}Beleg {{ e.lfd_nr }} <span class="marke-status st-{{ {'offen':'warnung','bezahlt':'gesendet','storniert':'fehler'}[e.status] }}">{{ e.status }}</span>{% else %}Beleg erfassen{% endif %}</h1>
+  <a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen') }}">← Belege</a></div>
 {% if e and e.storno_grund %}<div class="meldung fehler">Storniert am {{ e.storniert_am|zeit_sek }}: {{ e.storno_grund }}</div>{% endif %}
 {% set sha = e.datei_sha256 if e else vorlage.sha %}
 <div class="zweispaltig">
@@ -13,7 +13,7 @@
     <div class="hilfe">Tipp: Bei ZUGFeRD-PDFs und XRechnungen nur die Datei wählen und ohne Beträge auf „erfassen“ klicken – die Angaben werden dann aus der E-Rechnung übernommen.</div></div><br>{% endif %}
   {% if vorlage.sha and not e %}<p class="klein">Beleg: <b>{{ vorlage.name }}</b> ({{ vorlage.quelle }}) · SHA-256 {{ vorlage.sha[:12] }}… · <a href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">anderen Beleg wählen</a></p>{% endif %}
   <div class="felder">
-    <div class="s6"><label>Lieferant</label><select name="lieferant_id"><option value="">– nicht angelegt (Name rechts) –</option>{% for l in lieferanten %}<option value="{{ l.id }}" {{ 'selected' if werte.lieferant_id == l.id }}>{{ l.name }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>Lieferant / Händler</label><select name="lieferant_id"><option value="">– nicht angelegt (Name rechts) –</option>{% for l in lieferanten %}<option value="{{ l.id }}" {{ 'selected' if werte.lieferant_id == l.id }}>{{ l.name }}</option>{% endfor %}</select></div>
     <div class="s6"><label>oder Name</label><input type="text" name="lieferant_name" value="{{ werte.lieferant_name or '' }}"></div>
     <div class="s4"><label>Rechnungsnummer</label><input type="text" name="nummer" value="{{ werte.nummer or '' }}"></div>
     <div class="s4"><label>Rechnungsdatum</label><input type="date" name="datum" required value="{{ werte.datum or '' }}"></div>
@@ -23,10 +23,15 @@
     <div class="s3"><label>Steuer (€)</label><input type="text" name="steuer" id="er_steuer" value="{{ werte.steuer|euro(false) if werte.steuer is number else '' }}"></div>
     <div class="s3"><label>Brutto (€)</label><input type="text" name="brutto" id="er_brutto" required value="{{ werte.brutto|euro(false) if werte.brutto is number else '' }}"></div>
     <div class="s6"><label>Kostenart</label><select name="kostenart"><option value=""></option>{% for k in kostenarten %}<option {{ 'selected' if werte.kostenart == k }}>{{ k }}</option>{% endfor %}</select></div>
-    <div class="s6"><label>zu Bestellung</label><select name="bestellung_id"><option value="">–</option>{% for b in bestellungen %}<option value="{{ b.id }}" {{ 'selected' if werte.bestellung_id == b.id }}>{{ b.nummer }} · {{ b.lieferant }}</option>{% endfor %}</select></div>
+    {% if bestellungen %}<div class="s6"><label>zu Bestellung</label><select name="bestellung_id"><option value="">–</option>{% for b in bestellungen %}<option value="{{ b.id }}" {{ 'selected' if werte.bestellung_id == b.id }}>{{ b.nummer }} · {{ b.lieferant }}</option>{% endfor %}</select></div>{% endif %}
     <div class="s12"><label>Beschreibung</label><input type="text" name="beschreibung" value="{{ werte.beschreibung or '' }}"></div>
+    {% if not e %}<div class="s6"><label>Schon bezahlt?</label><select name="sofort_bezahlt">
+      <option value="">nein – noch offen</option><option value="bar">ja, bar (kommt ins Kassenbuch)</option>
+      <option value="karte">ja, mit Karte</option><option value="ueberweisung">ja, per Überweisung</option>
+      <option value="lastschrift">ja, per Lastschrift</option><option value="paypal">ja, per PayPal</option></select>
+      <div class="hilfe">Bezahlt am Rechnungsdatum mit dem vollen Betrag.</div></div>{% endif %}
   </div><br>
-  {% if not e or e.status != 'storniert' %}<button>{{ 'Änderungen speichern' if e else 'Eingangsrechnung erfassen' }}</button>{% endif %}
+  {% if not e or e.status != 'storniert' %}<button>{{ 'Änderungen speichern' if e else 'Beleg speichern' }}</button>{% endif %}
   <p class="klein">Netto oder Brutto genügt – Steuer und fehlender Betrag werden mit dem Steuersatz berechnet. Die Originaldatei wird unverändert archiviert (SHA-256); Änderungen an den Angaben stehen im Änderungsprotokoll. Löschen ist nicht möglich, nur Stornieren mit Grund.</p>
 </form>
 <div>

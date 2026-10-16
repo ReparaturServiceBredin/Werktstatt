@@ -4,10 +4,11 @@
 {% macro kname(a) %}{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}{% endmacro %}
 {% macro dauer_text(m) %}{{ (m // 60) ~ ' h' if m >= 60 }}{{ (' ' if m >= 60 and m % 60) }}{{ (m % 60) ~ ' min' if m % 60 }}{% endmacro %}
 {% block inhalt %}
+{% set reiter = "auftraege" %}{% include "_bereichsreiter.html" %}
 {% set px = 80 %}{# Höhe einer Stunde in Pixeln #}
 <div class="kopf">
   <div>
-    <h1>Kalender</h1>
+    <h1>Aufträge – Kalender</h1>
     <div class="klein">KW {{ kw }} · {{ w.montag|datum }} – {{ w.sonntag|datum }}</div>
   </div>
   <div class="leiste">

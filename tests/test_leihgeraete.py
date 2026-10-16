@@ -108,7 +108,6 @@ def test_ausgabe_protokoll_karte(client, con, basis):
     assert con.execute("SELECT 1 FROM leihgeraet_verlauf WHERE geraet_id=? AND ereignis='Verliehen'", (gid,)).fetchone()
     # Karte, Auftrag, Kunde, Liste
     assert "🔁 Leihgerät" in client.get("/auftraege").get_data(as_text=True)
-    assert "Leihgerät zurücknehmen" in client.get(f"/auftraege/{aid}").get_data(as_text=True)
     assert "Hat aktuell" in client.get(f"/kunden/{kid}").get_data(as_text=True)
     assert "Verliehen" in client.get("/leihgeraete").get_data(as_text=True)
     # Leihvertrag-PDF
@@ -136,7 +135,6 @@ def test_ueberfaellig(client, con, basis):
     assert "🔁 Leihgerät überfällig" in client.get("/auftraege").get_data(as_text=True)
     html = client.get("/leihgeraete").get_data(as_text=True)
     assert "zeile-rot" in html and "überfällig" in html
-    assert 'title="überfällige Rückgaben">1<' in html
 
 
 def test_rueckgabe_ohne_schaden_und_abrechnung(client, con, basis):

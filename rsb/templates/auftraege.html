@@ -4,8 +4,9 @@
 {% from "_benachrichtigung.html" import vorschau %}
 {% block titel %}Aufträge{% endblock %}
 {% block inhalt %}
+{% set reiter = "auftraege" %}{% include "_bereichsreiter.html" %}
 <div class="kopf">
-  <h1>Aufträge</h1>
+  <h1>Aufträge – Tafel</h1>
   <a class="knopf" href="{{ url_for('main.auftrag_neu') }}">+ Neuer Auftrag</a>
 </div>
 <p class="klein">Karte anklicken = Auftrag öffnen. Karten mit der Maus in eine andere Spalte ziehen – oder die Pfeil-Knöpfe nutzen. Wird ein Auftrag auf <b>Erledigt</b> gezogen, erstellt das Tool automatisch den Rechnungsentwurf (mit den Positionen aus dem KVA) und öffnet ihn.</p>

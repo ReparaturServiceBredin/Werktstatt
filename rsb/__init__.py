@@ -11,7 +11,7 @@ from .hilfen import EingabeFehler, datum_de, euro, kunde_name, menge_text, zeit_
 from .sicherheit import csrf_pruefen, csrf_token, sitzungs_schluessel
 
 PROGRAMM = "Werkstatt Sauter"
-VERSION_NUMMER = "1.1.1"
+VERSION_NUMMER = "1.2.0"
 VERSION = VERSION_NUMMER
 if getattr(sys, "frozen", False):
     # EXE-Version: Programmordner = Ordner der EXE (die Daten liegen am festen Ort, siehe datenort.py)

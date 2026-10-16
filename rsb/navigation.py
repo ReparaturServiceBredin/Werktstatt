@@ -26,41 +26,24 @@ class Gruppe:
 
 
 SEITENLEISTE = [
-    Gruppe("", "", [Eintrag("start", "Übersicht", "layout-dashboard", "main.start", stichworte="Start Dashboard")]),
+    Gruppe("", "", [Eintrag("start", "Übersicht", "layout-dashboard", "main.start", stichworte="Start Dashboard Heute")]),
     Gruppe("werkstatt", "Werkstatt", [
-        Eintrag("anfragen", "Anfragen", "inbox", "main.anfragen_liste", "offene_anfragen",
-                zaehler_titel="neue Anfragen", stichworte="Kontaktformular Posteingang"),
-        Eintrag("auftraege", "Aufträge", "wrench", "main.auftraege", "offene_auftraege",
-                zaehler_titel="offene Aufträge", stichworte="Tafel Reparatur Annahme Abholung"),
-        Eintrag("kalender", "Kalender", "calendar-days", "main.kalender",
-                stichworte="Termine Wochenplan Planung Einplanen Werkstattplaner"),
-        Eintrag("leihgeraete", "Leihgeräte", "laptop", "main.leihgeraete", "leihen_ueberfaellig", True,
-                "überfällige Rückgaben", "Leihe Ersatzgerät"),
+        Eintrag("auftraege", "Aufträge", "wrench", "main.kalender", "offene_auftraege",
+                zaehler_titel="offene Aufträge",
+                stichworte="Kalender Termine Wochenplan Einplanen Tafel Annahme Abholung Checkliste"),
+        Eintrag("kunden", "Kunden", "users", "main.kunden", stichworte="Adressen Fahrzeuge"),
     ]),
-    Gruppe("kunden", "Kunden", [
-        Eintrag("kunden", "Kunden", "users", "main.kunden", stichworte="Interessenten Adressen"),
-        Eintrag("vertraege", "Verträge & Lizenzen", "scroll-text", "main.vertraege_liste",
-                stichworte="Wertgarantie ESET MSP Abo Lizenz"),
-    ]),
-    Gruppe("verkauf", "Verkauf", [
+    Gruppe("verkauf", "Rechnungen", [
         Eintrag("rechnungen", "Rechnungen", "receipt", "main.dokumente", "posten_ueberfaellig", True,
-                "überfällige Rechnungen", "Kostenvoranschläge KVA Offene Posten Mahnwesen Gutschrift Storno"),
-        Eintrag("artikel", "Leistungen & Artikel", "tag", "main.artikel_liste", stichworte="Katalog Preise"),
-    ]),
-    Gruppe("einkauf", "Einkauf & Lager", [
-        Eintrag("lager", "Lager", "boxes", "main.lager", "lager_unter_min", False, "unter Mindestbestand",
-                "Bestand Inventur Mindestbestand"),
-        Eintrag("einkauf", "Einkauf", "shopping-cart", "main.bestellungen",
-                stichworte="Bestellungen Lieferanten Eingangsrechnungen"),
+                "überfällige Rechnungen", "Kostenvoranschläge KVA Offene Posten Mahnwesen Gutschrift Storno Einnahmen"),
+        Eintrag("artikel", "Leistungen & Artikel", "tag", "main.artikel_liste", stichworte="Katalog Preise Teile"),
     ]),
     Gruppe("buchhaltung", "Buchhaltung", [
-        Eintrag("bank", "Bankabgleich", "landmark", "main.bank", stichworte="Kontoauszug Zahlungen CSV"),
-        Eintrag("kasse", "Kassenbuch", "wallet", "main.kassenbuch", stichworte="Bargeld Kassensturz Privateinlage"),
-        Eintrag("fixkosten", "Fixkosten", "calendar-clock", "main.fixkosten_liste",
-                stichworte="Miete Strom Versicherung Leasing Abo wiederkehrende Ausgaben Kündigungsfrist"),
+        Eintrag("belege", "Belege & Ausgaben", "file-text", "main.eingangsrechnungen",
+                stichworte="Eingangsrechnungen scannen hochladen Ausgaben Kosten Quittung"),
+        Eintrag("kasse", "Kassenbuch", "wallet", "main.kassenbuch", stichworte="Bargeld Bareinnahme Barzahlung Kassensturz"),
         Eintrag("finanzen", "Finanzen", "chart-column", "main.finanzen",
-                stichworte="Finanzübersicht Umsatz Ergebnis Rohertrag Break-even Auswertung Gewinn"),
-        Eintrag("datev", "DATEV-Export", "file-output", "main.datev", stichworte="Steuerberater Buchungsstapel"),
+                stichworte="Kostenübersicht Einnahmen Ausgaben Umsatz Ergebnis Gewinn"),
     ]),
 ]
 EINSTELLUNGEN = Eintrag("einstellungen", "Einstellungen", "settings", "main.einstellungen",
@@ -72,16 +55,17 @@ REITER = {
                    ("Offene Posten", "main.offene_posten"), ("Mahnwesen", "main.mahnwesen")],
     "einkauf": [("Bestellungen", "main.bestellungen"), ("Lieferanten", "main.lieferanten"),
                 ("Eingangsrechnungen", "main.eingangsrechnungen")],
+    "auftraege": [("Kalender", "main.kalender"), ("Tafel", "main.auftraege")],
 }
 
 # Welcher Menüpunkt ist bei welchem Endpoint aktiv (erster passender Präfix gewinnt, ohne „main.“)
 ZUORDNUNG = [
-    ("start", "start"), ("kalender", "kalender"), ("anfrage", "anfragen"), ("auftr", "auftraege"),
+    ("start", "start"), ("kalender", "auftraege"), ("anfrage", "anfragen"), ("auftr", "auftraege"),
     ("geraet_pruefen", "auftraege"), ("beleg", "auftraege"), ("foto", "auftraege"),
     ("leihe_ausgeben", "leihgeraete"), ("leih", "leihgeraete"), ("kunde", "kunden"), ("vertr", "vertraege"),
     ("dokument", "rechnungen"), ("kostenvoranschlaege", "rechnungen"), ("offene_posten", "rechnungen"),
     ("mahn", "rechnungen"), ("zahlung", "rechnungen"), ("artikel", "artikel"), ("lager", "lager"),
-    ("inventur", "lager"), ("bestellung", "einkauf"), ("lieferant", "einkauf"), ("eingangsrechnung", "einkauf"),
+    ("inventur", "lager"), ("bestellung", "belege"), ("lieferant", "belege"), ("eingangsrechnung", "belege"), ("er_", "belege"),
     ("bank", "bank"), ("kasse", "kasse"), ("datev", "datev"), ("fixkosten", "fixkosten"), ("finanz", "finanzen"),
     ("einstellungen", "einstellungen"), ("backup", "einstellungen"), ("logo", "einstellungen"),
     ("musterrechnung", "einstellungen"), ("textbaustein", "einstellungen"), ("protokoll", "einstellungen"),
@@ -93,13 +77,11 @@ ZUORDNUNG = [
 # Einstellungen: Unternavigation (Schlüssel = Bereich, sonst Endpoint für eigene Seiten)
 EINSTELLUNGS_GRUPPEN = [
     ("Unternehmen", [("firma", "Firmendaten", "building-2"), ("layout", "Layout & Dokumente", "palette")]),
-    ("Verkauf & Werkstatt", [("rechnung", "Rechnung & Steuer", "calculator"),
-                             ("annahme", "Annahme & Abholung", "clipboard-check"),
-                             ("leihgeraete", "Leihgeräte", "laptop"), ("vertraege", "Verträge", "scroll-text"),
-                             ("mahnwesen", "Mahnwesen", "file-clock")]),
-    ("Kommunikation", [("email", "E-Mail (Versand und IMAP)", "mail"), ("anfragen", "Anfragen", "inbox"),
-                       ("benachrichtigung", "Benachrichtigungen", "bell")]),
-    ("Einkauf & Buchhaltung", [("einkauf", "Einkauf", "truck"), ("datev", "DATEV", "file-output")]),
+    ("Werkstatt & Rechnungen", [("annahme", "Aufträge, Checklisten & Kalender", "clipboard-check"),
+                                ("rechnung", "Rechnung & Steuer", "calculator"),
+                                ("mahnwesen", "Mahnwesen", "file-clock")]),
+    ("Kommunikation", [("email", "E-Mail", "mail"), ("benachrichtigung", "Kundennachrichten", "bell")]),
+    ("Buchhaltung", [("einkauf", "Belege & Kostenarten", "file-text")]),
     ("System", [("datenschutz", "Datenschutz", "shield"), ("backup", "Backup", "hard-drive"),
                 ("sicherheit", "Passwortschutz", "lock"), ("programm", "Programm & Updates", "refresh-cw")]),
 ]
@@ -120,7 +102,8 @@ NEU = [
     ("Neuer Kunde", "main.kunde", {}, "user-plus"),
     ("Neuer KVA", "main.dokument_neu", {"typ": "kva"}, "file-plus"),
     ("Neue Rechnung", "main.dokument_neu", {"typ": "rechnung"}, "receipt"),
-    ("Leihgerät ausgeben", "main.leihe_ausgabe_waehlen", {}, "laptop"),
+    ("Neuer Beleg", "main.eingangsrechnung_neu", {"neu": 1}, "file-plus"),
+    ("Kassenbuchung", "main.kassenbuch", {}, "wallet"),
 ]
 
 

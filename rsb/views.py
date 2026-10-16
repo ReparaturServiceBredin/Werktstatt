@@ -904,7 +904,18 @@ def eingangsrechnung_neu():
             eid = ek.er_anlegen(con, felder, vorlage.get("rel"), vorlage.get("sha"), vorlage.get("name"),
                                 vorlage.get("quelle") or "manuell", vorlage.get("message_id"), e_daten)
         session.pop("er_datei", None)
-        flash("Eingangsrechnung erfasst.", "ok")
+        bezahlt = ""
+        if _f("sofort_bezahlt") in ek.ZAHLARTEN:  # Quittung, Kartenzahlung: gleich als bezahlt erfassen
+            e = con.execute("SELECT datum, brutto FROM eingangsrechnungen WHERE id=?", (eid,)).fetchone()
+            try:
+                with dbm.Transaktion(con):
+                    ek.er_zahlung(con, eid, e["datum"], e["brutto"], _f("sofort_bezahlt"))
+                bezahlt = " und als bezahlt erfasst"
+            except EingabeFehler as fehler:  # z. B. Kasse würde ins Minus gehen – der Beleg bleibt gespeichert
+                flash(f"Beleg gespeichert, die Zahlung aber noch nicht: {fehler} Bitte im Kassenbuch zuerst den "
+                      "Anfangsbestand bzw. die Bareinnahmen buchen und die Zahlung dann unten erfassen.", "warnung")
+                return redirect(url_for("main.eingangsrechnung", eid=eid))
+        flash(f"Beleg gespeichert{bezahlt}.", "ok")
         return redirect(url_for("main.eingangsrechnung", eid=eid))
     if request.args.get("neu"):
         session.pop("er_datei", None)
@@ -4102,6 +4113,8 @@ def _seiten_ziele():
                       "symbol": e.symbol, "stichworte": e.stichworte})
     for haupt, reiter in nav.REITER.items():
         _, e = nav.eintrag(haupt)
+        if not e:  # Bereich ohne Menüpunkt (ausgeblendet)
+            continue
         for titel, ep_ in reiter[1:]:
             ziele.append({"titel": titel, "unter": e.titel, "url": url_for(ep_), "symbol": e.symbol, "stichworte": ""})
     ziele.append({"titel": "Benachrichtigungen", "unter": "Werkstatt", "url": url_for("main.benachrichtigungen"),

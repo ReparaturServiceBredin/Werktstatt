@@ -37,11 +37,10 @@ def test_jede_seite_hat_einen_menuepunkt(app):
              and r.endpoint not in ohne and not nav.aktiver_schluessel(r.endpoint)]
     assert fehlt == []
     namen = {e.titel for _, e in nav.alle_eintraege()}
-    assert {"Übersicht", "Anfragen", "Aufträge", "Kalender", "Leihgeräte", "Kunden", "Verträge & Lizenzen", "Rechnungen",
-            "Leistungen & Artikel", "Lager", "Einkauf", "Bankabgleich", "Kassenbuch", "Fixkosten", "Finanzen",
-            "DATEV-Export",
-            "Einstellungen"} == namen
-    assert len([b for _, l in nav.EINSTELLUNGS_GRUPPEN for b in l]) == 16
+    # Werkstatt Sauter: bewusst schlank (Leihgeräte, Lager, Einkauf, Verträge, Bank, Fixkosten, DATEV ausgeblendet)
+    assert {"Übersicht", "Aufträge", "Kunden", "Rechnungen", "Leistungen & Artikel", "Belege & Ausgaben", "Kassenbuch",
+            "Finanzen", "Einstellungen"} == namen
+    assert len([b for _, l in nav.EINSTELLUNGS_GRUPPEN for b in l]) == 12
 
 
 def test_alte_adressen_leiten_weiter(client):
@@ -87,13 +86,13 @@ def test_seitenleiste_aktiv_zaehler_brotkrumen(client, con):
     html = client.get("/verkauf/offene-posten").get_data(as_text=True)
     aktiv = re.search(r'class="nav-punkt aktiv"[^>]*data-titel="([^"]+)"', html).group(1)
     assert aktiv == "Rechnungen" and 'aria-current="page"' in html
-    assert re.search(r"<span>Verkauf</span>.*?>Rechnungen</a>.*?<b>Offene Posten</b>", html, re.S)
+    assert re.search(r"<span>Rechnungen</span>.*?>Rechnungen</a>.*?<b>Offene Posten</b>", html, re.S)
     assert 'class="bereichsreiter"' in html and "Kostenvoranschläge" in html and "Mahnwesen" in html
     assert re.search(r'data-titel="Aufträge".*?<span class="zaehler" title="offene Aufträge">1</span>', html,
                      re.S)
     assert "Benachrichtigungen</span>" not in html.split('class="nav"')[1].split("</nav>")[0]  # nicht mehr im Menü
     html = client.get("/einkauf/lieferanten").get_data(as_text=True)
-    assert re.search(r'class="nav-punkt aktiv"[^>]*data-titel="Einkauf"', html)
+    assert re.search(r'class="nav-punkt aktiv"[^>]*data-titel="Belege &amp; Ausgaben"', html)
     html = client.get("/protokoll").get_data(as_text=True)
     assert re.search(r'class="nav-punkt aktiv"[^>]*data-titel="Einstellungen"', html)
 
@@ -104,7 +103,7 @@ def test_oberflaeche_zustand_je_benutzer(client, con):
     assert r.get_json()["ok"]
     z = dbm.einstellungen(con)["oberflaeche:inhaber"]
     assert z == {"zu": ["werkstatt", "verkauf"], "schmal": True, "design": "dunkel"}
-    html = client.get("/kunden").get_data(as_text=True)
+    html = client.get("/finanzen").get_data(as_text=True)
     assert '<body class="nav-schmal">' in html and 'data-design="dunkel"' in html
     assert 'class="nav-gruppe zu" data-gruppe="werkstatt"' in html
     # Gruppe der geöffneten Seite ist immer aufgeklappt
@@ -142,7 +141,7 @@ def test_schnellsuche(client, con):
     nummer = con.execute("SELECT nummer FROM dokumente WHERE id=?", (did,)).fetchone()[0]
     leer = _suche(client, "")
     assert [e["titel"] for e in leer["Schnellaktionen"]] == ["Neuer Auftrag", "Neuer Kunde", "Neuer KVA",
-                                                              "Neue Rechnung", "Leihgerät ausgeben"]
+                                                              "Neue Rechnung", "Neuer Beleg", "Kassenbuchung"]
     assert "/verkauf/mahnwesen" in [e["url"] for e in _suche(client, "Mahnwesen")["Seiten"]]
     assert _suche(client, "SMTP")["Einstellungen"][0]["url"].startswith("/einstellungen/email#feld-smtp_")
     assert any(e["url"].startswith("/einstellungen/backup") for e in _suche(client, "Backup")["Einstellungen"])
@@ -162,13 +161,12 @@ def test_schnellsuche(client, con):
 def test_einstellungs_suche_und_anker(client):
     treffer = client.get("/einstellungen/suche.json?q=IMAP").get_json()
     bereiche = {t["bereich"] for t in treffer}
-    assert {"email", "anfragen"} <= bereiche
-    assert any(t["url"] == "/einstellungen/anfragen#feld-imap_host" for t in treffer)
+    assert "email" in bereiche and "anfragen" not in bereiche  # Anfragen sind ausgeblendet
     t = client.get("/einstellungen/suche.json?q=Verzugszinsen").get_json()
     assert t[0]["bereich"] == "mahnwesen" and t[0]["url"].startswith("/einstellungen/mahnwesen#abschnitt-")
-    html = client.get("/einstellungen/anfragen").get_data(as_text=True)
+    html = client.get("/einstellungen/email").get_data(as_text=True)
     assert 'id="einst-suche"' in html and 'class="einst-nav"' in html and "Verwaltung &amp; Prüfung" in html
-    assert 'name="imap_host"' in html
+    assert 'name="smtp_host"' in html
 
 
 def test_zaehlerfehler_leert_nie_die_einstellungen(client, con, monkeypatch):

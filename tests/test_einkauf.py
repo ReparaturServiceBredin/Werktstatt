@@ -47,7 +47,6 @@ def test_bestellung_fuer_auftrag_und_wareneingang(client, con, app):
          garantie_monate="12")
     kid = kunde_anlegen(client)
     aid = auftrag_mit_annahme(client, kid)
-    assert "Teil für diesen Auftrag bestellen" in client.get(f"/auftraege/{aid}").get_data(as_text=True)
     r = post(client, "/bestellungen/neu", lieferant_id=str(lid), auftrag_id=str(aid), notiz="eilt",
              p_artikel_id=[str(art)], p_bezeichnung=["Display iPhone 13"], p_artnr=["IP-D13"], p_menge=["1"],
              p_ek=["115,00"])
@@ -77,10 +76,7 @@ def test_bestellung_fuer_auftrag_und_wareneingang(client, con, app):
     assert w["garantie_bis"] and w["lieferschein"] == "LS-1"
     with pytest.raises(sqlite3.DatabaseError):
         con.execute("DELETE FROM wareneingaenge")
-    # Material nach Erledigen: Lieferant und Lieferantengarantie sichtbar
     post(client, f"/auftraege/{aid}/status", status="erledigt", ohne_kva="1")
-    seite = client.get(f"/auftraege/{aid}").get_data(as_text=True)
-    assert "Lieferantengarantie bis" in seite and "iParts GmbH" in seite
     # zu viel liefern → Fehler, Bestellung bleibt
     post(client, f"/bestellungen/{bid}", aktion="wareneingang", **{f"menge_{pos}": "1"})
     assert bestand(con, art) == 0

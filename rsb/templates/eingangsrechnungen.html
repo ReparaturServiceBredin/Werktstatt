@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block titel %}Eingangsrechnungen{% endblock %}
+{% block titel %}Belege & Ausgaben{% endblock %}
 {% block inhalt %}
-{% set reiter = "einkauf" %}{% include "_bereichsreiter.html" %}
-<div class="kopf"><h1>Eingangsrechnungen</h1>
-  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen_postfach') }}">📥 Aus dem Postfach</a><a class="knopf" href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">+ Erfassen / hochladen</a></div></div>
+<div class="kopf"><h1>Belege &amp; Ausgaben</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.eingangsrechnungen_postfach') }}">📥 Aus dem Postfach</a><a class="knopf" href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">+ Beleg scannen / hochladen</a></div></div>
+<p class="klein">Rechnungen und Quittungen fotografieren oder als PDF hochladen, Betrag und Kostenart eintragen – fertig. Bar bezahlt? Beim Speichern „Schon bezahlt: ja, bar“ wählen – der Beleg landet dann automatisch im Kassenbuch.</p>
 <p>Offen zu zahlen: <b>{{ summe_offen|euro }}</b></p>
 <nav class="reiter">{% for k, n in [('offen','Offen'),('bezahlt','Bezahlt'),('storniert','Storniert'),('alle','Alle')] %}<a href="{{ url_for('main.eingangsrechnungen', status=k, q=q) }}" class="{{ 'aktiv' if status == k }}">{{ n }}</a>{% endfor %}</nav>
 <form class="leiste" method="get"><input type="hidden" name="status" value="{{ status }}"><input type="text" name="q" value="{{ q }}" placeholder="Suchen: Lieferant, Rechnungsnummer, Beschreibung" style="flex:1"><button class="zweit">Suchen</button></form>

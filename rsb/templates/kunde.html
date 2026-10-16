@@ -60,7 +60,7 @@
     {% else %}<tr><td colspan="5" class="klein">Noch keine Dokumente.</td></tr>{% endfor %}
   </table>
 </div>
-{% if k %}
+{% if k and vertraege %}
 {% from "_vertrag.html" import zustand, abrechnung_text %}
 <div class="karte">
   <div class="kopf" style="margin-bottom:8px"><h2 style="margin:0">Verträge, Lizenzen &amp; Garantien</h2>
