@@ -66,7 +66,7 @@ def pruefen(con, kunde_id, einst=None):
             loeschen.append(f"{n} {was}")
     auftraege_frei = len(_auftraege_ohne_bindung(con, kunde_id))
     if auftraege_frei:
-        loeschen.append(f"{auftraege_frei} Reparaturauftrag/-aufträge ohne Belege, Fotos oder Leihgeräte")
+        loeschen.append(f"{auftraege_frei} Auftrag/-aufträge ohne Belege, Fotos oder Leihgeräte")
     return {"anonymisieren": bool(behalten), "behalten": behalten, "loeschen": loeschen,
             "bis": max((b["bis"] for b in behalten), default=None)}
 
@@ -115,7 +115,7 @@ def kunde_loeschen(con, kunde_id):
     con.execute(f"UPDATE kunden SET {', '.join(f'{f}=NULL' for f in PERSONEN_FELDER)}, nachname=?, archiviert=1, "
                 "interessent=0, anonymisiert_am=?, geaendert_am=? WHERE id=?",
                 (ANONYM_NAME, dbm.jetzt_berlin(), dbm.jetzt(), kunde_id))
-    con.execute("UPDATE auftraege SET notizen=NULL WHERE kunde_id=?", (kunde_id,))
+    con.execute("UPDATE auftraege SET notizen=NULL, kennzeichen=NULL WHERE kunde_id=?", (kunde_id,))
     dbm.ereignis_erfassen(con, "kunde", kunde_id, "anonymisiert",
                           f"{k['kundennr']}: Stammdaten anonymisiert, Aufbewahrung bis {datum_de(bericht['bis'])}")
     dbm.protokollieren("kunde_anonymisiert", "kunde", kunde_id,

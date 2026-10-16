@@ -25,7 +25,7 @@
 {% for b in benachrichtigungen %}{{ vorschau(b, anlaesse, url_for('main.auftrag', aid=a.id), True) }}{% endfor %}
 {% if vorbesuche %}
 <div class="meldung {{ 'warnung' if vorbesuche|selectattr('garantie.laeuft')|list else 'info' }}">
-  <b>Dieses Gerät (SN/IMEI {{ a.seriennummer }}) war schon {{ vorbesuche|length }}× hier.</b>
+  <b>Dieses Fahrzeug (FIN {{ a.seriennummer }}) war schon {{ vorbesuche|length }}× hier.</b>
   {% for v in vorbesuche %}<div style="margin-top:4px">· <a href="{{ url_for('main.auftrag', aid=v.a.id) }}">{{ v.a.auftragsnr }}</a> vom {{ v.a.eingang_am|datum }} – {{ v.a.fehler|truncate(60) if v.a.fehler else (v.a.geraet or '') }}
     · Garantie: <b>{{ v.garantie.text }}</b>
     {% if v.a.foto_anzahl %} · <a href="{{ url_for('main.auftrag', aid=v.a.id) }}#fotos">{{ v.a.foto_anzahl }} Foto(s)</a>{% endif %}
@@ -36,6 +36,7 @@
 
 <nav class="reiter">
   <a href="#auftragsdaten" data-reiter="auftragsdaten">Auftragsdaten</a>
+  <a href="#checkliste" data-reiter="checkliste">Checkliste{% if checkliste %} <span class="zahl" id="ckl-reiter">{{ checkliste|selectattr('erledigt_am')|list|length }}/{{ checkliste|length }}</span>{% endif %}</a>
   <a href="#annahmeschein" data-reiter="annahmeschein">Annahme / Abholung {{ '✓' if belege|selectattr('art', 'equalto', 'annahme')|list else '' }}</a>
   <a href="#kostenvoranschlag" data-reiter="kostenvoranschlag">Kostenvoranschlag {{ '✓' if a.kva_id else '' }}</a>
   <a href="#material" data-reiter="material">Material {% set mat = material|selectattr('status', 'in', ['reserviert', 'ausgebucht'])|list %}{% if mat %}<span class="zahl">{{ mat|length }}</span>{% endif %}</a>
@@ -87,13 +88,49 @@
   </div>
 </section>
 
+<section data-bereich="checkliste">
+  {% set ckl_fertig = checkliste|selectattr('erledigt_am')|list|length %}
+  <div class="karte" id="checkliste-karte">
+    <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Checkliste</h2>
+      <span class="klein" id="ckl-stand">{{ ckl_fertig }} von {{ checkliste|length }} erledigt</span></div>
+    <div class="ckl-balken" aria-hidden="true"><span id="ckl-balken" style="width:{{ (100 * ckl_fertig / checkliste|length)|round|int if checkliste else 0 }}%"></span></div>
+    {% if checkliste %}
+    <ul class="ckl-liste">
+      {% set ns = namespace(l=None) %}
+      {% for c in checkliste %}
+        {% if c.leistung != ns.l %}{% set ns.l = c.leistung %}<li class="ckl-gruppe">{{ c.leistung or 'Weitere Schritte' }}</li>{% endif %}
+        <li class="ckl-punkt{{ ' erledigt' if c.erledigt_am }}">
+          <form method="post" action="{{ url_for('main.auftrag_checkliste', aid=a.id) }}" class="ckl-form">{{ csrf() }}
+            <input type="hidden" name="aktion" value="abhaken"><input type="hidden" name="cid" value="{{ c.id }}">
+            <input type="hidden" name="erledigt" value="{{ '0' if c.erledigt_am else '1' }}">
+            <label class="check"><input type="checkbox" class="ckl-haken" {{ 'checked' if c.erledigt_am }}> <span>{{ c.text }}</span></label>
+            <noscript><button class="zweit klein">{{ 'Haken entfernen' if c.erledigt_am else 'Abhaken' }}</button></noscript>
+          </form>
+          <span class="klein ckl-wann">{% if c.erledigt_am %}{{ c.erledigt_am|zeit }}{{ (' · ' ~ c.erledigt_von) if c.erledigt_von }}{% endif %}</span>
+          {% if not c.erledigt_am %}<form method="post" action="{{ url_for('main.auftrag_checkliste', aid=a.id) }}" class="ckl-weg">{{ csrf() }}
+            <input type="hidden" name="aktion" value="entfernen"><input type="hidden" name="cid" value="{{ c.id }}">
+            <button class="symbol-knopf klein" title="Schritt entfernen" aria-label="Schritt entfernen">✕</button></form>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="klein">Noch keine Schritte. Wählen Sie unter „Auftragsdaten“ die Leistungen (z. B. Ölwechsel, Reifenwechsel) – die passenden Schritte werden automatisch angelegt. Oder ergänzen Sie hier eigene Schritte.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.auftrag_checkliste', aid=a.id) }}" class="leiste" style="margin-top:10px">{{ csrf() }}
+      <input type="hidden" name="aktion" value="hinzufuegen">
+      <input type="text" name="text" placeholder="Eigenen Arbeitsschritt hinzufügen …" style="flex:1;min-width:200px" required>
+      <button class="zweit">+ Hinzufügen</button>
+    </form>
+  </div>
+</section>
+
 <section data-bereich="annahmeschein">
   {% if geaendert_seit_unterschrift %}<div class="meldung warnung">Die Auftragsdaten wurden nach der letzten Unterschrift geändert. Der archivierte Annahmeschein bleibt unverändert – lassen Sie bei wichtigen Änderungen (z. B. Kosten-Obergrenze) einen neuen Annahmeschein unterschreiben.</div>{% endif %}
   <div class="zweispaltig">
     {% for art, titel in belegarten.items() %}
     <div class="karte">
       <h2>{{ titel }}</h2>
-      <p class="klein">{% if art == 'annahme' %}Bei der Geräteabgabe: Gerät, Fehler, Zustand, Zubehör, Kosten-Obergrenze, KVA-Wunsch, Datenschutz- und Abholbedingungen.{% else %}Bei der Abholung: Der Kunde bestätigt, das Gerät vollständig und funktionsfähig erhalten zu haben. Gespeicherte Zugangsdaten werden danach gelöscht.{% endif %}</p>
+      <p class="klein">{% if art == 'annahme' %}Bei der Fahrzeugabgabe: Fahrzeug, Auftrag, Zustand, abgegebene Gegenstände, Kosten-Obergrenze, KVA-Wunsch, Datenschutz- und Abholbedingungen.{% else %}Bei der Abholung: Der Kunde bestätigt, das Fahrzeug mit allen abgegebenen Gegenständen zurückerhalten zu haben.{% endif %}</p>
       <div class="leiste">
         <a class="knopf" href="{{ url_for('main.auftrag_unterschreiben', aid=a.id, art=art) }}">✍ Hier unterschreiben (PC/Tablet)</a>
         <form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck=art) }}">{{ csrf() }}<button class="zweit">📱 Am Handy (QR-Code)</button></form>
@@ -114,7 +151,6 @@
       {% endfor %}</tbody></table>
     <p class="klein">Unterschriebene Scheine werden unverändert archiviert (SHA-256) und können weder geändert noch gelöscht werden.</p>
     {% else %}<p class="klein">Noch kein Schein unterschrieben.</p>{% endif %}
-    <p class="klein">Gerätezugang: {{ zugang_text }}</p>
   </div>
 </section>
 
@@ -265,6 +301,28 @@
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script>
 reiterInit('auftragsdaten');
+// Checkliste: Haken sofort speichern, ohne die Seite neu zu laden
+document.querySelectorAll('.ckl-form').forEach(f => {
+  const haken = f.querySelector('.ckl-haken');
+  haken.addEventListener('change', async () => {
+    f.erledigt.value = haken.checked ? '1' : '0';
+    const li = f.closest('li');
+    try {
+      const r = await fetch(f.action, { method: 'POST', body: new FormData(f), headers: { 'X-Requested-With': 'fetch' } });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.fehler || 'Fehler');
+      li.classList.toggle('erledigt', haken.checked);
+      li.querySelector('.ckl-wann').textContent = d.wann;
+      const weg = li.querySelector('.ckl-weg'); if (weg) weg.hidden = haken.checked;
+      document.getElementById('ckl-stand').textContent = `${d.erledigt} von ${d.gesamt} erledigt`;
+      document.getElementById('ckl-balken').style.width = (d.gesamt ? Math.round(100 * d.erledigt / d.gesamt) : 0) + '%';
+      const z = document.getElementById('ckl-reiter'); if (z) z.textContent = `${d.erledigt}/${d.gesamt}`;
+    } catch (e) {
+      haken.checked = !haken.checked;
+      alert('Konnte nicht gespeichert werden: ' + e.message);
+    }
+  });
+});
 const formular = document.getElementById('auftragsformular');
 const hatKva = {{ 'true' if a.kva_id or a.intern or a.auftragsart == 'garantie' else 'false' }}, warErledigt = {{ 'true' if a.status == 'erledigt' else 'false' }};
 const leiheDraussen = {{ 'true' if a.leihen_offen else 'false' }};

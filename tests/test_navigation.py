@@ -37,7 +37,7 @@ def test_jede_seite_hat_einen_menuepunkt(app):
              and r.endpoint not in ohne and not nav.aktiver_schluessel(r.endpoint)]
     assert fehlt == []
     namen = {e.titel for _, e in nav.alle_eintraege()}
-    assert {"Übersicht", "Anfragen", "Reparaturaufträge", "Leihgeräte", "Kunden", "Verträge & Lizenzen", "Rechnungen",
+    assert {"Übersicht", "Anfragen", "Aufträge", "Leihgeräte", "Kunden", "Verträge & Lizenzen", "Rechnungen",
             "Leistungen & Artikel", "Lager", "Einkauf", "Bankabgleich", "Kassenbuch", "Fixkosten", "Finanzen",
             "DATEV-Export",
             "Einstellungen"} == namen
@@ -89,7 +89,7 @@ def test_seitenleiste_aktiv_zaehler_brotkrumen(client, con):
     assert aktiv == "Rechnungen" and 'aria-current="page"' in html
     assert re.search(r"<span>Verkauf</span>.*?>Rechnungen</a>.*?<b>Offene Posten</b>", html, re.S)
     assert 'class="bereichsreiter"' in html and "Kostenvoranschläge" in html and "Mahnwesen" in html
-    assert re.search(r'data-titel="Reparaturaufträge".*?<span class="zaehler" title="offene Aufträge">1</span>', html,
+    assert re.search(r'data-titel="Aufträge".*?<span class="zaehler" title="offene Aufträge">1</span>', html,
                      re.S)
     assert "Benachrichtigungen</span>" not in html.split('class="nav"')[1].split("</nav>")[0]  # nicht mehr im Menü
     html = client.get("/einkauf/lieferanten").get_data(as_text=True)

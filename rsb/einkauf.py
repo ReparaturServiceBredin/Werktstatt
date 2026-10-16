@@ -2,7 +2,7 @@
 
 - Bestellnummern (BE-…) und Belegnummern der Eingangsrechnungen (ER-…) laufen über die Nummernkreise.
 - Wareneingang erhöht den Lagerbestand (lagerbewegungen), aktualisiert den Einkaufspreis und meldet eingetroffene
-  Teile beim zugehörigen Reparaturauftrag.
+  Teile beim zugehörigen Auftrag.
 - Eingangsrechnungen: Originaldatei wird unverändert mit SHA-256 abgelegt; Löschen ist nicht möglich (Storno mit Grund),
   Änderungen an den Angaben stehen im Änderungsprotokoll.
 """

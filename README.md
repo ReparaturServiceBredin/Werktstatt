@@ -1,18 +1,19 @@
 # Werkstatt Sauter – Aufträge, Rechnungen & Buchhaltung
 
-Eigenes Rechnungs- und Buchhaltungsprogramm für **Reparatur Service Bredin** (Inhaber Dennis Bredin, Möckmühl).
-Es läuft lokal auf Ihrem Windows-PC, die Bedienung erfolgt im Browser, und es entstehen **keine laufenden Kosten**.
+Auftrags-, Rechnungs- und Buchhaltungsprogramm für die **Kfz-Werkstatt Sauter**.
+Es läuft lokal auf dem Windows-PC, die Bedienung erfolgt im Browser, und es entstehen **keine laufenden Kosten**.
 
-**Stand:** Reparaturaufträge als Tafel (offen / in Arbeit / erledigt) mit Kostenvoranschlag und automatischem
-Rechnungsentwurf, Anfragen aus dem Kontaktformular mit Spam-Erkennung, Kunden, Leistungen/Artikel mit Marge, Rechnungen als PDF mit Logo und GiroCode, Druck,
-E-Mail-Versand mit Protokoll, Storno, unveränderbare fortlaufende Nummern, Passwortschutz, tägliches Backup.
+**Schwerpunkt:** Aufträge als Tafel (offen / in Arbeit / wartet auf Teil / erledigt) mit Fahrzeugdaten
+(Kennzeichen, FIN, km-Stand, HU), mehreren Leistungen je Auftrag (Ölwechsel, Fehlerspeicher, Reifenwechsel,
+Montage, Auswuchten …) und einer **Checkliste zum Abhaken** je Leistung. Dazu Annahmeschein mit Unterschrift,
+Kostenvoranschlag, automatischer Rechnungsentwurf, Rechnungen als PDF mit GiroCode, Mahnwesen, Lager, Einkauf,
+Bankabgleich, Kassenbuch, Fixkosten, Finanzübersicht, DATEV-Export, Datenschutz und tägliches Backup.
 
 | Dokument | Inhalt |
 |---|---|
 | [docs/AENDERUNGEN.md](docs/AENDERUNGEN.md) | **Versionsprotokoll**: alle Versionen mit Neuerungen, Änderungen und Fehlerbehebungen (auch im Programm: Klick auf die Versionsnummer) |
 | [docs/ANLEITUNG.md](docs/ANLEITUNG.md) | Bedienung: Rechnung schreiben, Layout & Textbausteine ändern, Backup & Wiederherstellung |
 | [docs/RECHT_UND_GOBD.md](docs/RECHT_UND_GOBD.md) | Pflichtangaben, E-Rechnung, Aufbewahrung, GoBD – und ehrlich: wo die Grenzen liegen |
-| [docs/ETAPPEN.md](docs/ETAPPEN.md) | Ihre Vorgaben, Technik-Entscheidung und Fahrplan der Etappen |
 
 ---
 

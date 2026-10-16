@@ -58,7 +58,7 @@
       <div class="s4"><label>Kostenart</label><select name="kostenart" id="f_kostenart">{% for k, n in kostenarten.items() %}<option value="{{ k }}" {{ 'selected' if werte.kostenart == k }}>{{ n }}</option>{% endfor %}</select></div>
       <div class="s4"><label>Betrag (€)</label><input type="text" name="schaden_betrag" id="f_schaden_betrag" value="{{ werte.schaden_betrag or '' }}" data-zeitwert="{{ (le.zeitwert|euro)[:-2] }}">
         <div class="hilfe">bei Totalschaden/Verlust mit dem Zeitwert ({{ le.zeitwert|euro }}) vorbelegt</div></div>
-      <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag" {{ 'checked' if werte.interner_auftrag }}> internen Reparaturauftrag für das Leihgerät anlegen</label></div>
+      <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag" {{ 'checked' if werte.interner_auftrag }}> internen Auftrag für das Leihgerät anlegen</label></div>
     </div>
     <div id="verrechnung" class="klein" style="margin-top:10px"></div>
     <p class="klein" style="margin-top:12px">Schadensfotos (Kategorie „Leihgerät Schaden“):</p>

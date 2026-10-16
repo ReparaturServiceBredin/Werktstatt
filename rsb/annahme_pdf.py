@@ -80,7 +80,7 @@ def erstellen(snap, daten_dir, einst, unterschrift=None):
     doc = SimpleDocTemplate(puffer, pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm, topMargin=34 * mm,
                             bottomMargin=18 * mm, title=f"{snap['titel']} {nummer}", author=firma["name"])
     inhalt = [p(snap["titel"], st_t),
-              p(f"Nr. {nummer} · Reparaturauftrag {snap['auftragsnr']} · Eingang {_zeit(snap['eingang_am'])}", st_k),
+              p(f"Nr. {nummer} · Auftrag {snap['auftragsnr']} · Eingang {_zeit(snap['eingang_am'])}", st_k),
               Spacer(1, 4 * mm)]
 
     kunde = snap["kunde"]
@@ -94,21 +94,28 @@ def erstellen(snap, daten_dir, einst, unterschrift=None):
     parteien.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LINEBELOW", (0, 0), (-1, 0), 0.5, blau)]))
     inhalt += [parteien, Spacer(1, 2 * mm)]
 
-    inhalt.append(p("Gerät", st_h))
-    zeilen = [("Gerät", snap["geraet"] or "–"), ("Seriennr. / IMEI", snap["seriennummer"] or "–")]
+    inhalt.append(p("Fahrzeug", st_h))
+    km = snap.get("km_stand")
+    zeilen = [("Fahrzeug", snap["geraet"] or "–"), ("Kennzeichen", snap.get("kennzeichen") or "–"),
+              ("FIN", snap["seriennummer"] or "–"),
+              ("Kilometerstand", f"{km:,} km".replace(",", ".") if km is not None else "–")]
+    if snap.get("erstzulassung"):
+        zeilen.append(("Erstzulassung", datum_de(snap["erstzulassung"])))
+    if snap.get("hu_bis"):
+        j, m = snap["hu_bis"][:4], snap["hu_bis"][5:7]
+        zeilen.append(("HU/TÜV fällig", f"{m}/{j}"))
     if snap["leistungsart"]:
-        zeilen.append(("Leistungsart", snap["leistungsart"]))
-    zeilen.append(("Fehler laut Kunde", snap["fehler"] or "–"))
+        zeilen.append(("Leistungen", snap["leistungsart"]))
+    zeilen.append(("Auftrag laut Kunde", snap["fehler"] or "–"))
     if snap["art"] == "annahme":
         zeilen.append(("Zustand bei Eingang", (snap["zustand_eingang"] or "keine Auffälligkeiten notiert")
                        + (f"\n{len(snap['fotos'])} Eingangsfoto(s) dokumentiert, siehe unten" if snap["fotos"] else "")))
-        zeilen.append(("Gerätezugang", snap["zugang"]))
     inhalt.append(tabelle(zeilen))
 
     # Zubehör als Checkliste
     zubehoer = snap["zubehoer"]
     if zubehoer or snap["zubehoer_sonstiges"]:
-        inhalt.append(p("Zubehör" + (" (abgegeben)" if snap["art"] == "annahme" else " (zurückgegeben)"), st_h))
+        inhalt.append(p("Gegenstände" + (" (abgegeben)" if snap["art"] == "annahme" else " (zurückgegeben)"), st_h))
         felder = [f"{'[X]' if z['dabei'] else '[  ]'} {z['name']}" for z in zubehoer]
         if snap["zubehoer_sonstiges"]:
             felder.append(f"[X] {snap['zubehoer_sonstiges']}")
@@ -123,7 +130,7 @@ def erstellen(snap, daten_dir, einst, unterschrift=None):
         inhalt.append(p("Vereinbarungen", st_h))
         grenze = snap["kosten_obergrenze"]
         inhalt.append(tabelle([
-            ("Kosten-Obergrenze", f"Reparatur ohne Rückfrage bis {euro(grenze)} (brutto)" if grenze
+            ("Kosten-Obergrenze", f"Arbeiten ohne Rückfrage bis {euro(grenze)} (brutto)" if grenze
              else "keine – vor kostenpflichtigen Arbeiten wird Rücksprache gehalten"),
             ("Kostenvoranschlag", "gewünscht" if snap["kva_gewuenscht"] else "nicht gewünscht"),
             ("KVA-Pauschale", (euro(snap["kva_gebuehr"]) if snap["kva_gebuehr"] else "kostenlos")
@@ -163,10 +170,10 @@ def erstellen(snap, daten_dir, einst, unterschrift=None):
 
     if snap["art"] == "annahme":
         if snap["datenschutz"]:
-            inhalt += [p("Datenschutz und Datensicherung", st_h), p(snap["datenschutz"], st_b)]
+            inhalt += [p("Hinweise und Datenschutz", st_h), p(snap["datenschutz"], st_b)]
         if snap["abholbedingungen"]:
             inhalt += [p("Abholbedingungen", st_h), p(snap["abholbedingungen"], st_b)]
-        erklaerung = ("Ich beauftrage die Reparatur zu den oben genannten Bedingungen und bestätige die Richtigkeit der "
+        erklaerung = ("Ich beauftrage die oben genannten Arbeiten zu diesen Bedingungen und bestätige die Richtigkeit der "
                       "Angaben sowie die Kenntnisnahme der Hinweise zu Datenschutz und Abholung.")
     else:
         erklaerung = snap.get("erklaerung") or ""

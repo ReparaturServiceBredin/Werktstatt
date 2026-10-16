@@ -165,7 +165,7 @@ def snapshot(con, auftrag_id, art):
     gewaehlt, sonstiges = zubehoer_aufteilen(a["zubehoer"], vorlagen)
     fotos = con.execute("SELECT id, kategorie, dateiname, sha256, pfad FROM auftrag_fotos WHERE auftrag_id=? "
                         "AND geloescht_am IS NULL AND kategorie IN (?, ?) ORDER BY hochgeladen_am, id",
-                        (auftrag_id, "Geräteeingang", "Vorschaden" if art == "annahme" else "Geräteausgabe"))
+                        (auftrag_id, "Fahrzeugeingang", "Vorschaden" if art == "annahme" else "Fahrzeugausgabe"))
     snap = {
         "art": art, "titel": ARTEN[art], "auftragsnr": a["auftragsnr"], "eingang_am": a["eingang_am"],
         "firma": _firma(einst),
@@ -173,6 +173,8 @@ def snapshot(con, auftrag_id, art):
                   "plz_ort": " ".join(x for x in [k["plz"], k["ort"]] if x), "telefon": k["telefon"] or "",
                   "email": k["email"] or ""},
         "geraet": a["geraet"] or "", "seriennummer": a["seriennummer"] or "", "leistungsart": a["leistungsart"] or "",
+        "kennzeichen": a["kennzeichen"] or "", "km_stand": a["km_stand"], "erstzulassung": a["erstzulassung"] or "",
+        "hu_bis": a["hu_bis"] or "",
         "fehler": a["fehler"] or "", "zustand_eingang": a["zustand_eingang"] or "",
         "zubehoer": [{"name": v, "dabei": v in gewaehlt} for v in vorlagen], "zubehoer_sonstiges": sonstiges,
         "kosten_obergrenze": a["kosten_obergrenze"], "kva_gewuenscht": bool(a["kva_gewuenscht"]),

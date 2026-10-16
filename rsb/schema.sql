@@ -338,7 +338,12 @@ CREATE TABLE IF NOT EXISTS auftraege (
     garantie_bezug_id INTEGER REFERENCES auftraege(id),  -- Garantiefall: ursprünglicher Auftrag
     garantie_monate INTEGER,                             -- leer = Standard aus den Einstellungen
     interne_kosten  INTEGER,                             -- Cent, z. B. Teile/Arbeitszeit eines Garantiefalls
-    interne_kosten_notiz TEXT
+    interne_kosten_notiz TEXT,
+    -- Fahrzeug (Werkstatt Sauter): geraet = Marke/Modell, seriennummer = FIN, geraetetyp = Fahrzeugart
+    kennzeichen     TEXT,
+    km_stand        INTEGER,
+    erstzulassung   TEXT,
+    hu_bis          TEXT                -- nächste HU/TÜV (Monat, JJJJ-MM)
 );
 CREATE INDEX IF NOT EXISTS ix_auftraege_status ON auftraege(status);
 
@@ -1275,3 +1280,15 @@ CREATE TABLE IF NOT EXISTS hinweise_gelesen (
     schluessel  TEXT PRIMARY KEY,
     gelesen_am  TEXT NOT NULL
 );
+
+-- Checkliste je Auftrag: Arbeitsschritte zum Abhaken (Vorlagen je Leistung in den Einstellungen)
+CREATE TABLE IF NOT EXISTS auftrag_checkliste (
+    id          INTEGER PRIMARY KEY,
+    auftrag_id  INTEGER NOT NULL REFERENCES auftraege(id) ON DELETE CASCADE,
+    leistung    TEXT,                   -- aus welcher Vorlage (leer = von Hand ergänzt)
+    text        TEXT NOT NULL,
+    position    INTEGER NOT NULL DEFAULT 0,
+    erledigt_am TEXT,
+    erledigt_von TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_checkliste_auftrag ON auftrag_checkliste(auftrag_id, position);

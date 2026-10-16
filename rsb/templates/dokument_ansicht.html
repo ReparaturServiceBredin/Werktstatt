@@ -24,7 +24,7 @@
         {% if snap.leistungsdatum %}<tr><td>Leistungsdatum</td><td>{{ snap.leistungsdatum|datum }}{% if snap.leistungsdatum_bis %} – {{ snap.leistungsdatum_bis|datum }}{% endif %}</td></tr>{% endif %}
         {% if d.typ == 'kva' %}<tr><td>Gültig bis</td><td>{{ snap.faellig_am|datum }}</td></tr>{% endif %}
         {% if d.typ == 'kva' %}
-        <tr><td>Reparaturauftrag</td><td>{% if g.auftrag %}<a href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}"><b>{{ g.auftrag.auftragsnr }}</b></a>{% if g.auftrag.kunde_id != d.kunde_id %} <span class="marke-status st-warnung">anderer Kunde</span>{% endif %}{% else %}<span class="klein">keinem Auftrag zugeordnet</span>{% endif %}</td></tr>
+        <tr><td>Auftrag</td><td>{% if g.auftrag %}<a href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}"><b>{{ g.auftrag.auftragsnr }}</b></a>{% if g.auftrag.kunde_id != d.kunde_id %} <span class="marke-status st-warnung">anderer Kunde</span>{% endif %}{% else %}<span class="klein">keinem Auftrag zugeordnet</span>{% endif %}</td></tr>
         <tr><td>Status</td><td><form method="post" action="{{ url_for('main.kva_status', did=d.id) }}" class="leiste">{{ csrf() }}
           <select name="kva_status" style="width:auto">{% for s in ['offen', 'angenommen', 'abgelehnt'] %}<option {{ 'selected' if (d.kva_status or 'offen') == s }}>{{ s }}</option>{% endfor %}</select>
           <button class="zweit klein">Speichern</button></form></td></tr>

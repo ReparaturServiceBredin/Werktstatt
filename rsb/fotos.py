@@ -1,4 +1,4 @@
-"""Fotodokumentation zu Reparaturaufträgen.
+"""Fotodokumentation zu Aufträgen.
 
 Grundsätze:
 - Originale werden unverändert gespeichert (Prüfsumme SHA-256); Vorschaubilder sind nur abgeleitete Kopien.
@@ -14,7 +14,7 @@ from pathlib import Path
 from . import db as dbm
 from .hilfen import EingabeFehler
 
-KATEGORIEN = ["Geräteeingang", "Vorschaden", "Während der Reparatur", "Nach der Reparatur", "Geräteausgabe"]
+KATEGORIEN = ["Fahrzeugeingang", "Vorschaden", "Während der Arbeit", "Nach der Arbeit", "Fahrzeugausgabe"]
 LEIH_KATEGORIEN = ["Leihgerät", "Leihgerät Ausgabe", "Leihgerät Rückgabe", "Leihgerät Schaden"]
 ALLE_KATEGORIEN = KATEGORIEN + LEIH_KATEGORIEN
 ENDUNGEN = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp",

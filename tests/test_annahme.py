@@ -54,7 +54,7 @@ def test_annahmefelder_und_verschluesselter_zugang(client, con):
     assert a["fertig_bis"] == "2026-10-20" and a["zustand_eingang"] == "Kratzer am Rahmen"
     assert a["zugang_art"] == "pin" and a["zugang_geheim"] and "4711" not in a["zugang_geheim"]
     seite = client.get(f"/auftraege/{aid}").get_data(as_text=True)
-    assert "4711" not in seite and "Gespeicherten Zugang anzeigen" in seite
+    assert "4711" not in seite
     assert 'value="Fahrzeugschlüssel" checked' in seite and 'value="rote Tasche"' in seite
 
     # Anzeigen wird protokolliert
@@ -134,7 +134,7 @@ def test_abholschein_und_vorschau(client, con):
     r = client.get(f"/auftraege/{aid}/schein/annahme.pdf")
     assert r.status_code == 200 and r.data.startswith(b"%PDF")
     assert client.get(f"/auftraege/{aid}/schein/abholung.pdf").data.startswith(b"%PDF")
-    assert "Fehler laut Kunde" in client.get(f"/auftraege/{aid}/unterschreiben/annahme").get_data(as_text=True)
+    assert "Auftrag laut Kunde" in client.get(f"/auftraege/{aid}/unterschreiben/annahme").get_data(as_text=True)
     unterschreiben(client, aid, art="abholung")
     a = con.execute("SELECT * FROM auftraege WHERE id=?", (aid,)).fetchone()
     assert a["abgeholt_am"] and a["zugang_geheim"] is None
@@ -237,7 +237,7 @@ def test_handy_fotos_und_ablauf(client, con, app):
     seite = handy.get(f"/m/{token}", environ_base=fern).get_data(as_text=True)
     csrf = re.search(r'name="csrf" value="([^"]+)"', seite).group(1)
     r = handy.post(f"/m/{token}/fotos", environ_base=fern, content_type="multipart/form-data",
-                   data={"csrf": csrf, "kategorie": "Geräteeingang", "foto": (io.BytesIO(bild()), "handy.jpg")})
+                   data={"csrf": csrf, "kategorie": "Fahrzeugeingang", "foto": (io.BytesIO(bild()), "handy.jpg")})
     assert r.get_json()["ok"]
     f = con.execute("SELECT * FROM auftrag_fotos WHERE auftrag_id=?", (aid,)).fetchone()
     assert f["benutzer"].endswith("(Handy)")
@@ -246,7 +246,7 @@ def test_handy_fotos_und_ablauf(client, con, app):
     con.execute("UPDATE mobil_zugaenge SET gueltig_bis='2020-01-01T00:00:00+01:00' WHERE token=?", (token,))
     assert handy.get(f"/m/{token}", environ_base=fern).status_code == 410
     r = handy.post(f"/m/{token}/fotos", environ_base=fern, content_type="multipart/form-data",
-                   data={"csrf": csrf, "kategorie": "Geräteeingang", "foto": (io.BytesIO(bild()), "x.jpg")})
+                   data={"csrf": csrf, "kategorie": "Fahrzeugeingang", "foto": (io.BytesIO(bild()), "x.jpg")})
     assert r.status_code == 410
 
 

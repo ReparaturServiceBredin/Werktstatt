@@ -18,7 +18,7 @@ from . import katalog, logik
 from . import navigation as nav
 from . import lager as lgr
 from .backup import backup_erstellen
-from .hilfen import (EingabeFehler, anrede_brief, cent_aus_text, datum_de, euro, heute, kunde_name, menge_text, platzhalter_ersetzen, plus_tage,
+from .hilfen import (EingabeFehler, zeit_de, anrede_brief, cent_aus_text, datum_de, euro, heute, kunde_name, menge_text, platzhalter_ersetzen, plus_tage,
                      zahl_aus_text)
 from .mail import MailFehler, senden
 from .pdf import SCHRIFTEN, pdf_erzeugen
@@ -1526,7 +1526,7 @@ def dokument_kopieren(did):
                                   d["betreff"] if d["typ"] in ("rechnung", "kva") else "", pos)
         if d["typ"] in ("rechnung", "kva") and d["hinweise"]:
             con.execute("UPDATE dokumente SET hinweise=? WHERE id=?", (d["hinweise"], neu))
-        # gehört der KVA zu einem Reparaturauftrag ohne Rechnung -> Rechnung dort eintragen
+        # gehört der KVA zu einem Auftrag ohne Rechnung -> Rechnung dort eintragen
         for a in con.execute("SELECT id FROM auftraege WHERE kva_id=? AND rechnung_id IS NULL", (did,)).fetchall():
             con.execute("UPDATE auftraege SET rechnung_id=?, geaendert_am=? WHERE id=?", (neu, dbm.jetzt(), a["id"]))
             auf.verlauf(con, a["id"], "Rechnung erstellt", f"Entwurf aus KVA {d['nummer'] or ''}".strip())
@@ -1602,7 +1602,7 @@ EINSTELLUNGS_BEREICHE = {
                     "ds_leihe_jahre", "ds_vorschau_tage", "ds_zugang_tage", "ds_email_jahre", "ds_verantwortlicher"],
     "einkauf": ["mindest_marge_prozent", "praefix_bestellung", "praefix_eingangsrechnung", "kostenarten",
                 "er_imap_ordner", "fixkosten_kategorien", "fixkosten_hinweis_tage", "wareneinsatz_kostenarten"],
-    "annahme": ["garantie_monate", "garantie_text", "kva_gebuehren", "annahme_kva_text", "annahme_zubehoer",
+    "annahme": ["garantie_monate", "garantie_text", "kva_gebuehren", "annahme_kva_text", "annahme_zubehoer", "checklisten",
                 "annahme_datenschutz", "annahme_abholbedingungen",
                 "abholschein_text", "handy_im_netz", "handy_adresse"],
     "mahnwesen": ["mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage", "mahngebuehr_cent",
@@ -2148,13 +2148,14 @@ def interessenten_loeschen():
     return redirect(url_for("main.anfragen_liste"))
 
 
-# ====================================================================== Reparaturaufträge (Tafel)
+# ====================================================================== Aufträge (Tafel)
 
 from . import annahme as ann  # noqa: E402
 from . import garantie as gar  # noqa: E402
 from . import annahme_pdf as ann_pdf  # noqa: E402
 from . import auftraege as auf  # noqa: E402
 from . import fotos as fot  # noqa: E402
+from . import checkliste as ckl  # noqa: E402
 
 AUFTRAG_SQL = (
     "SELECT a.*, k.kundennr, k.firma, k.vorname, k.nachname, k.typ AS ktyp, k.telefon AS ktelefon, "
@@ -2162,6 +2163,8 @@ AUFTRAG_SQL = (
     "kv.kva_status AS kva_entscheidung, kv.kunde_id AS kva_kunde_id, kv.versendet_am AS kva_versendet_am, "
     "re.status AS re_status, re.nummer AS re_nummer, re.summe_brutto AS re_betrag, "
     "(SELECT COUNT(*) FROM auftrag_fotos f WHERE f.auftrag_id=a.id AND f.geloescht_am IS NULL) AS foto_anzahl, "
+    "(SELECT COUNT(*) FROM auftrag_checkliste c WHERE c.auftrag_id=a.id) AS ckl_gesamt, "
+    "(SELECT COUNT(*) FROM auftrag_checkliste c WHERE c.auftrag_id=a.id AND c.erledigt_am IS NOT NULL) AS ckl_erledigt, "
     "(SELECT COUNT(*) FROM leihen l WHERE l.auftrag_id=a.id AND l.rueckgabe_am IS NULL AND l.storniert_am IS NULL) "
     "AS leihen_offen, (SELECT MIN(l.rueckgabe_geplant) FROM leihen l WHERE l.auftrag_id=a.id "
     "AND l.rueckgabe_am IS NULL AND l.storniert_am IS NULL) AS leihe_bis, "
@@ -2200,8 +2203,12 @@ def auftraege():
 
 def _auftrag_felder():
     felder = {f: _f(f) for f in ("geraet", "leistungsart", "seriennummer", "zubehoer", "fehler", "notizen")}
+    if request.form.getlist("leistung"):  # mehrere Leistungen je Auftrag (Ölwechsel, Reifenwechsel …)
+        felder["leistungsart"] = ", ".join(dict.fromkeys(x.strip() for x in request.form.getlist("leistung")
+                                                         if x.strip()))
     if "annahme_felder" not in request.form:  # z. B. Auftrag aus einer Anfrage
         return felder
+    felder.update(_fahrzeug_felder())
     vorlagen = ann.zubehoer_vorlagen(dbm.einstellungen())
     felder["zubehoer"] = ann.zubehoer_zusammen(set(request.form.getlist("zubehoer_check")), _f("zubehoer_sonstiges"),
                                                vorlagen)
@@ -2233,6 +2240,24 @@ def _auftrag_felder():
     return felder
 
 
+def _fahrzeug_felder():
+    kz = " ".join(_f("kennzeichen").upper().split())
+    km = _f("km_stand").replace(".", "").replace(" ", "")
+    if km and not km.isdigit():
+        raise EingabeFehler("Bitte den Kilometerstand als ganze Zahl eingeben.")
+    werte = {"kennzeichen": kz or None, "km_stand": int(km) if km else None,
+             "seriennummer": _f("seriennummer").upper().replace(" ", "")}
+    for feld, name in (("erstzulassung", "Erstzulassung"), ("hu_bis", "HU/TÜV fällig")):
+        v = _f(feld)
+        if v:
+            try:
+                date.fromisoformat(v if len(v) == 10 else v + "-01")
+            except ValueError:
+                raise EingabeFehler(f"Bitte ein gültiges Datum bei „{name}“ angeben.")
+        werte[feld] = v or None
+    return werte
+
+
 def _zugang_aus_formular(con, aid):
     if "annahme_felder" in request.form:
         ann.zugang_setzen(con, aid, _f("zugang_art"), request.form.get("zugang_wert", ""),
@@ -2243,10 +2268,12 @@ def _norm(x):
     return "" if x is None else str(x)
 
 
-FELD_NAMEN = {"geraet": "Gerät", "leistungsart": "Leistungsart", "seriennummer": "Seriennr./IMEI",
+FELD_NAMEN = {"geraet": "Fahrzeug", "leistungsart": "Leistungen", "seriennummer": "FIN",
+              "kennzeichen": "Kennzeichen", "km_stand": "Kilometerstand", "erstzulassung": "Erstzulassung",
+              "hu_bis": "HU/TÜV fällig",
               "zubehoer": "Zubehör", "fehler": "Fehlerbeschreibung", "notizen": "Notizen", "kunde_id": "Kunde",
               "zustand_eingang": "Zustand bei Eingang", "kosten_obergrenze": "Kosten-Obergrenze",
-              "kva_gewuenscht": "KVA gewünscht", "kva_gebuehr": "KVA-Pauschale", "geraetetyp": "Gerätetyp",
+              "kva_gewuenscht": "KVA gewünscht", "kva_gebuehr": "KVA-Pauschale", "geraetetyp": "Fahrzeugart",
               "fertig_bis": "voraussichtliche Fertigstellung", "teil_info": "Ersatzteil",
               "teil_erwartet": "Ersatzteil erwartet am", "auftragsart": "Auftragsart",
               "garantie_bezug_id": "Garantie-Bezug", "garantie_monate": "Garantie (Monate)",
@@ -2295,12 +2322,13 @@ def auftrag_neu():
                 kid = a["kunde_id"] if a and a["kunde_id"] else anf.kunde_aus_anfrage(con, anfrage_id,
                                                                                       dbm.einstellungen(con))[0]
             aid = auf.anlegen(con, kid, anfrage_id=anfrage_id, **_auftrag_felder())
-        flash("Reparaturauftrag angelegt.", "ok")
+        flash("Auftrag angelegt.", "ok")
         return redirect(url_for("main.auftrag", aid=aid))
     token = _upload_token()
     werte = {"kunde_id": request.args.get("kunde_id", "")}
     if request.method == "POST":
         werte = request.form.to_dict()
+        werte["leistungsart"] = ", ".join(request.form.getlist("leistung"))
         werte["zubehoer"] = ann.zubehoer_zusammen(set(request.form.getlist("zubehoer_check")),
                                                   _f("zubehoer_sonstiges"), ann.zubehoer_vorlagen(dbm.einstellungen()))
         try:
@@ -2320,7 +2348,7 @@ def auftrag_neu():
                   "sind noch da.", "fehler")
         else:
             _upload_token(neu=True)
-            flash("Reparaturauftrag angelegt" + (f" – {anzahl} Foto(s) zugeordnet." if anzahl else "."), "ok")
+            flash("Auftrag angelegt" + (f" – {anzahl} Foto(s) zugeordnet." if anzahl else "."), "ok")
             if warnung:
                 flash("Achtung: Der verknüpfte Kostenvoranschlag gehört zu einem anderen Kunden.", "warnung")
             if neue_rechnung:
@@ -2378,6 +2406,8 @@ def auftrag(aid):
             if geaendert:
                 dbm.protokollieren("auftrag_geaendert", "auftrag", aid, {"felder": geaendert}, con=con)
                 auf.verlauf(con, aid, "Auftragsdaten geändert", ", ".join(geaendert))
+            if "leistungsart" in felder:
+                ckl.ergaenzen(con, aid, felder["leistungsart"], dbm.einstellungen(con))
             if status != auf.tafel_status(a):
                 if status == "erledigt" and a["leihen_offen"]:
                     _leihen_spaeter_abrechnen(con, aid)
@@ -2415,7 +2445,34 @@ def auftrag(aid):
                            leihen=_leihen_zum_auftrag(con, aid), alle_kategorien=fot.ALLE_KATEGORIEN,
                            heute=date.today().isoformat(), belege=ann.belege(con, aid), belegarten=ann.ARTEN,
                            geaendert_seit_unterschrift=ann.geaendert_seit_unterschrift(con, aid),
-                           zugang_text=ann.zugang_text(a))
+                           zugang_text=ann.zugang_text(a), checkliste=ckl.liste(con, aid),
+                           leistungen_gewaehlt=ckl.leistungen(a["leistungsart"]))
+
+
+@bp.route("/auftraege/<int:aid>/checkliste", methods=["POST"])
+def auftrag_checkliste(aid):
+    con = dbm.get_db()
+    _auftrag_laden(aid)
+    aktion, cid = request.form.get("aktion"), request.form.get("cid", type=int)
+    try:
+        with dbm.Transaktion(con):
+            if aktion == "abhaken":
+                ckl.abhaken(con, aid, cid, request.form.get("erledigt") == "1")
+            elif aktion == "hinzufuegen":
+                ckl.hinzufuegen(con, aid, _f("text"))
+            elif aktion == "entfernen":
+                ckl.entfernen(con, aid, cid)
+    except EingabeFehler as e:
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify(ok=False, fehler=str(e)), 400
+        flash(str(e), "fehler")
+    if request.headers.get("X-Requested-With") == "fetch":
+        erledigt, gesamt = ckl.stand(con, aid)
+        r = con.execute("SELECT erledigt_am, erledigt_von FROM auftrag_checkliste WHERE id=?", (cid,)).fetchone()
+        return jsonify(ok=True, erledigt=erledigt, gesamt=gesamt,
+                       wann=(zeit_de(r["erledigt_am"]) + (f" · {r['erledigt_von']}" if r["erledigt_von"] else ""))
+                       if r and r["erledigt_am"] else "")
+    return redirect(url_for("main.auftrag", aid=aid) + "#checkliste")
 
 
 @bp.route("/auftraege/<int:aid>/status", methods=["POST"])
@@ -2722,7 +2779,7 @@ def beleg_email(bid):
             flash(hinweis, "warnung")
         return redirect(url_for("main.auftrag", aid=a["id"]) + "#annahmeschein")
     k = con.execute("SELECT * FROM kunden WHERE id=?", (a["kunde_id"],)).fetchone()
-    text = (f"{anrede_brief(k)}\n\nanbei erhalten Sie Ihren {titel} {b['nummer']} zum Reparaturauftrag "
+    text = (f"{anrede_brief(k)}\n\nanbei erhalten Sie Ihren {titel} {b['nummer']} zum Auftrag "
             f"{a['auftragsnr']}" + (f" ({a['geraet']})" if a["geraet"] else "") + ".\n\n"
             f"Mit freundlichen Grüßen\n{einst.get('inhaber') or ''}\n{einst.get('firma_name') or ''}")
     return render_template("beleg_email.html", b=b, a=a, titel=titel, an=k["email"] or "",
@@ -3426,7 +3483,7 @@ def schaden_interner_auftrag(sid):
     con = dbm.get_db()
     with dbm.Transaktion(con):
         aid = lg.interner_auftrag(con, sid)
-    flash("Interner Reparaturauftrag für das Leihgerät angelegt.", "ok")
+    flash("Interner Auftrag für das Leihgerät angelegt.", "ok")
     return redirect(url_for("main.auftrag", aid=aid))
 
 
@@ -3494,7 +3551,7 @@ def leihe_email(lid):
     titel = lpdf.TITEL[art]
     text = (f"Guten Tag {name},\n\nanbei erhalten Sie {('den ' + titel) if art == 'ausgabe' else ('das ' + titel)} "
             f"{le['leihnr']} zum Leihgerät {le['bezeichnung']}"
-            + (f" (Reparaturauftrag {le['auftragsnr']})" if le["auftragsnr"] else "") + ".\n\n"
+            + (f" (Auftrag {le['auftragsnr']})" if le["auftragsnr"] else "") + ".\n\n"
             + ("Bitte denken Sie daran, vor der Rückgabe Ihre persönlichen Daten vom Gerät zu löschen.\n\n"
                if art == "ausgabe" else "")
             + f"Mit freundlichen Grüßen\n{einst.get('inhaber') or ''}\n{einst.get('firma_name') or ''}")
@@ -4050,7 +4107,7 @@ def schnellsuche():
                     url_for("main.kunde", kid=k["id"]))),
         ("Aufträge", "wrench", con.execute(
             "SELECT a.*, k.firma, k.vorname, k.nachname, k.typ AS ktyp FROM auftraege a JOIN kunden k "
-            "ON k.id=a.kunde_id WHERE a.auftragsnr LIKE :m OR a.geraet LIKE :m OR a.seriennummer LIKE :m "
+            "ON k.id=a.kunde_id WHERE a.auftragsnr LIKE :m OR a.geraet LIKE :m OR a.seriennummer LIKE :m OR a.kennzeichen LIKE :m "
             "ORDER BY a.eingang_am DESC LIMIT 6", {"m": muster}).fetchall(),
          lambda a: (f"{a['auftragsnr']} · {a['geraet'] or ''}", " · ".join(
              x for x in (_kname(a), a["seriennummer"], auf.STATUS.get(a["status"], a["status"])) if x),

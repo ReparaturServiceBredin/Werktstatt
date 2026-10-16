@@ -1,6 +1,6 @@
 """Leihgeräte, die Kunden während einer Reparatur mitgegeben werden.
 
-Ablauf: Gerät anlegen → im Reparaturauftrag ausgeben (Leihvertrag/Übergabeprotokoll) → zurücknehmen
+Ablauf: Gerät anlegen → im Auftrag ausgeben (Leihvertrag/Übergabeprotokoll) → zurücknehmen
 (Rückgabeprotokoll, Leihgebühr) → ggf. Schadensfall mit Kautionsverrechnung → Abrechnung in der Rechnung
 des Auftrags. Protokolle und Schadensfälle sind gegen Ändern/Löschen geschützt (Datenbank-Trigger) und lassen
 sich nur mit Begründung stornieren.
@@ -141,7 +141,7 @@ def status_setzen(con, geraet_id, status, grund=""):
     if status not in STATUS or status == "verliehen":
         raise EingabeFehler("Dieser Status kann nicht von Hand gesetzt werden.")
     if g["status"] == "verliehen":
-        raise EingabeFehler("Das Gerät ist verliehen – bitte zuerst im Reparaturauftrag zurücknehmen.")
+        raise EingabeFehler("Das Gerät ist verliehen – bitte zuerst im Auftrag zurücknehmen.")
     if status == g["status"]:
         return
     con.execute("UPDATE leihgeraete SET status=?, geaendert_am=? WHERE id=?", (status, dbm.jetzt(), geraet_id))
@@ -389,7 +389,7 @@ def kaution_zurueckgezahlt(con, leihe_id):
     dbm.protokollieren("kaution_zurueckgezahlt", "leihe", leihe_id, {"betrag": betrag}, con=con)
 
 
-# ---------------------------------------------------------------- Interner Reparaturauftrag
+# ---------------------------------------------------------------- Interner Auftrag
 
 def interner_kunde(con):
     """Eigener (archivierter) Kunde für Reparaturen an Leihgeräten. Für ihn entstehen keine Rechnungen."""
@@ -425,13 +425,13 @@ def interner_auftrag(con, schaden_id):
                   notizen=f"Interne Reparatur des Leihgeräts {g['bezeichnung']} (Inventar-Nr. {g['inventarnr'] or '–'}) "
                           f"nach Schadensfall aus Leihvertrag {le['leihnr']}. Keine Rechnung an Kunden.")
     con.execute("UPDATE schadensfaelle SET interner_auftrag_id=? WHERE id=?", (aid, schaden_id))
-    verlauf(con, g["id"], "Interner Reparaturauftrag angelegt",
+    verlauf(con, g["id"], "Interner Auftrag angelegt",
             con.execute("SELECT auftragsnr FROM auftraege WHERE id=?", (aid,)).fetchone()[0])
     return aid
 
 
 def interner_auftrag_erledigt(con, auftrag_id):
-    """Wird ein interner Reparaturauftrag erledigt, ist das Leihgerät wieder verfügbar."""
+    """Wird ein interner Auftrag erledigt, ist das Leihgerät wieder verfügbar."""
     for s in con.execute("SELECT * FROM schadensfaelle WHERE interner_auftrag_id=?", (auftrag_id,)).fetchall():
         g = con.execute("SELECT * FROM leihgeraete WHERE id=?", (s["geraet_id"],)).fetchone()
         if g["status"] == "defekt":

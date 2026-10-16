@@ -110,7 +110,7 @@ def protokoll_pdf(con, leihe_id, art, daten_dir):
         ("Bezeichnung", g["bezeichnung"]), ("Typ / Hersteller / Modell", geraet or "–"),
         ("Seriennummer", g["seriennummer"] or "–"), ("Inventarnummer", g["inventarnr"] or "–"),
         ("Zeitwert (bei Verlust)", euro(g["zeitwert"]) if g["zeitwert"] else "–"),
-        ("Zum Reparaturauftrag", f"{le['auftragsnr'] or '–'}" + (f" ({a['geraet']})" if a and a["geraet"] else "")),
+        ("Zum Auftrag", f"{le['auftragsnr'] or '–'}" + (f" ({a['geraet']})" if a and a["geraet"] else "")),
     ]))
 
     # Zubehör

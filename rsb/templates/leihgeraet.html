@@ -57,7 +57,7 @@
 <div>
   <div class="karte">
     <h2>Status</h2>
-    {% if g.status == 'verliehen' %}<p class="klein">Das Gerät ist verliehen. Die Rücknahme erfolgt im Reparaturauftrag bzw. im <a href="{{ url_for('main.leihe', lid=aktiv.id) }}">Leihvorgang</a>.</p>
+    {% if g.status == 'verliehen' %}<p class="klein">Das Gerät ist verliehen. Die Rücknahme erfolgt im Auftrag bzw. im <a href="{{ url_for('main.leihe', lid=aktiv.id) }}">Leihvorgang</a>.</p>
     {% else %}
     <form method="post" action="{{ url_for('main.leihgeraet_status', gid=g.id) }}">{{ csrf() }}
       <div class="felder">

@@ -15,32 +15,33 @@ ANLAESSE = {
     "angenommen": "Auftrag angenommen",
     "kva": "Kostenvoranschlag versendet",
     "wartet_teil": "Warten auf Ersatzteil",
-    "fertig": "Gerät fertig zur Abholung",
-    "erinnerung": "Erinnerung: Gerät noch nicht abgeholt",
+    "fertig": "Fahrzeug fertig zur Abholung",
+    "erinnerung": "Erinnerung: Fahrzeug noch nicht abgeholt",
 }
 KANAELE = {"email": "E-Mail", "sms": "SMS"}
 STATUS = {"offen": "wartet auf Freigabe", "gesendet": "gesendet", "verworfen": "nicht gesendet", "fehler": "Fehler"}
-PLATZHALTER = ["{Anrede}", "{Kundenname}", "{Auftragsnummer}", "{Gerät}", "{Betrag}", "{Öffnungszeiten}",
+PLATZHALTER = ["{Anrede}", "{Kundenname}", "{Auftragsnummer}", "{Fahrzeug}", "{Kennzeichen}", "{Gerät}", "{Betrag}", "{Öffnungszeiten}",
                "{Fertig bis}", "{Firma}"]
 
 _GRUSS = "\n\nMit freundlichen Grüßen\n{Firma}"
 STANDARD = {
-    "angenommen": ("Ihr Reparaturauftrag {Auftragsnummer}",
-                   "{Anrede}\n\nvielen Dank für Ihren Auftrag. Wir haben Ihr Gerät ({Gerät}) unter der Auftragsnummer "
-                   "{Auftragsnummer} angenommen und melden uns, sobald es Neuigkeiten gibt.{Fertig bis Satz}" + _GRUSS),
+    "angenommen": ("Ihr Auftrag {Auftragsnummer}",
+                   "{Anrede}\n\nvielen Dank für Ihren Auftrag. Wir haben Ihr Fahrzeug ({Fahrzeug}) unter der "
+                   "Auftragsnummer {Auftragsnummer} angenommen und melden uns, sobald es Neuigkeiten gibt."
+                   "{Fertig bis Satz}" + _GRUSS),
     "kva": ("Kostenvoranschlag zu Auftrag {Auftragsnummer}",
-            "{Anrede}\n\nfür die Reparatur Ihres Geräts ({Gerät}) liegt Ihr Kostenvoranschlag über {Betrag} vor. "
-            "Bitte teilen Sie uns kurz mit, ob wir die Reparatur durchführen sollen." + _GRUSS),
+            "{Anrede}\n\nfür Ihr Fahrzeug ({Fahrzeug}) liegt Ihr Kostenvoranschlag über {Betrag} vor. "
+            "Bitte teilen Sie uns kurz mit, ob wir die Arbeiten durchführen sollen." + _GRUSS),
     "wartet_teil": ("Ihr Auftrag {Auftragsnummer}: Ersatzteil bestellt",
-                    "{Anrede}\n\nfür die Reparatur Ihres Geräts ({Gerät}) haben wir das benötigte Ersatzteil bestellt. "
-                    "Sobald es eingetroffen ist, setzen wir die Reparatur fort." + _GRUSS),
-    "fertig": ("Ihr Gerät ist abholbereit (Auftrag {Auftragsnummer})",
-               "{Anrede}\n\nIhr Gerät ({Gerät}) ist fertig und kann abgeholt werden. Betrag: {Betrag}.\n\n"
+                    "{Anrede}\n\nfür Ihr Fahrzeug ({Fahrzeug}) haben wir das benötigte Ersatzteil bestellt. "
+                    "Sobald es eingetroffen ist, setzen wir die Arbeiten fort." + _GRUSS),
+    "fertig": ("Ihr Fahrzeug ist abholbereit (Auftrag {Auftragsnummer})",
+               "{Anrede}\n\nIhr Fahrzeug ({Fahrzeug}) ist fertig und kann abgeholt werden. Betrag: {Betrag}.\n\n"
                "Unsere Öffnungszeiten:\n{Öffnungszeiten}\n\nBitte bringen Sie Ihren Annahmeschein oder einen Ausweis mit."
                + _GRUSS),
-    "erinnerung": ("Erinnerung: Ihr Gerät wartet auf Sie (Auftrag {Auftragsnummer})",
-                   "{Anrede}\n\nIhr Gerät ({Gerät}) liegt seit einigen Tagen abholbereit bei uns. Bitte holen Sie es "
-                   "zu unseren Öffnungszeiten ab:\n{Öffnungszeiten}" + _GRUSS),
+    "erinnerung": ("Erinnerung: Ihr Fahrzeug wartet auf Sie (Auftrag {Auftragsnummer})",
+                   "{Anrede}\n\nIhr Fahrzeug ({Fahrzeug}) steht seit einigen Tagen abholbereit bei uns. Bitte holen "
+                   "Sie es zu unseren Öffnungszeiten ab:\n{Öffnungszeiten}" + _GRUSS),
 }
 
 
@@ -81,7 +82,9 @@ def werte(con, a, anlass, einst=None):
     if a["fertig_bis"]:
         fertig = datetime.fromisoformat(a["fertig_bis"]).strftime("%d.%m.%Y")
     return {"{Anrede}": anrede_brief(k), "{Kundenname}": kunde_name(k), "{Auftragsnummer}": a["auftragsnr"],
-            "{Gerät}": a["geraet"] or "Ihr Gerät", "{Betrag}": _betrag(con, a, anlass),
+            "{Gerät}": a["geraet"] or "Ihr Fahrzeug",
+            "{Fahrzeug}": " · ".join(x for x in (a["geraet"], a["kennzeichen"]) if x) or "Ihr Fahrzeug",
+            "{Kennzeichen}": a["kennzeichen"] or "", "{Betrag}": _betrag(con, a, anlass),
             "{Öffnungszeiten}": einst.get("oeffnungszeiten") or "", "{Fertig bis}": fertig,
             "{Fertig bis Satz}": f" Voraussichtlich ist es bis zum {fertig} fertig." if fertig else "",
             "{Firma}": "\n".join(x for x in [einst.get("inhaber"), einst.get("firma_name")] if x)}

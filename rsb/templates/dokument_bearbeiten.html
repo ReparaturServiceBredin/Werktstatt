@@ -5,7 +5,7 @@
 {% block inhalt %}
 <div class="kopf">
   <h1>{{ titel }} – Entwurf</h1>
-  {% if g.auftrag %}<a class="knopf zweit" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">← Auftrag {{ g.auftrag.auftragsnr }}</a>{% elif d.typ == 'kva' %}<span class="klein">keinem Reparaturauftrag zugeordnet</span>{% endif %}
+  {% if g.auftrag %}<a class="knopf zweit" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">← Auftrag {{ g.auftrag.auftragsnr }}</a>{% elif d.typ == 'kva' %}<span class="klein">keinem Auftrag zugeordnet</span>{% endif %}
   <div class="leiste">
     <a class="knopf zweit" href="{{ url_for('main.dokument_pdf', did=d.id) }}" target="_blank">PDF-Vorschau öffnen</a>
   </div>

@@ -1,4 +1,4 @@
-"""Reparaturaufträge: Tafel mit den Spalten offen / in Arbeit / erledigt.
+"""Aufträge: Tafel mit den Spalten offen / in Arbeit / erledigt.
 
 Wird ein Auftrag auf „erledigt“ gezogen, entsteht automatisch ein Rechnungsentwurf
 mit den Positionen aus dem Kostenvoranschlag (falls vorhanden).
@@ -32,7 +32,7 @@ def naechste_auftragsnr(con):
 
 ANNAHME_FELDER = ("zustand_eingang", "kosten_obergrenze", "kva_gewuenscht", "kva_gebuehr", "fertig_bis", "zugang_art",
                   "auftragsart", "garantie_bezug_id", "garantie_monate", "interne_kosten", "interne_kosten_notiz",
-                  "geraetetyp")
+                  "geraetetyp", "kennzeichen", "km_stand", "erstzulassung", "hu_bis")
 
 
 def anlegen(con, kunde_id, geraet="", fehler="", leistungsart="", seriennummer="", zubehoer="", notizen="",
@@ -58,6 +58,8 @@ def anlegen(con, kunde_id, geraet="", fehler="", leistungsart="", seriennummer="
     if weitere:
         con.execute(f"UPDATE auftraege SET {', '.join(f'{k}=?' for k in weitere)} WHERE id=?",
                     (*weitere.values(), cur.lastrowid))
+    from .checkliste import ergaenzen
+    ergaenzen(con, cur.lastrowid, leistungsart, dbm.einstellungen(con))
     dbm.protokollieren("auftrag_angelegt", "auftrag", cur.lastrowid, {"auftragsnr": nr}, con=con)
     verlauf(con, cur.lastrowid, "Auftrag angelegt", nr)
     from .benachrichtigung import vorschlagen

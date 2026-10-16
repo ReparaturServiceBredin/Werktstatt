@@ -2,10 +2,10 @@
 {% from "_status.html" import csrf %}
 {% from "_auftrag_formular.html" import felder, kva_auswahl %}
 {% from "_foto_upload.html" import hochladen %}
-{% block titel %}Neuer Reparaturauftrag{% endblock %}
+{% block titel %}Neuer Auftrag{% endblock %}
 {% block inhalt %}
 <div class="kopf">
-  <h1>Neuer Reparaturauftrag</h1>
+  <h1>Neuer Auftrag</h1>
   <a class="knopf zweit" href="{{ url_for('main.auftraege') }}">← Zur Tafel</a>
 </div>
 <form method="post" id="auftragsformular">{{ csrf() }}

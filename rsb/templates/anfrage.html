@@ -33,13 +33,13 @@
       <p>{{ 'Angelegt als' if a.status == 'kunde_angelegt' else 'Zugeordnet zu' }}: <a href="{{ url_for('main.kunde', kid=kunde.id) }}"><b>{{ kunde.kundennr }} · {{ kunde|kname }}</b></a>
         {% if kunde.interessent %}<span class="marke-status st-entwurf">Interessent</span>{% endif %}</p>
       {% if g.auftrag %}
-        <a class="knopf" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">Zum Reparaturauftrag {{ g.auftrag.auftragsnr }}</a>
+        <a class="knopf" href="{{ url_for('main.auftrag', aid=g.auftrag.id) }}">Zum Auftrag {{ g.auftrag.auftragsnr }}</a>
       {% else %}
       <form method="post" action="{{ url_for('main.auftrag_neu') }}">{{ csrf() }}
         <input type="hidden" name="kunde_id" value="{{ kunde.id }}"><input type="hidden" name="anfrage_id" value="{{ a.id }}">
         <input type="hidden" name="geraet" value="{{ a.geraet or '' }}"><input type="hidden" name="leistungsart" value="{{ leistungsart or '' }}">
         <input type="hidden" name="fehler" value="{{ a.nachricht or '' }}">
-        <button>Reparaturauftrag anlegen</button>
+        <button>Auftrag anlegen</button>
       </form>
       {% endif %}
     {% elif a.status == 'verworfen' %}

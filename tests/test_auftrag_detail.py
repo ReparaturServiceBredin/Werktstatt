@@ -25,7 +25,7 @@ def bild(farbe="red", exif_zeit="2026:10:01 12:34:56", groesse=(800, 600)):
     return puffer.getvalue()
 
 
-def foto_hochladen(client, url, daten, name="foto.jpg", kategorie="Geräteeingang", **extra):
+def foto_hochladen(client, url, daten, name="foto.jpg", kategorie="Fahrzeugeingang", **extra):
     return client.post(url, data={"csrf": "test-token", "kategorie": kategorie, "foto": (io.BytesIO(daten), name),
                                   **extra}, content_type="multipart/form-data")
 

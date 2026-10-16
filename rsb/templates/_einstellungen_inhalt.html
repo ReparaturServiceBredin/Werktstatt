@@ -362,20 +362,22 @@
 {% elif bereich == 'annahme' %}
 <form method="post" class="karte">{{ csrf() }}
   <h2>Annahmeschein &amp; Abholschein</h2>
-  <p class="klein">Diese Texte stehen auf dem Annahmeschein, den der Kunde bei der Geräteabgabe unterschreibt. Lassen Sie die Formulierungen im Zweifel einmal rechtlich prüfen. Bereits unterschriebene Scheine bleiben unverändert archiviert.</p>
+  <p class="klein">Diese Texte stehen auf dem Annahmeschein, den der Kunde bei der Fahrzeugabgabe unterschreibt. Lassen Sie die Formulierungen im Zweifel einmal rechtlich prüfen. Bereits unterschriebene Scheine bleiben unverändert archiviert.</p>
   <div class="felder">
-    <div class="s4"><label>Garantie auf Reparaturen (Monate)</label><input type="number" min="0" max="60" name="garantie_monate" value="{{ einst.garantie_monate }}">
+    <div class="s4"><label>Garantie auf Arbeiten (Monate)</label><input type="number" min="0" max="60" name="garantie_monate" value="{{ einst.garantie_monate }}">
       <div class="hilfe">Freiwillige Garantie ab Abholung, Standard 12; 0 = keine. Je Auftrag und je Rechnungsposition änderbar. Die gesetzliche Gewährleistung besteht unabhängig davon.</div></div>
     <div class="s8"></div>
-    <div class="s6"><label>Zubehör-Checkliste (ein Eintrag je Zeile)</label><textarea name="annahme_zubehoer" style="min-height:160px">{{ einst.annahme_zubehoer or '' }}</textarea></div>
-    <div class="s6"><label>KVA-Pauschale je Gerätetyp (brutto, „Gerätetyp = Betrag“ je Zeile)</label><textarea name="kva_gebuehren" style="min-height:120px">{{ einst.kva_gebuehren }}</textarea>
-      <div class="hilfe">Weitere Gerätetypen einfach als neue Zeile ergänzen. Der Typ „Sonstige Geräte“ gilt, wenn nichts gewählt ist. Pro Auftrag änderbar, auch „kostenlos“. Bei Annahme des KVA wird die Pauschale verrechnet, bei Ablehnung schlägt das Programm einen Rechnungsentwurf vor.</div></div>
+    <div class="s6"><label>Abgegebene Gegenstände zum Ankreuzen (ein Eintrag je Zeile)</label><textarea name="annahme_zubehoer" style="min-height:160px">{{ einst.annahme_zubehoer or '' }}</textarea></div>
+    <div class="s6"><label>KVA-Pauschale je Fahrzeugart (brutto, „Fahrzeugart = Betrag“ je Zeile)</label><textarea name="kva_gebuehren" style="min-height:120px">{{ einst.kva_gebuehren }}</textarea>
+      <div class="hilfe">Weitere Fahrzeugarten einfach als neue Zeile ergänzen. Pro Auftrag änderbar, auch „kostenlos“. Bei Annahme des KVA wird die Pauschale verrechnet, bei Ablehnung schlägt das Programm einen Rechnungsentwurf vor.</div></div>
+    <div class="s12" id="checklisten"><label>Checklisten je Leistung</label><textarea name="checklisten" style="min-height:320px;font-family:monospace">{{ einst.checklisten or '' }}</textarea>
+      <div class="hilfe">Je Leistung ein Block: in eckigen Klammern der Name der Leistung, genau wie unter Firmendaten → Leistungsarten (z. B. <code>[Ölwechsel]</code>), darunter ein Arbeitsschritt je Zeile. Wird die Leistung in einem Auftrag angekreuzt, erscheinen die Schritte dort zum Abhaken. Bestehende Aufträge behalten ihre Liste.</div></div>
     <div class="s12"><label>Hinweis zur KVA-Pauschale auf dem Annahmeschein (Platzhalter {KVA-Gebühr})</label><textarea name="annahme_kva_text" style="min-height:80px">{{ einst.annahme_kva_text }}</textarea>
       <div class="hilfe">Erscheint auf dem Annahmeschein und vor der Unterschrift deutlich hervorgehoben.</div></div>
     <div class="s12"><label>Text der freiwilligen Garantie (Rechnung und Abholschein)</label><textarea name="garantie_text" style="min-height:130px">{{ einst.garantie_text }}</textarea>
       <div class="hilfe">Platzhalter: {Garantiedauer} {Garantieende} {Firmenname} {Firmenanschrift}. Die Garantie beginnt mit der Abholung. Bitte den Satz zur gesetzlichen Gewährleistung nicht entfernen – die Garantie gilt zusätzlich und ersetzt oder verkürzt die Gewährleistung nicht.</div></div>
-    <div class="s12"><label>Datenschutz-Hinweis</label><textarea name="annahme_datenschutz" style="min-height:130px">{{ einst.annahme_datenschutz or '' }}</textarea></div>
-    <div class="s12"><label>Abholbedingungen (Abholfrist, Lagergebühr, Umgang mit nicht abgeholten Geräten)</label><textarea name="annahme_abholbedingungen" style="min-height:130px">{{ einst.annahme_abholbedingungen or '' }}</textarea></div>
+    <div class="s12"><label>Hinweise und Datenschutz</label><textarea name="annahme_datenschutz" style="min-height:130px">{{ einst.annahme_datenschutz or '' }}</textarea></div>
+    <div class="s12"><label>Abholbedingungen (Abholfrist, Standgebühr, Räder-Einlagerung)</label><textarea name="annahme_abholbedingungen" style="min-height:130px">{{ einst.annahme_abholbedingungen or '' }}</textarea></div>
     <div class="s12"><label>Bestätigung auf dem Abholschein</label><textarea name="abholschein_text" style="min-height:60px">{{ einst.abholschein_text or '' }}</textarea></div>
   </div>
   <h2 style="margin-top:18px">Handy / Tablet im WLAN</h2>

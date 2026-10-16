@@ -110,7 +110,7 @@
         {% if s.interner_auftrag_id and interne[s.id] %}<div class="klein">Interne Reparatur: <a href="{{ url_for('main.auftrag', aid=s.interner_auftrag_id) }}">{{ interne[s.id].auftragsnr }}</a></div>{% endif %}</td>
       <td>{{ kostenarten[s.kostenart] }}</td><td class="zahl">{{ s.betrag|euro }}</td>
       <td>{% if not s.storniert_am %}
-        {% if not s.interner_auftrag_id %}<form method="post" action="{{ url_for('main.schaden_interner_auftrag', sid=s.id) }}">{{ csrf() }}<button class="zweit klein">Internen Reparaturauftrag anlegen</button></form>{% endif %}
+        {% if not s.interner_auftrag_id %}<form method="post" action="{{ url_for('main.schaden_interner_auftrag', sid=s.id) }}">{{ csrf() }}<button class="zweit klein">Internen Auftrag anlegen</button></form>{% endif %}
         <details><summary class="klein" style="cursor:pointer;color:var(--rot)">Stornieren …</summary>
           <form method="post" action="{{ url_for('main.schaden_stornieren', sid=s.id) }}">{{ csrf() }}<input type="text" name="grund" required minlength="3" placeholder="Grund (Pflicht)"><button class="gefahr klein" style="margin-top:4px">Stornieren</button></form></details>
       {% endif %}</td></tr>{% endfor %}
@@ -123,7 +123,7 @@
         <div class="s12"><label>Beschreibung</label><textarea name="beschreibung" required></textarea></div>
         <div class="s4"><label>Kostenart</label><select name="kostenart" class="kostenart">{% for k, n in kostenarten.items() %}<option value="{{ k }}">{{ n }}</option>{% endfor %}</select></div>
         <div class="s4"><label>Betrag (€)</label><input type="text" name="betrag" class="schadenbetrag" data-zeitwert="{{ (le.zeitwert|euro)[:-2] }}"></div>
-        <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag"> internen Reparaturauftrag anlegen</label></div>
+        <div class="s4"><label class="check" style="margin-top:22px"><input type="checkbox" name="interner_auftrag"> internen Auftrag anlegen</label></div>
       </div><br><button>Schadensfall anlegen</button>
     </form></details>
   {% endif %}

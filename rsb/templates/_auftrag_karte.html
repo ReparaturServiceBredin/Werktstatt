@@ -4,8 +4,10 @@
   <div class="a-kopf"><a href="{{ url_for('main.auftrag', aid=a.id) }}">{{ a.auftragsnr }}</a>
     <span class="klein">{{ 'seit ' ~ a.eingang_am|tage_seit ~ ' Tg.' if a.status != 'erledigt' else (a.erledigt_am|datum) }}</span></div>
   <div class="a-name">{{ a.firma if a.ktyp == 'firma' and a.firma else ((a.vorname or '') ~ ' ' ~ (a.nachname or '')).strip() }}</div>
-  {% if a.geraet %}<div class="a-geraet">{{ a.geraet }}</div>{% endif %}
+  {% if a.geraet or a.kennzeichen %}<div class="a-geraet">{{ a.geraet or '' }}{% if a.kennzeichen %} <span class="kennzeichen">{{ a.kennzeichen }}</span>{% endif %}</div>{% endif %}
+  {% if a.leistungsart %}<div class="klein"><b>{{ a.leistungsart }}</b></div>{% endif %}
   {% if a.fehler %}<div class="klein">{{ a.fehler|truncate(70) }}</div>{% endif %}
+  {% if a.ckl_gesamt %}<div class="a-ckl{{ ' fertig' if a.ckl_erledigt == a.ckl_gesamt }}" title="Checkliste">☑ {{ a.ckl_erledigt }}/{{ a.ckl_gesamt }} erledigt</div>{% endif %}
   {% if ts == 'wartet_teil' %}<div class="a-teil">🔧 {{ a.teil_info or 'Ersatzteil' }}{% if a.teil_erwartet %} · erwartet {{ a.teil_erwartet|datum }}{% endif %}</div>{% endif %}
   {% if a.status == 'erledigt' and not a.abgeholt_am %}<div class="a-teil" style="color:var(--gruen)">abholbereit</div>{% elif a.abgeholt_am %}<div class="klein">abgeholt {{ a.abgeholt_am|datum }}</div>{% endif %}
   <div class="a-icons">

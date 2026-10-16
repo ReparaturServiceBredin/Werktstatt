@@ -7,7 +7,7 @@
 <div class="kopf">
   <h1>{{ (k.kundennr ~ ' · ' ~ (k|kname)) if k else 'Neuer Kunde' }}</h1>
   {% if k %}<div class="leiste">
-    <a class="knopf" href="{{ url_for('main.auftrag_neu', kunde_id=k.id) }}">+ Reparaturauftrag</a>
+    <a class="knopf" href="{{ url_for('main.auftrag_neu', kunde_id=k.id) }}">+ Auftrag</a>
     <a class="knopf zweit" href="{{ url_for('main.dokument_neu', kunde_id=k.id, typ='kva') }}">+ KVA</a>
     <a class="knopf zweit" href="{{ url_for('main.dokument_neu', kunde_id=k.id) }}">+ Rechnung</a>
   </div>{% endif %}
@@ -95,7 +95,7 @@
 {% endif %}
 {% if auftraege %}
 <div class="karte">
-  <h2>Reparaturaufträge</h2>
+  <h2>Aufträge</h2>
   <table class="liste">
     <tr><th>Auftrag</th><th>Eingang</th><th>Gerät</th><th>Status</th></tr>
     {% for a in auftraege %}<tr><td><a href="{{ url_for('main.auftrag', aid=a.id) }}">{{ a.auftragsnr }}</a></td><td>{{ a.eingang_am|datum }}</td><td>{{ a.geraet or '' }}</td><td><span class="marke-status s-{{ a.status }}">{{ {'offen':'Offen','in_arbeit':'In Arbeit','erledigt':'Erledigt'}[a.status] }}</span></td></tr>{% endfor %}

@@ -30,7 +30,7 @@ SEITENLEISTE = [
     Gruppe("werkstatt", "Werkstatt", [
         Eintrag("anfragen", "Anfragen", "inbox", "main.anfragen_liste", "offene_anfragen",
                 zaehler_titel="neue Anfragen", stichworte="Kontaktformular Posteingang"),
-        Eintrag("auftraege", "Reparaturaufträge", "wrench", "main.auftraege", "offene_auftraege",
+        Eintrag("auftraege", "Aufträge", "wrench", "main.auftraege", "offene_auftraege",
                 zaehler_titel="offene Aufträge", stichworte="Tafel Reparatur Annahme Abholung"),
         Eintrag("leihgeraete", "Leihgeräte", "laptop", "main.leihgeraete", "leihen_ueberfaellig", True,
                 "überfällige Rückgaben", "Leihe Ersatzgerät"),

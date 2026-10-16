@@ -380,7 +380,8 @@ def auskunft_daten(con, kid):
     k = dict(con.execute("SELECT * FROM kunden WHERE id=?", (kid,)).fetchone())
     return {
         "kunde": k,
-        "auftraege": _zeilen(con, "SELECT auftragsnr, eingang_am, status, geraet, seriennummer, zubehoer, fehler, "
+        "auftraege": _zeilen(con, "SELECT auftragsnr, eingang_am, status, geraet, kennzeichen, seriennummer AS fin, km_stand, "
+                                  "leistungsart, zubehoer, fehler, "
                                   "zustand_eingang, fertig_bis, erledigt_am, abgeholt_am, zugang_art, "
                                   "CASE WHEN zugang_geheim IS NULL THEN 'nein' ELSE 'ja (verschlüsselt)' END AS "
                                   "zugangsdaten_gespeichert FROM auftraege WHERE kunde_id=? ORDER BY eingang_am", (kid,)),
@@ -444,7 +445,7 @@ def auskunft_pdf(con, d):
             "„gespeicherte_Daten.json“ sowie als Kopien der Belege, Annahme-/Abholscheine und Fotos."]),
         ("Gespeicherte Daten (Übersicht)", [("tabelle", [["Kategorie", "Anzahl"],
                                                          ["Stammdaten (Name, Anschrift, Kontakt)", "1"],
-                                                         ["Reparaturaufträge", str(zahl["auftraege"])],
+                                                         ["Aufträge", str(zahl["auftraege"])],
                                                          ["Rechnungen/Kostenvoranschläge/Gutschriften", str(zahl["dokumente"])],
                                                          ["Zahlungen", str(zahl["zahlungen"])],
                                                          ["Kontaktanfragen", str(zahl["anfragen"])],
@@ -455,7 +456,7 @@ def auskunft_pdf(con, d):
                                                          ["E-Mails", str(zahl["emails"])],
                                                          ["Benachrichtigungen", str(zahl["benachrichtigungen"])]])]),
         ("Zwecke und Rechtsgrundlagen", [("liste", [
-            "Durchführung von Reparaturaufträgen, Kostenvoranschlägen, Leihgeräten und Verträgen "
+            "Durchführung von Aufträgen, Kostenvoranschlägen, Leihgeräten und Verträgen "
             "(Art. 6 Abs. 1 lit. b DSGVO)",
             "Rechnungsstellung, Buchhaltung und gesetzliche Aufbewahrung (Art. 6 Abs. 1 lit. c DSGVO i. V. m. "
             "§ 147 AO, § 257 HGB)",

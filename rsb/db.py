@@ -9,6 +9,61 @@ from flask import current_app, g, has_request_context, session
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 
+# Checklisten-Vorlagen je Leistung (Einstellungen → Annahme & Abholung)
+CHECKLISTEN_STANDARD = """[Ölwechsel]
+Ölsorte und Menge laut Herstellerfreigabe geprüft
+Motoröl abgelassen
+Ölfilter gewechselt
+Ablassschraube mit neuem Dichtring nach Drehmoment angezogen
+Neues Motoröl eingefüllt
+Ölstand kontrolliert, Motor auf Dichtheit geprüft
+Serviceintervall zurückgesetzt
+Ölwechsel-Anhänger bzw. Serviceheft ausgefüllt
+
+[Fehlerspeicher auslesen]
+Diagnosegerät angeschlossen, Fahrzeug identifiziert
+Fehlerspeicher aller Steuergeräte ausgelesen
+Fehlercodes dokumentiert (Protokoll oder Foto)
+Ergebnis mit dem Kunden besprochen bzw. KVA erstellt
+Fehlerspeicher nach Behebung gelöscht
+Kontrolle bzw. Probefahrt ohne neuen Fehler
+
+[Reifenwechsel]
+Fahrzeug angehoben, Räder abgenommen
+Räder markiert (VL, VR, HL, HR)
+Profiltiefe und Zustand der Reifen geprüft
+Räder montiert, Radschrauben nach Drehmoment angezogen
+Reifendruck eingestellt, RDKS geprüft
+Abgenommene Räder beschriftet und eingelagert bzw. mitgegeben
+Kunde auf Nachziehen der Radschrauben nach 50 km hingewiesen
+
+[Reifenmontage]
+Alte Reifen demontiert
+Felgen geprüft und gereinigt
+Ventile erneuert bzw. RDKS-Sensoren geprüft
+Neue Reifen montiert (Laufrichtung beachtet)
+Reifendruck eingestellt
+Altreifen entsorgt bzw. dem Kunden mitgegeben
+
+[Auswuchten]
+Alte Auswuchtgewichte entfernt
+Räder auf der Wuchtmaschine ausgewuchtet
+Kontrolllauf ohne Unwucht
+
+[Inspektion]
+Inspektion nach Herstellervorgabe durchgeführt
+Flüssigkeitsstände geprüft und ergänzt
+Beleuchtung geprüft
+Bremsen und Reifen geprüft
+Serviceintervall zurückgesetzt, Serviceheft gestempelt
+
+[Bremsen]
+Bremsbeläge und -scheiben geprüft
+Verschlissene Teile getauscht
+Bremsflüssigkeit geprüft
+Probefahrt mit Bremstest
+"""
+
 # Standardwerte für alle Einstellungen. Alles hier ist später in der Oberfläche änderbar.
 STANDARD_EINSTELLUNGEN = {
     # Firma
@@ -161,6 +216,7 @@ STANDARD_EINSTELLUNGEN = {
     # Annahme-/Abholschein (Reparaturannahme)
     "annahme_zubehoer": "Fahrzeugschlüssel\nZweitschlüssel\nFahrzeugschein\nServiceheft\nFelgenschloss-Adapter\n"
                         "Sommerräder\nWinterräder\nRadkappen\nWarndreieck / Verbandskasten",
+    "checklisten": CHECKLISTEN_STANDARD,
     "annahme_kva_gebuehr_cent": 0,          # (bis 0.20) Vorschlag für neue Aufträge – ersetzt durch kva_gebuehren
     # KVA-Pauschale je Gerätetyp (brutto, „Gerätetyp = Betrag“ je Zeile); bei Annahme verrechnet, bei Ablehnung fällig
     "kva_gebuehren": "PKW = 29,00\nSUV / Van = 29,00\nTransporter = 39,00\nMotorrad = 19,00",
@@ -345,6 +401,10 @@ def initialisieren(pfad):
 
 # Spalten, die in neueren Versionen dazugekommen sind: (Tabelle, Spalte, Definition)
 MIGRATIONEN = [
+    ("auftraege", "kennzeichen", "TEXT"),
+    ("auftraege", "km_stand", "INTEGER"),
+    ("auftraege", "erstzulassung", "TEXT"),
+    ("auftraege", "hu_bis", "TEXT"),
     ("kunden", "interessent", "INTEGER NOT NULL DEFAULT 0"),
     ("kunden", "quelle", "TEXT"),
     ("vertraege", "abgerechnet_bis", "TEXT"),
@@ -408,7 +468,7 @@ NEUE_TABELLEN = ["auftrag_fotos", "auftrag_verlauf", "leihgeraete", "leihen", "s
                  "artikel_lieferanten", "bestellungen", "bestell_positionen", "wareneingaenge", "eingangsrechnungen",
                  "er_zahlungen", "kassenbuch", "kassen_abschluesse", "datev_exporte", "datev_posten",
                  "loeschprotokolle", "loeschfreigaben", "loesch_zurueckstellungen", "fixkosten",
-                 "fixkosten_betraege", "hinweise_gelesen"]
+                 "fixkosten_betraege", "hinweise_gelesen", "auftrag_checkliste"]
 
 
 def _migrieren(con, pfad=None):

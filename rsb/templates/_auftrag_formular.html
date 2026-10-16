@@ -7,46 +7,42 @@
     <div class="hilfe"><a href="{{ url_for('main.kunde') }}" target="_blank">+ neuen Kunden anlegen</a> (danach diese Seite neu laden)</div></div>
   {% set ts = 'wartet_teil' if w.status == 'in_arbeit' and w.wartet_teil_seit else (w.status or 'offen') %}
   <div class="s3"><label>Status</label><select name="status" id="f_status">{% for s, n in status_namen.items() %}<option value="{{ s }}" {{ 'selected' if ts == s }}>{{ n }}</option>{% endfor %}</select></div>
-  <div class="s3"><label>Leistungsart</label><select name="leistungsart">{% for l in leistungsarten %}<option {{ 'selected' if w.leistungsart == l }}>{{ l }}</option>{% endfor %}</select></div>
-  <div><label>Gerät (Marke, Modell)</label><input type="text" name="geraet" value="{{ w.geraet or '' }}" placeholder="z. B. Xiaomi 14T Pro"></div>
-  <div class="s3"><label>Seriennr. / IMEI</label><input type="text" name="seriennummer" id="f_sn" value="{{ w.seriennummer or '' }}" data-ohne="{{ w.id or '' }}" autocomplete="off"></div>
+  {% set gew = (w.leistungsart or '').split(',')|map('trim')|list %}
+  <div class="s12"><label>Leistungen</label>
+    <div class="checkliste">{% for l in leistungsarten %}<label class="check"><input type="checkbox" name="leistung" value="{{ l }}" {{ 'checked' if l in gew }}> {{ l }}</label>{% endfor %}
+      {% for l in gew if l and l not in leistungsarten %}<label class="check"><input type="checkbox" name="leistung" value="{{ l }}" checked> {{ l }}</label>{% endfor %}</div>
+    <div class="hilfe">Für jede Leistung wird die passende Checkliste angelegt (Vorlagen unter Einstellungen → Annahme &amp; Abholung).</div></div>
+  <div class="s6"><label>Fahrzeug (Marke, Modell, Motor)</label><input type="text" name="geraet" value="{{ w.geraet or '' }}" placeholder="z. B. VW Golf VII 1.6 TDI"></div>
+  <div class="s3"><label>Kennzeichen</label><input type="text" name="kennzeichen" value="{{ w.kennzeichen or '' }}" placeholder="z. B. HN-AB 123" style="text-transform:uppercase" autocomplete="off"></div>
+  <div class="s3"><label>Kilometerstand</label><input type="text" inputmode="numeric" name="km_stand" value="{{ w.km_stand if w.km_stand is not none else '' }}" placeholder="km"></div>
+  <div class="s6"><label>FIN (Fahrgestellnummer)</label><input type="text" name="seriennummer" id="f_sn" value="{{ w.seriennummer or '' }}" data-ohne="{{ w.id or '' }}" autocomplete="off" maxlength="17" style="text-transform:uppercase" placeholder="17 Zeichen, siehe Fahrzeugschein Feld E"></div>
+  <div class="s3"><label>Erstzulassung</label><input type="date" name="erstzulassung" value="{{ w.erstzulassung or '' }}"></div>
+  <div class="s3"><label>HU/TÜV fällig</label><input type="month" name="hu_bis" value="{{ w.hu_bis or '' }}"></div>
   <div class="s12" id="sn-hinweis" hidden></div>
   <div class="s3"><label>Voraussichtlich fertig am</label><input type="date" name="fertig_bis" value="{{ w.fertig_bis or '' }}"></div>
-  <div class="s12"><label>Fehler laut Kunde</label><textarea name="fehler">{{ w.fehler or '' }}</textarea></div>
-  <div class="s12"><label>Zustand bei Eingang (sichtbare Schäden, Kratzer, Wasserschaden …)</label><textarea name="zustand_eingang" style="min-height:60px">{{ w.zustand_eingang or '' }}</textarea>
-    <div class="hilfe">Bitte zusätzlich Fotos unter der Kategorie „Geräteeingang“ bzw. „Vorschaden“ hochladen – sie erscheinen auf dem Annahmeschein.</div></div>
+  <div class="s12"><label>Auftrag / Beanstandung laut Kunde</label><textarea name="fehler" placeholder="z. B. Ölwechsel mit Filter, Sommerreifen montieren, Motorkontrollleuchte an">{{ w.fehler or '' }}</textarea></div>
+  <div class="s12"><label>Zustand bei Eingang (Kratzer, Dellen, Steinschlag, Tankfüllung …)</label><textarea name="zustand_eingang" style="min-height:60px">{{ w.zustand_eingang or '' }}</textarea>
+    <div class="hilfe">Bitte zusätzlich Fotos unter der Kategorie „Fahrzeugeingang“ bzw. „Vorschaden“ hochladen – sie erscheinen auf dem Annahmeschein.</div></div>
   {% set zb = zubehoer_teilen(w.zubehoer) %}
-  <div class="s12"><label>Abgegebenes Zubehör</label>
+  <div class="s12"><label>Abgegebene Gegenstände (Schlüssel, Räder, Papiere …)</label>
     <div class="checkliste">{% for v in zb.vorlagen %}<label class="check"><input type="checkbox" name="zubehoer_check" value="{{ v }}" {{ 'checked' if v in zb.gewaehlt }}> {{ v }}</label>{% endfor %}</div>
-    <input type="text" name="zubehoer_sonstiges" value="{{ zb.rest }}" placeholder="Sonstiges Zubehör (frei)" style="margin-top:6px"></div>
+    <input type="text" name="zubehoer_sonstiges" value="{{ zb.rest }}" placeholder="Sonstiges (frei)" style="margin-top:6px"></div>
   <div class="s3"><label>Kosten-Obergrenze (€, brutto)</label><input type="text" name="kosten_obergrenze" value="{{ betrag_feld(w.kosten_obergrenze) }}" placeholder="leer = immer Rückfrage">
-    <div class="hilfe">Bis zu diesem Betrag ohne Rückfrage reparieren.</div></div>
+    <div class="hilfe">Bis zu diesem Betrag ohne Rückfrage arbeiten.</div></div>
   <div class="s3"><label>Kostenvoranschlag</label><label class="check" style="margin-top:8px"><input type="checkbox" name="kva_gewuenscht" value="1" {{ 'checked' if w.kva_gewuenscht and w.kva_gewuenscht|string != '0' }}> KVA gewünscht</label></div>
   {% set kva_typen = kva_gebuehren_liste() %}
-  <div class="s3"><label>Gerätetyp (für die KVA-Pauschale)</label><select name="geraetetyp" id="f_geraetetyp"><option value="">– wählen –</option>{% for t, c in kva_typen %}<option value="{{ t }}" data-cent="{{ c }}" {{ 'selected' if w.geraetetyp == t }}>{{ t }} ({{ c|euro }})</option>{% endfor %}</select></div>
-  <div class="s3"><label>KVA-Pauschale (€, brutto)</label><input type="text" name="kva_gebuehr" id="f_kva_gebuehr" value="{{ betrag_feld(w.kva_gebuehr) if w.kva_gebuehr else '' }}" placeholder="laut Gerätetyp">
+  <div class="s3"><label>Fahrzeugart (für die KVA-Pauschale)</label><select name="geraetetyp" id="f_geraetetyp"><option value="">– wählen –</option>{% for t, c in kva_typen %}<option value="{{ t }}" data-cent="{{ c }}" {{ 'selected' if w.geraetetyp == t }}>{{ t }} ({{ c|euro }})</option>{% endfor %}</select></div>
+  <div class="s3"><label>KVA-Pauschale (€, brutto)</label><input type="text" name="kva_gebuehr" id="f_kva_gebuehr" value="{{ betrag_feld(w.kva_gebuehr) if w.kva_gebuehr else '' }}" placeholder="laut Fahrzeugart">
     <label class="check" style="margin-top:4px"><input type="checkbox" name="kva_kostenlos" value="1" id="f_kva_kostenlos" {{ 'checked' if w.kva_gebuehr is number and w.kva_gebuehr == 0 }}> kostenlos</label>
     <div class="hilfe">Bei Annahme des KVA verrechnet, bei Ablehnung fällig.</div></div>
-  <div class="s3"><label>Gerätezugang</label><select name="zugang_art" class="zugang-art">{% for k, n in zugang_arten.items() %}<option value="{{ k }}" {{ 'selected' if (w.zugang_art or '') == k }}>{{ n if k != 'telefonisch' else 'telefonisch bei Bedarf' }}</option>{% endfor %}</select></div>
-  <div class="s12 zugang-feld">
-    <label>PIN / Passwort / Muster</label>
-    <div class="leiste">
-      <input type="password" name="zugang_wert" autocomplete="new-password" style="flex:1;min-width:180px" placeholder="{{ 'hinterlegt – zum Ändern neu eingeben' if w.zugang_geheim else 'wird verschlüsselt gespeichert' }}">
-      <button type="button" class="zweit klein zugang-zeigen-eingabe" title="Eingabe sichtbar machen">👁</button>
-      {% if w.id and w.zugang_geheim %}<button type="button" class="zweit klein zugang-anzeigen" data-url="{{ url_for('main.auftrag_zugang_anzeigen', aid=w.id) }}">Gespeicherten Zugang anzeigen</button><span class="zugang-ausgabe" style="font-family:monospace;font-weight:700"></span>
-      <label class="check" style="margin:0"><input type="checkbox" name="zugang_loeschen" value="1"> Zugangsdaten jetzt löschen</label>{% endif %}
-    </div>
-    <div class="muster" hidden><div class="muster-raster">{% for i in range(1, 10) %}<button type="button" data-punkt="{{ i }}">{{ i }}</button>{% endfor %}</div><button type="button" class="zweit klein muster-neu">Muster zurücksetzen</button>
-      <span class="klein">Punkte in der Reihenfolge des Musters antippen (1 = oben links, 9 = unten rechts).</span></div>
-    <div class="hilfe">Wird verschlüsselt gespeichert, nie auf dem Annahmeschein gedruckt und nach Abschluss des Auftrags automatisch gelöscht. Jede Anzeige wird im Verlauf vermerkt.{% if w.zugang_geloescht_am %} Zuletzt gelöscht am {{ w.zugang_geloescht_am|zeit_sek }}.{% endif %}</div>
-  </div>
-  <div class="s3"><label>Auftragsart</label><select name="auftragsart" id="f_auftragsart">{% for k, n in [('reparatur', 'Reparatur'), ('garantie', 'Garantiefall (kostenlos)')] %}<option value="{{ k }}" {{ 'selected' if (w.auftragsart or 'reparatur') == k }}>{{ n }}</option>{% endfor %}</select>
+  <input type="hidden" name="zugang_art" value="">
+  <div class="s3"><label>Auftragsart</label><select name="auftragsart" id="f_auftragsart">{% for k, n in [('reparatur', 'Normaler Auftrag'), ('garantie', 'Garantiefall (kostenlos)')] %}<option value="{{ k }}" {{ 'selected' if (w.auftragsart or 'reparatur') == k }}>{{ n }}</option>{% endfor %}</select>
     <input type="hidden" name="garantie_bezug_id" id="f_garantie_bezug" value="{{ w.garantie_bezug_id or '' }}"></div>
-  <div class="s3"><label>Garantie auf diese Reparatur (Monate)</label><input type="text" name="garantie_monate" value="{{ w.garantie_monate if w.garantie_monate is not none else '' }}" placeholder="Standard: {{ einst_garantie() }}"></div>
+  <div class="s3"><label>Garantie auf diese Arbeiten (Monate)</label><input type="text" name="garantie_monate" value="{{ w.garantie_monate if w.garantie_monate is not none else '' }}" placeholder="Standard: {{ einst_garantie() }}"></div>
   <div class="s3 nur-garantie"><label>Interne Kosten (€)</label><input type="text" name="interne_kosten" value="{{ betrag_feld(w.interne_kosten) }}" placeholder="Teile, Zeit"></div>
   <div class="s3 nur-garantie"><label>Notiz interne Kosten</label><input type="text" name="interne_kosten_notiz" value="{{ w.interne_kosten_notiz or '' }}"></div>
-  <div class="s12 klein nur-garantie" id="garantie-bezug-text">{% if w.garantie_bezug_id %}Garantiefall zum Auftrag #{{ w.garantie_bezug_id }} – keine Rechnung beim Erledigen.{% else %}Garantiefall: Bitte über den Hinweis bei der Seriennummer den ursprünglichen Auftrag zuordnen.{% endif %}</div>
-  <div class="s8"><label>Ersatzteil (bei „Wartet auf Teil“)</label><input type="text" name="teil_info" value="{{ w.teil_info or '' }}" placeholder="z. B. Display, bestellt bei …"></div>
+  <div class="s12 klein nur-garantie" id="garantie-bezug-text">{% if w.garantie_bezug_id %}Garantiefall zum Auftrag #{{ w.garantie_bezug_id }} – keine Rechnung beim Erledigen.{% else %}Garantiefall: Bitte über den Hinweis bei der FIN den ursprünglichen Auftrag zuordnen.{% endif %}</div>
+  <div class="s8"><label>Ersatzteil (bei „Wartet auf Teil“)</label><input type="text" name="teil_info" value="{{ w.teil_info or '' }}" placeholder="z. B. Bremsscheiben, bestellt bei …"></div>
   <div class="s4"><label>Ersatzteil erwartet am</label><input type="date" name="teil_erwartet" value="{{ w.teil_erwartet or '' }}"></div>
   <div class="s12"><label>Interne Notizen (z. B. bestellte Teile, Rücksprache)</label><textarea name="notizen">{{ w.notizen or '' }}</textarea></div>
 </div>
