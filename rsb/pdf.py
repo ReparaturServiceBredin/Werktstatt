@@ -21,6 +21,7 @@ from reportlab.platypus import (BaseDocTemplate, Frame, KeepTogether, PageTempla
                                 TableStyle)
 
 from .hilfen import datum_de, euro, iban_format, menge_text
+from . import variante
 
 STATIC = Path(__file__).parent / "static"
 FONTS = STATIC / "fonts"
@@ -107,7 +108,7 @@ def pdf_erzeugen(snap, daten_dir=None, entwurf=False):
     primaer = _farbe(lay.get("farbe_primaer"))
     sekundaer = _farbe(lay.get("farbe_sekundaer"), "#5D6670")
 
-    logo_pfad = STANDARD_LOGO
+    logo_pfad = STANDARD_LOGO.with_name(variante.bild(STANDARD_LOGO.name))
     if lay.get("logo_datei") and daten_dir:
         eigen = Path(daten_dir) / lay["logo_datei"]
         if eigen.is_file():
@@ -267,7 +268,7 @@ def pdf_erzeugen(snap, daten_dir=None, entwurf=False):
     doc = BaseDocTemplate(
         puffer, pagesize=A4, title=f"{snap['titel']} {snap.get('nummer') or 'Entwurf'}",
         author=firma.get("firma_name", ""), subject=snap.get("betreff") or snap["titel"],
-        creator="Werkstatt Sauter",
+        creator=variante.programm(),
     )
     doc.addPageTemplates([
         PageTemplate(id="Erste", frames=[erster_rahmen], onPage=erste_seite, autoNextPageTemplate="Folge"),

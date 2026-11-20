@@ -20,6 +20,7 @@ from pathlib import Path
 
 from . import db as dbm
 from .hilfen import EingabeFehler
+from . import variante
 
 KONTEN = {  # Name: (SKR03, SKR04, Bezeichnung)
     "kasse": ("1000", "1600", "Kasse"),
@@ -198,7 +199,7 @@ def csv_erzeugen(einst, zeilen, von, bis, jetzt=None):
             "", "RE", "", "", einst.get("datev_beraternr") or "", einst.get("datev_mandantennr") or "", wj_beginn,
             int(einst.get("datev_kontenlaenge") or 4), von.replace("-", ""), bis.replace("-", ""),
             f"Buchhaltung {von[:7]}", "", 1, 0, 0, "EUR", "", "", "", "", str(einst.get("datev_skr") or "03"), "", "", "",
-            "Werkstatt-Sauter"]
+            variante.kurz()]
     puffer = io.StringIO()
     w = csv.writer(puffer, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
     w.writerow(kopf)

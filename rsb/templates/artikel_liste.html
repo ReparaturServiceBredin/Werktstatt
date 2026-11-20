@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block titel %}Leistungen & Artikel{% endblock %}
+{% block titel %}{{ 'Reifen, Teile & Leistungen' if hat('reifen') else 'Leistungen & Artikel' }}{% endblock %}
 {% block inhalt %}
 <div class="kopf">
-  <h1>Leistungen &amp; Artikel</h1>
+  <h1>{{ 'Reifen, Teile &amp; Leistungen'|safe if hat('reifen') else 'Leistungen &amp; Artikel'|safe }}</h1>
   <div class="leiste">
-    <form class="leiste" method="get"><input type="text" name="q" value="{{ q }}" placeholder="Suchen, auch in der Beschreibung (z. B. USB-C)" style="width:300px"><button class="zweit">Suchen</button></form>
+    <form class="leiste" method="get"><input type="text" name="q" value="{{ q }}" placeholder="{{ 'Suchen: Name, Nummer, OE-Nr., Fahrzeug, Reifengröße (205/55 R16)' if hat('reifen') else 'Suchen, auch in der Beschreibung (z. B. USB-C)' }}" style="width:300px"><button class="zweit">Suchen</button></form>
     <a class="knopf zweit" href="{{ url_for('main.artikel_aus_dokumenten') }}">Aus bisherigen Dokumenten übernehmen</a>
     <a class="knopf" href="{{ url_for('main.artikel') }}">+ Neu</a>
   </div>
@@ -16,6 +16,8 @@
   {% set marge = a.preis - a.teilekosten %}
   <tr style="{{ 'opacity:.5' if not a.aktiv }}">
     <td><a href="{{ url_for('main.artikel', aid=a.id) }}"><b>{{ a.name }}</b></a>{% if a.artikelnr %} <span class="klein">({{ a.artikelnr }})</span>{% endif %}
+      {% if a.reifen_groesse %} <span class="marke-status st-entwurf">{{ a.reifen_groesse }}{{ (' · ' ~ {'sommer': 'Sommer', 'winter': 'Winter', 'ganzjahr': 'Ganzjahr'}[a.reifen_saison]) if a.reifen_saison }}</span>{% endif %}
+      {% if a.lagerfuehrend %} <span class="klein">· Bestand {{ a.bestand|menge }}</span>{% endif %}
       {% if a.beschreibung %}{% set zeilen = a.beschreibung.splitlines() %}<div class="klein">{{ zeilen[0]|truncate(90) }}{{ ' …' if zeilen|length > 1 and zeilen[0]|length <= 90 }}</div>{% endif %}</td>
     <td>{{ 'Leistung' if a.typ == 'leistung' else 'Artikel' }}<div class="klein">{{ a.leistungsart or '' }}</div></td><td>{{ a.einheit }}</td>
     <td class="zahl">{{ '–' if a.ek_unbekannt else a.teilekosten|euro }}</td><td class="zahl"><b>{{ a.preis|euro }}</b></td>

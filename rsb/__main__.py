@@ -10,7 +10,7 @@ from waitress import serve
 
 from . import VERSION, VERSION_NUMMER, create_app
 from . import db as dbm
-from . import fenster, update
+from . import fenster, update, variante
 from .backup import auto_backup, backup_erstellen
 
 UPDATE_INTERVALL_STUNDEN = 6
@@ -175,7 +175,7 @@ def port_belegt(host, port):
         return s.connect_ex((host if host != "0.0.0.0" else "127.0.0.1", port)) == 0
 
 
-STANDARD_PORT = 5100  # nicht 5000: dort läuft ggf. die RSB-Buchhaltung auf demselben PC
+STANDARD_PORT = 5100  # nicht 5000: dort läuft ggf. die RSB-Buchhaltung auf demselben PC (Reifen & Teile: 5150)
 
 
 def eigenes_programm(host, port):
@@ -185,7 +185,7 @@ def eigenes_programm(host, port):
     try:
         with urllib.request.urlopen(f"http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}/version",
                                     timeout=2) as r:
-            return json.loads(r.read().decode("utf-8")).get("programm") == "Werkstatt Sauter"
+            return json.loads(r.read().decode("utf-8")).get("programm") == variante.programm()
     except Exception:
         return False
 
@@ -225,9 +225,10 @@ def main():
     from .datenort import ermitteln
     os.environ["RSB_DATEN"] = str(ermitteln())  # ein fester Datenordner – auch für Neustart nach Update
     daten_db = os.path.join(os.environ["RSB_DATEN"], "werkstatt.db")
-    host = os.environ.get("RSB_HOST") or ("0.0.0.0" if os.path.exists(daten_db) and im_netz(daten_db) else "127.0.0.1")
+    host = os.environ.get("RSB_HOST") or ("0.0.0.0" if variante.hat("handy") and os.path.exists(daten_db) and im_netz(daten_db)
+                                          else "127.0.0.1")
     port = int(os.environ.get("RSB_PORT") or 0) or freier_port(
-        os.environ.get("RSB_HOST") or "127.0.0.1", STANDARD_PORT)
+        os.environ.get("RSB_HOST") or "127.0.0.1", variante.wert("port"))
     os.environ["RSB_PORT"] = str(port)  # Neustart nach Update nutzt denselben Port
     adresse = f"http://{'localhost' if host in ('127.0.0.1', '0.0.0.0') else host}:{port}"
 
@@ -254,7 +255,7 @@ def main():
     except Exception as e:  # ein fehlgeschlagenes Backup darf den Start nicht verhindern
         print(f"WARNUNG: Automatisches Backup fehlgeschlagen: {e}")
     print("=" * 60)
-    print(f" Werkstatt Sauter, Version {VERSION}")
+    print(f" {variante.programm()}, Version {VERSION}")
     print(f" Läuft unter: {adresse}")
     print(f" Daten-Ordner: {app.config['DATEN']}")
     print("=" * 60)
@@ -271,7 +272,7 @@ def main():
 
     # Symbol neben der Uhr (blockiert bis „Beenden“). Ohne Symbol läuft der Server einfach weiter.
     if not os.environ.get("RSB_KEIN_SYMBOL") and fenster.symbol_anzeigen(
-            f"Werkstatt Sauter {VERSION_NUMMER}", adresse, app.config["DATEN"],
+            f"{variante.programm()} {VERSION_NUMMER}", adresse, app.config["DATEN"],
             lambda: fenster_modus(app.config["DB_PFAD"]), lambda: _beenden(app)):
         os._exit(0)
     try:

@@ -4,8 +4,7 @@ import sys
 
 from rsb.__main__ import main
 
-if __name__ == "__main__":
-    multiprocessing.freeze_support()
+def starten():
     if sys.stdout is None or sys.stderr is None:
         # EXE ohne Konsolenfenster: Meldungen in Daten/programm.log schreiben
         import os
@@ -28,3 +27,8 @@ if __name__ == "__main__":
         except (AttributeError, ValueError):
             pass
     main()
+
+
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    starten()

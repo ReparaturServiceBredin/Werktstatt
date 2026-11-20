@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Thekenverkauf{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Thekenverkauf</h1>
+  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.kassenbuch') }}">Kassenbuch</a></div>
+</div>
+{% if fertig %}
+<div class="meldung ok">Rechnung <b>{{ fertig.nummer }}</b> über <b>{{ fertig.summe_brutto|euro }}</b> gebucht.
+  <a class="knopf klein" href="{{ url_for('main.dokument_pdf', did=fertig.id) }}" target="_blank">Beleg drucken (PDF)</a>
+  <a class="knopf klein zweit" href="{{ url_for('main.dokument', did=fertig.id) }}">Rechnung öffnen</a></div>
+{% endif %}
+<form method="post" id="theke-form" class="karte">{{ csrf() }}
+  <div class="felder">
+    <div class="s8"><label>Artikel suchen – Name, Artikel-/OE-Nummer, EAN, Fahrzeug oder Reifengröße (z. B. 2055516)</label>
+      <input type="text" id="t-suche" placeholder="Suchen und mit Enter bzw. Klick hinzufügen …" autocomplete="off" autofocus>
+      <div id="t-treffer" class="theke-treffer"></div></div>
+    <div class="s4"><label>&nbsp;</label><button type="button" class="zweit" id="t-frei">+ Freie Position</button></div>
+  </div>
+  <table class="liste" id="t-korb" style="margin-top:10px">
+    <tr><th>Artikel</th><th style="width:90px">Menge</th><th style="width:130px">Einzelpreis (€, brutto)</th><th class="zahl" style="width:110px">Summe</th><th style="width:40px"></th></tr>
+    <tr class="leer"><td colspan="5" class="klein">Warenkorb ist leer.</td></tr>
+  </table>
+  <div style="text-align:right;font-size:1.4em;margin:10px 0"><b>Gesamt: <span id="t-summe">0,00 €</span></b>
+    <div class="klein">{{ 'ohne USt (Kleinunternehmer, § 19 UStG)' if steuer_modus == 'kleinunternehmer' else 'inkl. USt' }}</div></div>
+  <div class="felder">
+    <div class="s6"><label>Kunde (optional)</label><select name="kunde_id"><option value="">Laufkunde (ohne Namen, bis 250 €)</option>
+      {% for k in kunden %}<option value="{{ k.id }}">{{ k.kundennr }} · {{ k|kname }}{{ (' · ' ~ k.ort) if k.ort }}</option>{% endfor %}</select></div>
+    <div class="s6"><label>Zahlung</label>
+      <div class="leiste">
+        <label class="check"><input type="radio" name="zahlart" value="bar" checked> Bar (Kassenbuch)</label>
+        <label class="check"><input type="radio" name="zahlart" value="karte"> EC-/Kreditkarte</label>
+        <label class="check"><input type="radio" name="zahlart" value="ueberweisung"> Rechnung (Überweisung)</label>
+      </div></div>
+  </div>
+  <div class="leiste" style="margin-top:12px"><button id="t-buchen">Verkauf buchen</button>
+    <span class="klein">Die Rechnung wird sofort festgeschrieben, lagerführende Artikel werden ausgebucht.</span></div>
+</form>
+<div class="karte">
+  <h2>Heute an der Theke</h2>
+  <table class="liste">
+    <tr><th>Nr.</th><th>Kunde</th><th>Zahlung</th><th class="zahl">Betrag</th><th></th></tr>
+    {% for d in heute_verkauf %}
+    <tr><td><a href="{{ url_for('main.dokument', did=d.id) }}">{{ d.nummer }}</a></td><td>{{ d.kunde_name }}</td>
+      <td>{{ {'bar': 'Bar', 'karte': 'Karte'}.get(d.zahlarten, d.zahlarten or 'offen') }}</td><td class="zahl">{{ d.summe_brutto|euro }}</td>
+      <td><a class="knopf klein zweit" href="{{ url_for('main.dokument_pdf', did=d.id) }}" target="_blank">PDF</a></td></tr>
+    {% else %}<tr><td colspan="5" class="klein">Heute noch kein Verkauf.</td></tr>{% endfor %}
+  </table>
+  {% if heute_verkauf %}<p class="klein">Summe heute: <b>{{ heute_verkauf|sum(attribute='summe_brutto')|euro }}</b></p>{% endif %}
+</div>
+<style>
+.theke-treffer { position: relative; }
+.theke-treffer ul { position: absolute; z-index: 20; left: 0; right: 0; margin: 2px 0 0; padding: 0; list-style: none;
+  background: var(--karte, #fff); border: 1px solid var(--rand, #ccd); border-radius: 6px; max-height: 320px; overflow: auto;
+  box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.theke-treffer li { padding: 7px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.theke-treffer li:hover, .theke-treffer li.aktiv { background: rgba(80,120,200,.12); }
+</style>
+<script>
+(() => {
+  const suche = document.getElementById('t-suche'), treffer = document.getElementById('t-treffer');
+  const korb = document.getElementById('t-korb'), summe = document.getElementById('t-summe');
+  let liste = [], aktiv = 0, timer;
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const euro = c => (c / 100).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const zahl = t => { const v = parseFloat(String(t).replace(/\./g, '').replace(',', '.')); return isNaN(v) ? 0 : v; };
+  function neuRechnen() {
+    let ges = 0;
+    korb.querySelectorAll('tr.pos').forEach(tr => {
+      const m = zahl(tr.querySelector('[name=t_menge]').value), p = Math.round(zahl(tr.querySelector('[name=t_preis]').value) * 100);
+      tr.querySelector('.z').textContent = euro(Math.round(m * p)) + ' €'; ges += Math.round(m * p);
+    });
+    summe.textContent = euro(ges) + ' €';
+    korb.querySelector('tr.leer').hidden = !!korb.querySelector('tr.pos');
+  }
+  function hinzu(a) {
+    const vorhanden = a.id && korb.querySelector(`tr.pos[data-id="${a.id}"]`);
+    if (vorhanden) { const m = vorhanden.querySelector('[name=t_menge]'); m.value = zahl(m.value) + 1; neuRechnen(); return; }
+    const tr = document.createElement('tr'); tr.className = 'pos'; tr.dataset.id = a.id || '';
+    tr.innerHTML = `<td><input type="hidden" name="t_artikel_id" value="${a.id || ''}"><input type="text" name="t_bezeichnung" value="${esc(a.name)}" required>
+        <div class="klein">${esc([a.nr, a.groesse].filter(Boolean).join(' · '))}${a.lager ? ` · Bestand ${esc(a.bestand)}` : ''}</div></td>
+      <td><input type="text" name="t_menge" value="${a.menge || (a.groesse ? 4 : 1)}" inputmode="decimal"></td>
+      <td><input type="text" name="t_preis" value="${a.brutto != null ? euro(a.brutto) : ''}" inputmode="decimal"></td>
+      <td class="zahl z"></td><td><button type="button" class="zweit klein" title="Entfernen">✕</button></td>`;
+    tr.querySelector('button').onclick = () => { tr.remove(); neuRechnen(); };
+    tr.querySelectorAll('input').forEach(i => i.addEventListener('input', neuRechnen));
+    korb.appendChild(tr); neuRechnen();
+  }
+  function zeigen() {
+    if (!liste.length) { treffer.innerHTML = suche.value.trim() ? '<ul><li class="klein">Nichts gefunden – „+ Freie Position“ nutzen.</li></ul>' : ''; return; }
+    treffer.innerHTML = '<ul>' + liste.map((a, i) => `<li data-i="${i}" class="${i === aktiv ? 'aktiv' : ''}"><span><b>${esc(a.name)}</b>
+      <span class="klein">${esc([a.nr, a.groesse].filter(Boolean).join(' · '))}</span></span>
+      <span>${euro(a.brutto)} €${a.lager ? ` <span class="klein">(${esc(a.bestand)} ${esc(a.einheit)})</span>` : ''}</span></li>`).join('') + '</ul>';
+    treffer.querySelectorAll('li[data-i]').forEach(li => li.onclick = () => waehlen(+li.dataset.i));
+  }
+  function waehlen(i) { if (liste[i]) { hinzu(liste[i]); suche.value = ''; liste = []; zeigen(); suche.focus(); } }
+  suche.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const q = suche.value.trim();
+      if (!q) { liste = []; zeigen(); return; }
+      const r = await fetch('{{ url_for("main.theke_suche") }}?q=' + encodeURIComponent(q));
+      liste = r.ok ? await r.json() : []; aktiv = 0; zeigen();
+    }, 200);
+  });
+  suche.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); waehlen(aktiv); }
+    if (ev.key === 'ArrowDown') { aktiv = Math.min(aktiv + 1, liste.length - 1); zeigen(); }
+    if (ev.key === 'ArrowUp') { aktiv = Math.max(aktiv - 1, 0); zeigen(); }
+    if (ev.key === 'Escape') { liste = []; zeigen(); }
+  });
+  document.getElementById('t-frei').onclick = () => hinzu({name: '', brutto: null, menge: 1});
+  document.getElementById('theke-form').addEventListener('submit', ev => {
+    if (!korb.querySelector('tr.pos')) { ev.preventDefault(); alert('Bitte zuerst Artikel in den Warenkorb legen.'); return; }
+    if (!confirm('Verkauf über ' + summe.textContent + ' jetzt buchen? Die Rechnung wird festgeschrieben.')) ev.preventDefault();
+  });
+})();
+</script>
+{% endblock %}

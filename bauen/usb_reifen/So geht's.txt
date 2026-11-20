@@ -1,0 +1,34 @@
+REIFEN & TEILE – Einrichtung auf einem neuen PC
+===============================================
+
+1. Diesen ganzen Ordner auf den PC ziehen (z. B. auf den Desktop).
+2. Im Ordner doppelt auf "Installieren.bat" klicken.
+   - Das Programm wird eingerichtet, auf dem Desktop erscheint "Reifen und Teile".
+   - Kommt "Der Computer wurde durch Windows geschützt": auf "Weitere Informationen"
+     und dann "Trotzdem ausführen" klicken. Das passiert nur beim ersten Mal.
+3. Das Programm startet und ist leer. Zuerst unter
+   Einstellungen -> Firmendaten die eigenen Daten eintragen
+   (Name, Anschrift, Steuernummer, Bankverbindung, Kleinunternehmer ja/nein unter
+   Einstellungen -> Rechnung & Steuer).
+4. Im Kassenbuch einmal den Anfangsbestand buchen (Bargeld, das gerade in der Kasse liegt).
+5. Optional: Einstellungen -> Reifeneinlagerung (Gebühr, feste Lagerplätze, Erinnerungstext)
+   und Einstellungen -> E-Mail (für Rechnungen und Saison-Erinnerungen per E-Mail).
+
+Danach kann der Ordner wieder gelöscht werden. Das Programm startet ab jetzt
+über das Symbol "Reifen und Teile" auf dem Desktop.
+
+Das Wichtigste im Menü
+- Aufträge: Kalender und Tafel, Räderwechsel/Montage/Wuchten mit Checklisten zum Abhaken.
+- Reifeneinlagerung: Räder einlagern (Lagerplatz, Profil, DOT), Etiketten drucken,
+  Saisontausch mit einem Klick, Kunden zum Saisonwechsel erinnern.
+- Thekenverkauf: Teile und Reifen direkt verkaufen, bar oder EC-Karte, Beleg drucken.
+- Reifen, Teile & Leistungen: Suche auch nach Reifengröße (z. B. 2055516) und OE-Nummer.
+- Lager und Einkauf: Bestand, Mindestbestand, Bestellungen bei Lieferanten.
+
+Wichtig zu wissen
+- Updates installiert das Programm selbst (vorher wird automatisch gesichert).
+- Alle Daten liegen nur auf diesem PC:
+  %LOCALAPPDATA%\Reifen-Teile\Daten
+- Tägliche Sicherung: Einstellungen -> Backup. Bitte die Sicherungen ab und zu
+  zusätzlich auf einen USB-Stick kopieren.
+- Ohne Installation geht es auch: Reifen-Teile.exe einfach doppelt anklicken.

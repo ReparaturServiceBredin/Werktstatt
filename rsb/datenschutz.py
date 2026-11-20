@@ -101,6 +101,8 @@ def sperren(con, kid, heute):
         if not schadensfall_abgeschlossen(con, sf):
             gruende.append("offener Schadensfall")
             break
+    if con.execute("SELECT 1 FROM einlagerungen WHERE kunde_id=? AND ausgelagert_am IS NULL", (kid,)).fetchone():
+        gruende.append("eingelagerte Räder")
     if con.execute("SELECT 1 FROM auftraege WHERE kunde_id=? AND garantie_ende >= ?", (kid, heute.isoformat())).fetchone():
         gruende.append("laufende Garantie")
     if con.execute("SELECT 1 FROM vertraege WHERE kunde_id=? AND (status='aktiv' OR ende >= ?)",

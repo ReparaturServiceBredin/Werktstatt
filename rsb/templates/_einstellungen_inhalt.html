@@ -207,7 +207,7 @@
   <p class="klein">Datenordner: <b>{{ daten_ordner }}</b> (fester Ort, egal von wo das Programm gestartet wird; öffnen über das Symbol neben der Uhr → „Daten-Ordner öffnen“).</p>
   {% set wb = einst.wiederherstellung_bericht %}
   {% if wb %}<div class="meldung {{ 'ok' if wb.ok else 'fehler' }}">{% if wb.ok %}Zuletzt eingespielt: <b>{{ wb.quelle }}</b> – jetzt {{ wb.inhalt.anzahl.kunden or 0 }} Kunden, {{ wb.inhalt.anzahl.auftraege or 0 }} Aufträge, {{ wb.inhalt.anzahl.artikel or 0 }} Artikel. Der vorherige Stand liegt in {{ wb.sicherung }}.{% else %}{{ wb.meldung }}{% endif %}</div>{% endif %}
-  {% if onedrive %}<div class="meldung warnung"><b>Ihr Datenordner liegt in OneDrive</b> ({{ daten_ordner }}). OneDrive kann eine geöffnete Datenbank durch eine ältere Fassung ersetzen. Empfehlung: Programm samt Ordner „Daten“ in einen Ordner außerhalb von OneDrive verschieben, z. B. C:\Werkstatt-Sauter, und Sicherungen über „Zusätzlicher Backup-Ordner“ anlegen.</div>{% endif %}
+  {% if onedrive %}<div class="meldung warnung"><b>Ihr Datenordner liegt in OneDrive</b> ({{ daten_ordner }}). OneDrive kann eine geöffnete Datenbank durch eine ältere Fassung ersetzen. Empfehlung: Programm samt Ordner „Daten“ in einen Ordner außerhalb von OneDrive verschieben, z. B. C:\{{ programm_kurz }}, und Sicherungen über „Zusätzlicher Backup-Ordner“ anlegen.</div>{% endif %}
   <p class="klein">Zeigt jede Sicherung mit ihrem Inhalt. Beim Einspielen wird der aktuelle Stand vorher vollständig gesichert (vor_wiederherstellung_….zip, erscheint danach ebenfalls hier). Fotos und PDFs werden ergänzt, nie gelöscht. Das Programm startet dafür kurz neu.</p>
   <div style="overflow-x:auto"><table class="liste"><thead><tr><th>Stand</th><th>Quelle</th><th class="zahl">Kunden</th><th class="zahl">Aufträge</th><th class="zahl">Artikel</th><th class="zahl">Belege</th><th class="zahl">Fotos</th><th>Firmendaten</th><th></th></tr></thead><tbody>
   {% for q in wh_quellen %}{% set i = q.inhalt %}<tr>
@@ -343,7 +343,7 @@
     <div class="s12">{{ haken('benachrichtigung_vorschau', 'Vor jedem Versand Vorschau anzeigen (empfohlen) – sonst wird sofort gesendet') }}</div>
     <div class="s3"><label>Versandweg</label><select name="benachrichtigung_kanal">
       <option value="email" {{ 'selected' if einst.benachrichtigung_kanal != 'sms' }}>E-Mail</option>
-      <option value="sms" {{ 'selected' if einst.benachrichtigung_kanal == 'sms' }}>SMS (Anbieter noch nicht eingerichtet)</option></select></div>
+      {% if hat('handy') %}<option value="sms" {{ 'selected' if einst.benachrichtigung_kanal == 'sms' }}>SMS (Anbieter noch nicht eingerichtet)</option>{% endif %}</select></div>
     <div class="s3"><label>Abhol-Erinnerung nach (Tagen)</label><input type="text" name="erinnerung_tage" value="{{ einst.erinnerung_tage }}">
       <div class="hilfe">z. B. 7, 14, 30 – Tage nach „Erledigt“</div></div>
     <div class="s6"><label>Öffnungszeiten (für {Öffnungszeiten})</label><textarea name="oeffnungszeiten" style="min-height:60px">{{ einst.oeffnungszeiten or '' }}</textarea></div>
@@ -387,12 +387,35 @@
     <div class="s12"><label>Abholbedingungen (Abholfrist, Standgebühr, Räder-Einlagerung)</label><textarea name="annahme_abholbedingungen" style="min-height:130px">{{ einst.annahme_abholbedingungen or '' }}</textarea></div>
     <div class="s12"><label>Bestätigung auf dem Abholschein</label><textarea name="abholschein_text" style="min-height:60px">{{ einst.abholschein_text or '' }}</textarea></div>
   </div>
+  {% if hat('handy') %}
   <h2 style="margin-top:18px">Handy / Tablet im WLAN</h2>
   <p class="klein">Damit Kunden auf dem Handy oder Tablet unterschreiben bzw. Sie Fotos mit dem Handy aufnehmen können (QR-Code), muss das Programm im eigenen WLAN erreichbar sein. Aus dem Netzwerk sind dann <b>nur</b> die zeitlich begrenzten QR-Code-Seiten ohne Anmeldung erreichbar; alles andere nur, wenn der Passwortschutz eingeschaltet ist und man sich anmeldet. Änderung wirkt nach einem <b>Neustart</b> des Programms. Windows fragt beim ersten Start evtl. nach einer Firewall-Freigabe – bitte nur für „Private Netzwerke“ zulassen.</p>
   <div class="felder">
     <div class="s12">{{ haken('handy_im_netz', 'Programm im WLAN erreichbar machen (für QR-Codes am Handy)') }}</div>
     <div class="s6"><label>Adresse für QR-Codes (optional)</label><input type="text" name="handy_adresse" value="{{ einst.handy_adresse or '' }}" placeholder="automatisch, z. B. 192.168.178.20:5000">
       <div class="hilfe">Nur nötig, wenn die automatisch erkannte Adresse nicht passt.</div></div>
+  </div>
+  {% endif %}<br>
+  <button>Speichern</button>
+</form>
+
+{% elif bereich == 'einlagerung' %}
+<form method="post" class="karte">{{ csrf() }}
+  <h2>Reifeneinlagerung</h2>
+  <div class="felder">
+    <div class="s3"><label>Gebühr je Satz und Saison (€, brutto)</label><input type="text" name="einlagerung_gebuehr_cent" value="{{ (einst.einlagerung_gebuehr_cent or 0)|euro(false) }}">
+      <div class="hilfe">Vorschlag für neue Einlagerungen, je Satz änderbar.</div></div>
+    <div class="s3"><label>Profil-Warnung Sommer unter (mm)</label><input type="text" name="einlagerung_profil_warnung_sommer" value="{{ einst.einlagerung_profil_warnung_sommer|menge }}"></div>
+    <div class="s3"><label>Profil-Warnung Winter unter (mm)</label><input type="text" name="einlagerung_profil_warnung_winter" value="{{ einst.einlagerung_profil_warnung_winter|menge }}"></div>
+    <div class="s3"><label>Reifen-Alter Warnung ab (Jahre, DOT)</label><input type="number" min="1" max="15" name="einlagerung_dot_warnung_jahre" value="{{ einst.einlagerung_dot_warnung_jahre }}"></div>
+    <div class="s6"><label>Feste Lagerplätze (optional, einer je Zeile)</label><textarea name="einlagerung_lagerplaetze" style="min-height:140px;font-family:monospace" placeholder="A-01&#10;A-02&#10;B-01">{{ einst.einlagerung_lagerplaetze or '' }}</textarea>
+      <div class="hilfe">Beim Einlagern werden die freien Plätze vorgeschlagen. Leer lassen = Lagerplatz frei eintippen.</div></div>
+    <div class="s6">
+      <label>An Winterräder erinnern im Monat</label><input type="number" min="1" max="12" name="erinnerung_winter_monat" value="{{ einst.erinnerung_winter_monat }}">
+      <label style="margin-top:8px">An Sommerräder erinnern im Monat</label><input type="number" min="1" max="12" name="erinnerung_sommer_monat" value="{{ einst.erinnerung_sommer_monat }}">
+      <div class="hilfe">Rund um diese Monate zeigt das Menü, wie viele Kunden noch zu erinnern sind (Reifeneinlagerung → Saisonwechsel).</div></div>
+    <div class="s12"><label>Text der Erinnerungs-E-Mail</label><textarea name="erinnerung_text" style="min-height:180px">{{ einst.erinnerung_text or '' }}</textarea>
+      <div class="hilfe">Platzhalter: <code>{anrede}</code> <code>{saison}</code> (Sommer/Winter) <code>{kennzeichen}</code> <code>{lagerplatz}</code> <code>{nummer}</code> <code>{telefon}</code> <code>{firma}</code></div></div>
   </div><br>
   <button>Speichern</button>
 </form>
@@ -402,7 +425,7 @@
   <h2>Version {{ version }}</h2>
   {% if not ist_exe %}
     <div class="meldung info">Sie nutzen die Installation per <code>start.bat</code>. Automatische Updates gibt es nur in der
-      EXE-Version (<b>Werkstatt-Sauter.exe</b>, siehe Anleitung). Die EXE benutzt denselben festen Datenordner – Ihre
+      EXE-Version (<b>{{ programm_kurz }}.exe</b>, siehe Anleitung). Die EXE benutzt denselben festen Datenordner – Ihre
       Daten sind dort sofort da.</div>
   {% endif %}
   {% if update_da %}

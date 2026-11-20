@@ -29,7 +29,8 @@ def fester_ort():
         basis = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     else:
         basis = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
-    return basis / "Werkstatt-Sauter" / "Daten"
+    from . import variante
+    return basis / variante.kurz() / "Daten"
 
 
 def _programm_ordner():

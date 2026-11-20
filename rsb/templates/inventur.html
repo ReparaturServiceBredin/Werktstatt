@@ -6,7 +6,7 @@
 <div class="kopf"><h1>{{ inv.bezeichnung }} <span class="klein">Stichtag {{ inv.stichtag|datum }}</span></h1>
   {% if not mobil and not druck %}<div class="leiste"><a class="knopf zweit" href="{{ url_for('main.lager', ansicht='inventur') }}">← Inventuren</a>
     {% if offen %}<a class="knopf zweit" href="{{ url_for('main.inventur', iid=inv.id, druck=1) }}" target="_blank">Zählliste drucken</a>
-    <form method="post" action="{{ url_for('main.inventur_handy', iid=inv.id) }}">{{ csrf() }}<button class="zweit">📱 Am Handy zählen (QR-Code)</button></form>{% endif %}
+    {% if hat('handy') %}<form method="post" action="{{ url_for('main.inventur_handy', iid=inv.id) }}">{{ csrf() }}<button class="zweit">📱 Am Handy zählen (QR-Code)</button></form>{% endif %}{% endif %}
     {% if inv.pdf_datei %}<a class="knopf" href="{{ url_for('main.inventur_protokoll', iid=inv.id) }}" target="_blank">Inventurprotokoll (PDF)</a>{% endif %}</div>{% endif %}
   {% if druck %}<button onclick="window.print()" class="zweit">Drucken</button>{% endif %}
 </div>

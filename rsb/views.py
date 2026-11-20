@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import db as dbm
 from . import benachrichtigung as ben
-from . import katalog, logik
+from . import katalog, logik, variante
 from . import navigation as nav
 from . import lager as lgr
 from .backup import backup_erstellen
@@ -151,6 +151,13 @@ def start():
     letzte = con.execute(
         "SELECT d.*, k.firma, k.vorname, k.nachname, k.typ AS ktyp FROM dokumente d "
         "LEFT JOIN kunden k ON k.id=d.kunde_id ORDER BY d.geaendert_am DESC LIMIT 8").fetchall()
+    if variante.hat("reifen"):
+        from . import reifen as rf_
+        zahlen["einlagerung"] = rf_.zahlen(con)
+        zahlen["saison_ziel"] = rf_.saison_ziel(dbm.einstellungen(con))
+        zahlen["theke_heute"] = con.execute(
+            "SELECT COUNT(*), COALESCE(SUM(summe_brutto), 0) FROM dokumente WHERE typ='rechnung' AND status<>'entwurf' "
+            "AND betreff='Verkauf' AND datum=?", (heute(),)).fetchone()
     from . import kalender as kal_
     from .hilfen import heute_datum
     return render_template("start.html", zahlen=zahlen, letzte=letzte, jahr=jahr,
@@ -232,7 +239,11 @@ def kunde(kid=None):
         "WHERE s.leihe_id=l.id AND s.storniert_am IS NULL) AS schaden_summe FROM leihen l "
         "JOIN leihgeraete g ON g.id=l.geraet_id WHERE l.kunde_id=? ORDER BY l.ausgabe_am DESC", (kid,)).fetchall() \
         if kid else []
-    return render_template("kunde.html", k=k, dokumente=dokumente, anfragen=kunden_anfragen,
+    einlagerungen = []
+    if kid and variante.hat("reifen"):
+        from .reifen import kunde_einlagerungen
+        einlagerungen = kunde_einlagerungen(con, kid)
+    return render_template("kunde.html", k=k, dokumente=dokumente, anfragen=kunden_anfragen, einlagerungen=einlagerungen,
                            aenderungen=dbm.aenderungen_liste(con, "kunde", kid) if kid else [],
                            auftraege=kunden_auftraege, vertraege=kunden_vertraege, abrechnung=vtr.ABRECHNUNG,
                            leihen=kunden_leihen, heute=date.today().isoformat(),
@@ -391,6 +402,9 @@ def _leistungsarten():
 @bp.route("/artikel")
 def artikel_liste():
     q = request.args.get("q", "").strip()
+    if variante.hat("reifen"):  # zusätzlich Suche nach Reifengröße (205/55 R16, 2055516) und OE-Nummer
+        from .reifen import artikel_suche
+        return render_template("artikel_liste.html", artikel=artikel_suche(dbm.get_db(), q, nur_aktive=False), q=q)
     sql, args = "SELECT * FROM artikel WHERE 1=1", []
     if q:
         sql += (" AND (name LIKE ? OR artikelnr LIKE ? OR leistungsart LIKE ? OR beschreibung LIKE ? OR ean LIKE ? "
@@ -433,6 +447,10 @@ def artikel(aid=None):
             "lagerort": _f("lagerort"), "ean": _f("ean"), "herstellernr": _f("herstellernr"),
             "kompatibilitaet": _f("kompatibilitaet"),
         }
+        if variante.hat("reifen"):
+            from .reifen import SAISONS, groesse_text
+            felder["reifen_groesse"] = groesse_text(_f("reifen_groesse"))
+            felder["reifen_saison"] = _f("reifen_saison") if _f("reifen_saison") in SAISONS else ""
         if a and a["lagerfuehrend"] and not felder["lagerfuehrend"] and (a["bestand"] or 0):
             raise EingabeFehler("Der Artikel hat noch Lagerbestand. Bitte erst auf 0 korrigieren, dann „lagerführend“ "
                                 "ausschalten.")
@@ -468,7 +486,8 @@ ARTIKEL_FELDNAMEN = {"artikelnr": "Artikelnummer", "name": "Bezeichnung", "besch
                      "aktiv": "aktiv", "ek_unbekannt": "Einkauf unbekannt",
                      "garantie_monate": "Garantie (Monate)", "lagerfuehrend": "lagerführend",
                      "mindestbestand": "Mindestbestand", "lagerort": "Lagerort", "ean": "EAN",
-                     "herstellernr": "Herstellernummer", "kompatibilitaet": "Kompatibilität"}
+                     "herstellernr": "Herstellernummer", "kompatibilitaet": "Kompatibilität",
+                     "reifen_groesse": "Reifengröße", "reifen_saison": "Saison"}
 
 
 @bp.route("/artikel/<int:aid>/loeschen", methods=["POST"])
@@ -553,7 +572,7 @@ def inventur_neu():
     con = dbm.get_db()
     with dbm.Transaktion(con):
         iid = lgr.inventur_anlegen(con, _f("stichtag") or date.today().isoformat(), _f("bezeichnung"))
-    flash("Inventur angelegt. Jetzt zählen – am PC, ausgedruckt oder per Handy.", "ok")
+    flash("Inventur angelegt. Jetzt zählen – am PC, ausgedruckt" + (" oder per Handy." if variante.hat("handy") else "."), "ok")
     return redirect(url_for("main.inventur", iid=iid))
 
 
@@ -1619,6 +1638,9 @@ EINSTELLUNGS_BEREICHE = {
     "annahme": ["garantie_monate", "garantie_text", "kva_gebuehren", "annahme_kva_text", "annahme_zubehoer", "checklisten", "kalender_von", "kalender_bis", "kalender_samstag", "dauer_je_leistung",
                 "annahme_datenschutz", "annahme_abholbedingungen",
                 "abholschein_text", "handy_im_netz", "handy_adresse"],
+    "einlagerung": ["einlagerung_gebuehr_cent", "einlagerung_profil_warnung_sommer", "einlagerung_profil_warnung_winter",
+                    "einlagerung_dot_warnung_jahre", "einlagerung_lagerplaetze", "erinnerung_winter_monat",
+                    "erinnerung_sommer_monat", "erinnerung_text"],
     "mahnwesen": ["mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage", "mahngebuehr_cent",
                   "mahngebuehr_2_cent", "mahn_text_0", "mahn_text_1", "mahn_text_2", "mahn_email_betreff",
                   "mahn_email_text", "zinsen_aktiv", "basiszinssatz", "zinsen_aufschlag_privat",
@@ -1635,8 +1657,9 @@ JA_NEIN = {f"ben_{a}_aktiv" for a in ben.ANLAESSE} | {"ds_auto", "benachrichtigu
 GANZZAHL = {"kalender_von", "kalender_bis", "fixkosten_hinweis_tage", "ds_kunde_inaktiv_jahre", "ds_fotos_jahre", "ds_leihe_jahre", "ds_vorschau_tage", "ds_zugang_tage", "ds_email_jahre", "datev_kontenlaenge", "datev_debitor_start", "datev_kreditor_start", "mindest_marge_prozent", "garantie_monate", "mahn_erinnerung_tage", "mahn_stufe1_tage", "mahn_stufe2_tage", "mahn_frist_tage",
             "zinsen_aufschlag_privat", "zinsen_aufschlag_firma", "aufbewahrung_belege_jahre", "aufbewahrung_briefe_jahre", "historie_zeitraum_tage", "gesendet_imap_port", "vertrag_erinnerung_tage", "zahlungsziel_privat", "zahlungsziel_firma", "kva_gueltig_tage", "anzahlung_prozent", "mahnstufen", "smtp_port",
             "backup_behalten", "regel_steuersatz", "anfragen_intervall_min", "imap_port", "anfrage_schwelle_unsicher",
-            "anfrage_schwelle_spam", "interessent_loeschen_monate"}
-KOMMAZAHL = {"schriftgroesse", "logo_breite_mm"}
+            "anfrage_schwelle_spam", "interessent_loeschen_monate", "einlagerung_dot_warnung_jahre",
+            "erinnerung_winter_monat", "erinnerung_sommer_monat"}
+KOMMAZAHL = {"schriftgroesse", "logo_breite_mm", "einlagerung_profil_warnung_sommer", "einlagerung_profil_warnung_winter"}
 
 
 @bp.route("/einstellungen", methods=["GET", "POST"])
@@ -1656,7 +1679,7 @@ def einstellungen(bereich=None):
         for feld in EINSTELLUNGS_BEREICHE[bereich]:
             if feld in JA_NEIN:
                 neu[feld] = bool(request.form.get(feld))
-            elif feld in ("mahngebuehr_cent", "mahngebuehr_2_cent", "annahme_kva_gebuehr_cent"):
+            elif feld in ("mahngebuehr_cent", "mahngebuehr_2_cent", "annahme_kva_gebuehr_cent", "einlagerung_gebuehr_cent"):
                 neu[feld] = cent_aus_text(_f(feld))
             elif feld in GANZZAHL:
                 neu[feld] = int(zahl_aus_text(_f(feld), 0))
@@ -1765,6 +1788,8 @@ def einstellungen(bereich=None):
 
 
 def _bereich_gueltig(bereich):
+    if bereich == "einlagerung" and not variante.hat("reifen"):
+        return "firma"
     return bereich if bereich in EINSTELLUNGS_BEREICHE or bereich == "sicherheit" else "firma"
 
 
@@ -1785,6 +1810,9 @@ _EINSTELLUNGS_INDEX = {}
 
 def einstellungs_index():
     """Alle Abschnitte und Felder der Einstellungen (für die Suche) – aus den gerenderten Seiten gelesen."""
+    if _EINSTELLUNGS_INDEX.get("variante") != variante.name():
+        _EINSTELLUNGS_INDEX.clear()
+        _EINSTELLUNGS_INDEX["variante"] = variante.name()
     if "liste" not in _EINSTELLUNGS_INDEX:
         from .einstellungs_suche import felder_lesen
         liste = []
@@ -1848,7 +1876,7 @@ def logo_anzeigen():
     eigen = dbm.einstellung("logo_datei")
     pfad = Path(daten_dir()) / eigen if eigen else None
     if not pfad or not pfad.is_file():
-        pfad = Path(__file__).parent / "static" / "bilder" / "logo_standard.png"
+        pfad = Path(__file__).parent / "static" / "bilder" / variante.bild("logo_standard.png")
     return send_file(pfad, mimetype="image/png")
 
 
@@ -2018,7 +2046,7 @@ def pruefung():
 
 @bp.route("/verfahrensdokumentation")
 def verfahrensdokumentation():
-    from . import VERSION_NUMMER
+    VERSION_NUMMER = variante.version()
     from . import verfahrensdoku as vd
     abschnitte = vd.inhalt(dbm.get_db(), daten_dir(), VERSION_NUMMER)
     if request.args.get("pdf"):
@@ -2376,7 +2404,8 @@ def auftrag_neu():
                 flash("Rechnungsentwurf wurde erstellt. Bitte prüfen und festschreiben.", "ok")
                 return redirect(url_for("main.dokument", did=neue_rechnung))
             _benachrichtigungen_automatisch()
-            flash("Jetzt den Annahmeschein vom Kunden unterschreiben lassen (am PC/Tablet oder per QR-Code am Handy).",
+            flash("Jetzt den Annahmeschein vom Kunden unterschreiben lassen" + (" (am PC/Tablet oder per QR-Code am Handy)."
+                                                                            if variante.hat("handy") else " (am PC)."),
                   "info")
             return redirect(url_for("main.auftrag", aid=aid) + "#annahmeschein")
     if request.method == "GET":
@@ -3629,13 +3658,13 @@ from . import update as upd  # noqa: E402
 
 @bp.route("/version")
 def version_info():
-    from . import PROGRAMM, VERSION_NUMMER
-    return jsonify(programm=PROGRAMM, version=VERSION_NUMMER, gestartet=current_app.config.get("GESTARTET"))
+    VERSION_NUMMER = variante.version()
+    return jsonify(programm=variante.programm(), version=VERSION_NUMMER, gestartet=current_app.config.get("GESTARTET"))
 
 
 @bp.route("/update/pruefen", methods=["POST"])
 def update_pruefen():
-    from . import VERSION_NUMMER
+    VERSION_NUMMER = variante.version()
     con = dbm.get_db()
     try:
         info = upd.neueste_version()
@@ -3656,7 +3685,7 @@ def update_pruefen():
 
 @bp.route("/update/installieren", methods=["POST"])
 def update_installieren():
-    from . import VERSION_NUMMER
+    VERSION_NUMMER = variante.version()
     if not upd.ist_exe():
         raise EingabeFehler("Automatische Updates gibt es nur in der EXE-Version. Bei der Installation per "
                             "start.bat bitte die neue Version von GitHub herunterladen.")

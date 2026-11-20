@@ -97,6 +97,7 @@ def kunde_loeschen(con, kunde_id):
         con.execute("DELETE FROM positionen WHERE dokument_id=?", (d["id"],))
         con.execute("DELETE FROM dokumente WHERE id=?", (d["id"],))
     con.execute("DELETE FROM anfragen WHERE kunde_id=?", (kunde_id,))
+    con.execute("DELETE FROM einlagerungen WHERE kunde_id=? AND ausgelagert_am IS NOT NULL", (kunde_id,))
     con.execute("DELETE FROM vertraege WHERE kunde_id=? AND id NOT IN (SELECT vertrag_id FROM vertrag_abrechnungen)",
                 (kunde_id,))
     for aid in _auftraege_ohne_bindung(con, kunde_id):

@@ -8,4 +8,5 @@ __pycache__/
 dist/
 build/
 version_info.txt
+version_info_reifen.txt
 release_notes.md

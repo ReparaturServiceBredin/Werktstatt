@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}{{ e.nummer if e else 'Räder einlagern' }}{% endblock %}
+{% block inhalt %}
+{% set w = e or v %}
+{% set gesperrt = e and e.ausgelagert_am %}
+<div class="kopf">
+  <h1>{% if e %}Einlagerung {{ e.nummer }}{% elif v.vorgaenger_id %}Saisontausch: abgenommene Räder einlagern{% else %}Räder einlagern{% endif %}
+    {% if e %}<span class="marke-status {{ 'st-entwurf' if e.ausgelagert_am else 'st-bezahlt' }}">{{ 'ausgelagert am ' ~ (e.ausgelagert_am|datum) if e.ausgelagert_am else 'eingelagert' }}</span>{% endif %}</h1>
+  {% if e %}<div class="leiste">
+    <a class="knopf zweit" href="{{ url_for('main.einlagerung_pdf', eid=e.id) }}" target="_blank">Einlagerungsschein (PDF)</a>
+    <a class="knopf zweit" href="{{ url_for('main.einlagerung_pdf', eid=e.id, etiketten=1) }}" target="_blank">Etiketten drucken</a>
+    {% if e.rechnung_id %}<a class="knopf zweit" href="{{ url_for('main.dokument', did=e.rechnung_id) }}">Rechnung</a>
+    {% else %}<form method="post" action="{{ url_for('main.einlagerung_rechnung', eid=e.id) }}">{{ csrf() }}<button class="zweit">Gebühr abrechnen</button></form>{% endif %}
+  </div>{% endif %}
+</div>
+{% if v.vorgaenger_id %}<div class="meldung info">Der bisher eingelagerte Satz (Platz <b>{{ v.lagerplatz or '–' }}</b>) wird beim Speichern automatisch ausgelagert. Die abgenommenen Räder kommen an denselben Platz.</div>{% endif %}
+{% if warnungen %}<div class="meldung warnung">{% for x in warnungen %}<div>{{ x }}</div>{% endfor %}</div>{% endif %}
+{% if e and not e.ausgelagert_am %}
+<div class="karte">
+  <h2>Saisonwechsel</h2>
+  <div class="leiste">
+    <form method="post" action="{{ url_for('main.einlagerung_tausch', eid=e.id) }}">{{ csrf() }}<button>Tauschen: diese Räder auslagern, abgenommene einlagern</button></form>
+    <form method="post" action="{{ url_for('main.einlagerung_auslagern', eid=e.id) }}" class="leiste" onsubmit="return confirm('Satz als ausgelagert (abgeholt) markieren?')">{{ csrf() }}
+      <input type="date" name="datum" value="{{ heute }}"><input type="text" name="notiz" placeholder="Notiz (z. B. Kunde hat Räder mitgenommen)" style="width:260px"><button class="zweit">Nur auslagern</button></form>
+  </div>
+</div>
+{% elif e and e.ausgelagert_am %}
+<div class="karte"><p>Ausgelagert am {{ e.ausgelagert_am|datum }}{{ (' – ' ~ e.auslagerung_notiz) if e.auslagerung_notiz }}.
+  {% if nachfolger %}Nachfolger: <a href="{{ url_for('main.einlagerung', eid=nachfolger.id) }}">{{ nachfolger.nummer }}</a>.{% endif %}</p>
+  <form method="post" action="{{ url_for('main.einlagerung_wieder', eid=e.id) }}">{{ csrf() }}<button class="zweit klein">Auslagerung rückgängig</button></form></div>
+{% endif %}
+<form method="post" class="karte">{{ csrf() }}
+  <input type="hidden" name="auftrag_id" value="{{ w.auftrag_id or '' }}">
+  <input type="hidden" name="vorgaenger_id" value="{{ w.vorgaenger_id or '' }}">
+  <fieldset {{ 'disabled' if gesperrt }} style="border:0;padding:0;margin:0">
+  <div class="felder">
+    <div class="s6"><label>Kunde</label><select name="kunde_id" required><option value="">– bitte wählen –</option>
+      {% for k in kunden %}<option value="{{ k.id }}" {{ 'selected' if (w.kunde_id|string) == (k.id|string) }}>{{ k.kundennr }} · {{ k|kname }}{{ (' · ' ~ k.ort) if k.ort }}</option>{% endfor %}</select>
+      <div class="hilfe"><a href="{{ url_for('main.kunde') }}" target="_blank">+ neuen Kunden anlegen</a> (danach diese Seite neu laden)</div></div>
+    <div class="s3"><label>Kennzeichen</label><input type="text" name="kennzeichen" list="kz" value="{{ w.kennzeichen or '' }}" style="text-transform:uppercase" placeholder="z. B. HN-AB 123" autocomplete="off">
+      <datalist id="kz">{% for x in kennzeichen %}<option value="{{ x }}">{% endfor %}</datalist></div>
+    <div class="s3"><label>Fahrzeug</label><input type="text" name="fahrzeug" value="{{ w.fahrzeug or '' }}" placeholder="z. B. VW Golf VII"></div>
+    <div class="s3"><label>Saison</label><select name="saison">{% for k, n in saisons.items() %}<option value="{{ k }}" {{ 'selected' if (w.saison or 'winter') == k }}>{{ n }}räder/-reifen</option>{% endfor %}</select></div>
+    <div class="s3"><label>Art</label><select name="art">{% for k, n in arten.items() %}<option value="{{ k }}" {{ 'selected' if (w.art or 'raeder') == k }}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="s3"><label>Felge</label><select name="felge"><option value="">–</option>{% for f in felgen %}<option {{ 'selected' if w.felge == f }}>{{ f }}</option>{% endfor %}</select></div>
+    <div class="s3"><label>Anzahl</label><input type="number" name="anzahl" min="1" max="10" value="{{ w.anzahl or 4 }}"></div>
+    <div class="s6"><label>Reifen (Hersteller, Modell)</label><input type="text" name="hersteller" value="{{ w.hersteller or '' }}" placeholder="z. B. Continental WinterContact TS 870"></div>
+    <div class="s3"><label>Größe</label><input type="text" name="groesse" value="{{ w.groesse or '' }}" placeholder="205/55 R16 91H"></div>
+    <div class="s3"><label>Lagerplatz</label><input type="text" name="lagerplatz" list="plaetze" value="{{ w.lagerplatz or '' }}" style="text-transform:uppercase" placeholder="z. B. A-03-2">
+      <datalist id="plaetze">{% for p in freie_plaetze %}<option value="{{ p }}">{% endfor %}</datalist>
+      <label class="check klein"><input type="checkbox" name="platz_trotzdem" value="1"> auch wenn belegt</label></div>
+  </div>
+  <h2 style="margin-top:14px">Profiltiefe und DOT je Rad</h2>
+  <table class="liste" style="max-width:640px">
+    <tr><th>Rad</th><th>Profil (mm)</th><th>DOT (Woche+Jahr, z. B. 2321)</th><th>Alter</th></tr>
+    {% for f, k in positionen %}
+    <tr><td><b>{{ k }}</b></td>
+      <td><input type="text" inputmode="decimal" name="profil_{{ f }}" value="{{ (w['profil_' ~ f]|menge) if w['profil_' ~ f] is number else '' }}" style="width:90px" placeholder="mm"></td>
+      <td><input type="text" inputmode="numeric" name="dot_{{ f }}" maxlength="4" value="{{ w['dot_' ~ f] or '' }}" style="width:110px" placeholder="WWJJ"></td>
+      <td class="klein">{% set a = dot_alter(w['dot_' ~ f]) %}{{ (a|menge ~ ' Jahre') if a is not none else '' }}</td></tr>
+    {% endfor %}
+  </table>
+  <div class="hilfe">Tipp: Werte in VL eintragen und mit dem Knopf auf alle Räder übernehmen. <button type="button" class="zweit klein" id="alle-gleich">VL auf alle übernehmen</button></div>
+  <div class="felder" style="margin-top:10px">
+    <div class="s6"><label>Zubehör dabei</label><input type="text" name="zubehoer" value="{{ w.zubehoer or '' }}" placeholder="z. B. Radschrauben, Radkappen, Felgenschloss-Adapter"></div>
+    <div class="s3"><label>Gebühr je Saison (€, brutto)</label><input type="text" name="gebuehr" value="{{ (w.gebuehr|euro(false)) if w.gebuehr is number else (w.gebuehr or '') }}"></div>
+    <div class="s3"><label>Eingelagert am</label><input type="date" name="eingelagert_am" value="{{ w.eingelagert_am or heute }}"></div>
+    <div class="s12"><label>Bemerkung (z. B. Schäden, Felgenkratzer)</label><textarea name="bemerkung" style="min-height:60px">{{ w.bemerkung or '' }}</textarea></div>
+  </div>
+  {% if not gesperrt %}<div class="leiste" style="margin-top:12px"><button>{{ 'Speichern' if e else 'Einlagern' }}</button>
+    {% if e %}<a class="knopf zweit" href="{{ url_for('main.einlagerungen') }}">Zur Liste</a>{% endif %}</div>{% endif %}
+  </fieldset>
+</form>
+{% if aenderungen %}
+<details class="karte"><summary>Änderungsverlauf ({{ aenderungen|length }})</summary>
+<table class="liste">{% for a in aenderungen %}<tr><td class="klein">{{ a.zeitpunkt|zeit_sek }}</td><td>{{ a.aktion }}</td><td>{{ a.feld or '' }}</td><td class="klein">{{ a.alt or '' }} → {{ a.neu or '' }}</td></tr>{% endfor %}</table></details>
+{% endif %}
+<script>
+document.getElementById('alle-gleich')?.addEventListener('click', () => {
+  for (const art of ['profil', 'dot']) {
+    const vl = document.querySelector(`[name=${art}_vl]`).value;
+    for (const p of ['vr', 'hl', 'hr']) { const el = document.querySelector(`[name=${art}_${p}]`); if (!el.value) el.value = vl; }
+  }
+});
+</script>
+{% endblock %}

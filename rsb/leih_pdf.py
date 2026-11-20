@@ -64,7 +64,8 @@ def protokoll_pdf(con, leihe_id, art, daten_dir):
     firma = einst.get("firma_name") or ""
     adresse = ", ".join(x for x in [einst.get("strasse"), " ".join(x for x in [einst.get("plz"), einst.get("ort")] if x)]
                         if x)
-    logo = STANDARD_LOGO
+    from . import variante
+    logo = STANDARD_LOGO.with_name(variante.bild(STANDARD_LOGO.name))
     if einst.get("logo_datei") and (Path(daten_dir) / einst["logo_datei"]).is_file():
         logo = Path(daten_dir) / einst["logo_datei"]
 

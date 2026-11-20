@@ -64,6 +64,91 @@ Bremsflüssigkeit geprüft
 Probefahrt mit Bremstest
 """
 
+# Reifen & Teile (Variante „reifen“): Leistungen und Checklisten einer Reifenwerkstatt
+CHECKLISTEN_REIFEN = """[Räderwechsel]
+Fahrzeug angehoben, Räder abgenommen
+Räder markiert (VL, VR, HL, HR)
+Profiltiefe, DOT und Zustand der Reifen geprüft
+Radnabe und Anlageflächen gereinigt
+Räder montiert, Radschrauben mit Drehmomentschlüssel angezogen
+Reifendruck nach Herstellerangabe eingestellt
+RDKS geprüft bzw. angelernt
+Kunde auf Nachziehen der Radschrauben nach 50 km hingewiesen
+
+[Reifenmontage]
+Alte Reifen demontiert
+Felgen geprüft und gereinigt
+Ventile erneuert bzw. RDKS-Sensoren geprüft
+Neue Reifen montiert (Laufrichtung und DOT beachtet)
+Reifendruck eingestellt
+Altreifen zur Entsorgung genommen bzw. dem Kunden mitgegeben
+
+[Auswuchten]
+Alte Auswuchtgewichte entfernt
+Räder auf der Wuchtmaschine ausgewuchtet
+Kontrolllauf ohne Unwucht
+
+[Einlagerung]
+Räder gereinigt
+Profiltiefe und DOT je Rad notiert
+Räder mit Kennzeichen und Position beschriftet
+Einlagerung im Programm erfasst, Etikett gedruckt
+Räder am Lagerplatz eingelagert
+
+[Reifenreparatur]
+Schaden lokalisiert und begutachtet (reparierbar?)
+Reifen von innen repariert (Pilz/Flicken)
+Dichtheit geprüft, Rad ausgewuchtet
+
+[RDKS-Service]
+Sensoren ausgelesen (ID, Batterie, Druck)
+Defekte Sensoren getauscht bzw. Ventil-Service-Kit erneuert
+Sensoren angelernt, Warnleuchte aus
+
+[Achsvermessung]
+Reifendruck und Fahrwerk vorab geprüft
+Vermessung durchgeführt, Protokoll gedruckt
+Spur bzw. Sturz eingestellt
+Probefahrt, Lenkrad gerade
+
+[Teileeinbau]
+Teil laut Fahrzeugdaten (HSN/TSN, FIN) geprüft
+Altteil ausgebaut, Altteil-/Pfandrückgabe geklärt
+Neues Teil eingebaut, Funktion geprüft
+Probefahrt
+"""
+
+VARIANTEN_STANDARD = {
+    "reifen": {
+        "firma_name": "Reifen & Teile",
+        "firma_zusatz": "Reifenservice & Autoteile",
+        "absender_name": "Reifen & Teile",
+        "leistungsarten": "Räderwechsel, Reifenmontage, Auswuchten, Einlagerung, Reifenreparatur, RDKS-Service, "
+                          "Achsvermessung, Teileeinbau, Teileverkauf, Sonstiges",
+        "checklisten": CHECKLISTEN_REIFEN,
+        "kva_gebuehren": "PKW = 0,00\nSUV / Van = 0,00\nTransporter = 0,00\nMotorrad = 0,00",
+        "handy_im_netz": False,
+        # Reifeneinlagerung
+        "einlagerung_gebuehr_cent": 2500,       # Vorschlag je Satz und Saison (brutto)
+        "einlagerung_profil_warnung_sommer": 3.0,  # mm: darunter Hinweis „Neue Reifen anbieten“
+        "einlagerung_profil_warnung_winter": 4.0,
+        "einlagerung_dot_warnung_jahre": 6,     # Reifen älter als … Jahre: Hinweis
+        "einlagerung_lagerplaetze": "",         # optional: Liste fester Lagerplätze (eine je Zeile)
+        "erinnerung_winter_monat": 10,          # Oktober: an Winterräder erinnern
+        "erinnerung_sommer_monat": 4,           # April: an Sommerräder erinnern
+        "erinnerung_text": (
+            "{anrede},\n\nbald ist es wieder Zeit für Ihre {saison}räder. Ihre Räder ({kennzeichen}) lagern bei uns "
+            "unter Lagerplatz {lagerplatz}.\n\nVereinbaren Sie gern einen Termin unter {telefon} oder antworten Sie "
+            "einfach auf diese E-Mail.\n\nMit freundlichen Grüßen\n{firma}"),
+    },
+}
+
+
+def varianten_standard():
+    from . import variante
+    return VARIANTEN_STANDARD.get(variante.name(), {})
+
+
 # Standardwerte für alle Einstellungen. Alles hier ist später in der Oberfläche änderbar.
 STANDARD_EINSTELLUNGEN = {
     # Firma
@@ -377,7 +462,7 @@ def initialisieren(pfad):
         port = json.loads(con.execute("SELECT wert FROM einstellungen WHERE schluessel='imap_port'").fetchone()[0])
         con.execute("INSERT INTO einstellungen VALUES ('imap_sicherheit', ?)", (json.dumps(sicherheit_aus_port(port)),))
         vorhanden.add("imap_sicherheit")
-    for k, v in STANDARD_EINSTELLUNGEN.items():
+    for k, v in {**STANDARD_EINSTELLUNGEN, **varianten_standard()}.items():
         if k not in vorhanden:
             con.execute("INSERT INTO einstellungen VALUES (?, ?)", (k, json.dumps(v)))
     # Einmalige Umstellung (Version 0.6.1, Wunsch des Inhabers): Vertragsrechnungen vollautomatisch
@@ -466,6 +551,8 @@ MIGRATIONEN = [
     ("bank_umsaetze", "fixkosten_monat", "TEXT"),          # Monat der erwarteten Fälligkeit (JJJJ-MM)
     ("eingangsrechnungen", "fixkosten_id", "INTEGER"),     # Rechnung gehört zu einer Fixkosten-Position
     ("loeschprotokolle", "frist", "TEXT"),
+    ("artikel", "reifen_groesse", "TEXT"),                 # Reifen & Teile
+    ("artikel", "reifen_saison", "TEXT"),
 ]
 
 # Tabellen, die mit neueren Versionen dazukommen: fehlen sie in einer bestehenden Datenbank, wird vorher gesichert
@@ -524,6 +611,7 @@ def _garantie_ende_nachtragen(con):
         return
     from .garantie import ende_berechnen, _datum
     werte = dict(STANDARD_EINSTELLUNGEN)
+    werte.update(varianten_standard())
     for r in con.execute("SELECT schluessel, wert FROM einstellungen"):
         werte[r["schluessel"]] = json.loads(r["wert"])
     for a in con.execute("SELECT * FROM auftraege WHERE abgeholt_am IS NOT NULL AND garantie_ende IS NULL").fetchall():
@@ -572,6 +660,7 @@ def _sicherung_vor_migration(con, pfad):
 def einstellungen(con=None):
     con = con or get_db()
     werte = dict(STANDARD_EINSTELLUNGEN)
+    werte.update(varianten_standard())
     for r in con.execute("SELECT schluessel, wert FROM einstellungen"):
         try:
             werte[r["schluessel"]] = json.loads(r["wert"])

@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import webbrowser
 from pathlib import Path
+from . import variante
 
 SYMBOL = Path(__file__).parent / "static" / "bilder" / "symbol.png"
 _symbol_ref = {"icon": None}
@@ -79,7 +80,7 @@ def symbol_anzeigen(titel, adresse, daten_dir, modus_abfrage, beenden):
         pystray.MenuItem("Beenden", menue_beenden),
     )
     try:
-        icon = pystray.Icon("Werkstatt-Sauter", Image.open(SYMBOL), titel, menue)
+        icon = pystray.Icon(variante.kurz(), Image.open(SYMBOL.with_name(variante.bild(SYMBOL.name))), titel, menue)
         _symbol_ref["icon"] = icon
         icon.run()
         return True

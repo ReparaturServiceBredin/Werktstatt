@@ -93,6 +93,21 @@
   </table>
 </div>
 {% endif %}
+{% if k and hat('reifen') %}
+<div class="karte">
+  <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Eingelagerte Räder</h2>
+    <a class="knopf klein zweit" href="{{ url_for('main.einlagerung', kunde_id=k.id) }}">+ Räder einlagern</a></div>
+  <table class="liste">
+    <tr><th>Nr.</th><th>Kennzeichen</th><th>Saison</th><th>Reifen</th><th>Lagerplatz</th><th>Stand</th></tr>
+    {% for e in einlagerungen %}<tr style="{{ 'opacity:.55' if e.ausgelagert_am }}"><td><a href="{{ url_for('main.einlagerung', eid=e.id) }}">{{ e.nummer }}</a></td>
+      <td>{{ e.kennzeichen or '' }}<div class="klein">{{ e.fahrzeug or '' }}</div></td>
+      <td>{{ {'sommer': 'Sommer', 'winter': 'Winter', 'ganzjahr': 'Ganzjahr'}[e.saison] }}</td><td>{{ e.groesse or '' }}</td>
+      <td><b>{{ e.lagerplatz or '–' }}</b></td>
+      <td>{{ ('ausgelagert ' ~ (e.ausgelagert_am|datum)) if e.ausgelagert_am else ('eingelagert seit ' ~ (e.eingelagert_am|datum)) }}</td></tr>
+    {% else %}<tr><td colspan="6" class="klein">Keine Räder eingelagert.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
 {% if auftraege %}
 <div class="karte">
   <h2>Aufträge</h2>

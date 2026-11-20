@@ -9,7 +9,7 @@
     <div>📷 Fotos hierher ziehen</div>
     <div class="leiste" style="justify-content:center;margin-top:8px">
       <label class="knopf zweit">Dateien auswählen<input type="file" class="foto-datei" accept="image/*,.heic,.heif" multiple hidden></label>
-      <label class="knopf zweit">Kamera (Handy)<input type="file" class="foto-datei" accept="image/*" capture="environment" hidden></label>
+{% if hat('handy') %}      <label class="knopf zweit">Kamera (Handy)<input type="file" class="foto-datei" accept="image/*" capture="environment" hidden></label>{% endif %}
     </div>
     <div class="klein">JPG, PNG, WEBP oder HEIC · Originale werden unverändert gespeichert</div>
   </div>

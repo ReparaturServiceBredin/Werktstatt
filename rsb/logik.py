@@ -412,6 +412,8 @@ def stornieren(con, dok_id, daten_dir, grund=""):
                               + (f" – Grund: {grund}" if grund else ""))
         from .lager import rechnung_storniert
         rechnung_storniert(con, dok_id)  # ausgebuchtes Material des Auftrags wieder einbuchen
+        from .reifen import theke_storniert
+        theke_storniert(con, dok_id)  # Thekenverkauf: ausgebuchte Artikel wieder einbuchen
     return neu_id, nummer
 
 

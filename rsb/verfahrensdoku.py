@@ -8,6 +8,7 @@ from datetime import datetime
 
 from . import db as dbm
 from .hilfen import datum_de
+from . import variante
 
 ERGAENZEN = "[bitte ergänzen]"
 
@@ -27,10 +28,9 @@ def inhalt(con, daten_dir, version):
             f"{e.get('strasse') or ERGAENZEN}, {e.get('plz') or ''} {e.get('ort') or ''}. "
             f"Steuernummer: {e.get('steuernummer') or ERGAENZEN}"
             + (f", USt-IdNr.: {e['ust_idnr']}" if e.get("ust_idnr") else "") + ".",
-            "Tätigkeit: Reparatur von Smartphones, Computern, Kaffeemaschinen und ähnlichen Geräten, Verkauf von "
-            "Zubehör, Verträge/Lizenzen (z. B. Wertgarantie, Virenschutz, IT-Betreuung). " + ERGAENZEN,
+            "Tätigkeit: " + variante.wert("taetigkeit") + " " + ERGAENZEN,
             f"Besteuerung: {steuer}.",
-            f"Eingesetztes Programm: „Werkstatt-Sauter“ Version {version}, eigenentwickelt, läuft lokal auf einem "
+            f"Eingesetztes Programm: „{variante.kurz()}“ Version {version}, eigenentwickelt, läuft lokal auf einem "
             f"Windows-PC; Datenbank SQLite, Datenordner: {daten_dir}.",
             f"Bedient von: {ERGAENZEN} (Name, Rolle). Zugriffsschutz: "
             + ("Passwortschutz eingeschaltet." if e.get("login_aktiv") else

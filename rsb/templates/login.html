@@ -3,7 +3,7 @@
 <title>Anmelden</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
 <body>
 <div class="anmeldung">
-  <img src="{{ url_for('static', filename='bilder/logo_standard.png') }}" alt="Logo">
+  <img src="{{ url_for('static', filename='bilder/' ~ bild('logo_standard.png')) }}" alt="Logo">
   <div class="karte">
     <h1>Anmelden</h1>
     {% with meldungen = get_flashed_messages(with_categories=true) %}{% for art, text in meldungen %}<div class="meldung {{ art }}">{{ text }}</div>{% endfor %}{% endwith %}

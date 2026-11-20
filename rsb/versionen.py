@@ -7,7 +7,8 @@ from pathlib import Path
 
 def protokoll_datei():
     basis = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
-    return basis / "docs" / "AENDERUNGEN.md"
+    from . import variante
+    return basis / "docs" / variante.wert("aenderungen")
 
 
 def _inline(text):

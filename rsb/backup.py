@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import db as dbm
+from . import variante
 
 ORDNER_IM_BACKUP = ["dokumente", "belege", "bilder", "fotos", "exporte"]
 
@@ -37,7 +38,7 @@ def backup_erstellen(daten_dir, db_pfad, einst=None):
                     if datei.is_file():
                         z.write(datei, datei.relative_to(daten).as_posix())
             z.writestr("LIESMICH.txt",
-                       "Backup Werkstatt Sauter\n"
+                       f"Backup {variante.programm()}\n"
                        f"Erstellt: {datetime.now():%d.%m.%Y %H:%M}\n\n"
                        "Wiederherstellen: Programm beenden, Inhalt dieses ZIP in den Ordner 'Daten' entpacken\n"
                        "(vorhandene Dateien ersetzen), Programm starten, E-Mail-Passwort neu eingeben.\n")

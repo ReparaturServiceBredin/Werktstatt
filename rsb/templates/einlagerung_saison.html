@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Saisonwechsel{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Saisonwechsel: {{ saisons[saison] }}räder</h1>
+  <div class="leiste">
+    {% for s in ['winter', 'sommer'] %}<a class="knopf {{ '' if s == saison else 'zweit' }}" href="{{ url_for('main.einlagerung_saison', saison=s) }}">{{ saisons[s] }}räder</a>{% endfor %}
+    {% if mail_bereit %}<form method="post" action="{{ url_for('main.einlagerung_erinnern_alle') }}" onsubmit="return confirm('Alle noch nicht erinnerten Kunden mit E-Mail-Adresse jetzt anschreiben?')">{{ csrf() }}<input type="hidden" name="saison" value="{{ saison }}"><button>Alle per E-Mail erinnern</button></form>{% endif %}
+  </div>
+</div>
+{% set reiter = "einlagerung" %}{% include "_bereichsreiter.html" %}
+<p class="klein">Diese Kunden haben {{ saisons[saison] }}räder bei uns eingelagert. {% if aktiv == saison %}Jetzt ist Zeit für den Wechsel.{% endif %}
+  Erinnern per E-Mail (Text unter Einstellungen → Reifeneinlagerung) oder anrufen und abhaken.
+  {% if not mail_bereit %}<b>E-Mail ist noch nicht eingerichtet</b> (Einstellungen → E-Mail).{% endif %}</p>
+<div class="karte">
+<table class="liste">
+  <tr><th>Kunde</th><th>Kennzeichen</th><th>Platz</th><th>Kontakt</th><th>Erinnert</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr style="{{ 'opacity:.6' if erinnert[z.id] }}">
+    <td><a href="{{ url_for('main.kunde', kid=z.kunde_id) }}"><b>{{ z|kname }}</b></a></td>
+    <td><a href="{{ url_for('main.einlagerung', eid=z.id) }}">{{ z.kennzeichen or z.nummer }}</a><div class="klein">{{ z.fahrzeug or '' }}</div></td>
+    <td>{{ z.lagerplatz or '–' }}</td>
+    <td>{{ z.telefon or "" }}<div class="klein">{{ z.email or 'keine E-Mail' }}</div></td>
+    <td>{% if z.erinnert_am %}{{ z.erinnert_am|datum }}<div class="klein">{{ z.erinnert_wie or '' }}</div>{% else %}<span class="klein">noch nicht</span>{% endif %}</td>
+    <td style="white-space:nowrap">
+      {% if z.email and mail_bereit %}<form method="post" action="{{ url_for('main.einlagerung_erinnern', eid=z.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="wie" value="email"><button class="klein {{ 'zweit' if erinnert[z.id] }}" title="{{ texte[z.id][0] }}">E-Mail</button></form>{% endif %}
+      <form method="post" action="{{ url_for('main.einlagerung_erinnern', eid=z.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="wie" value="telefon"><button class="klein zweit">Angerufen ✓</button></form>
+      <a class="knopf klein zweit" href="{{ url_for('main.auftrag_neu', kunde_id=z.kunde_id) }}">Termin/Auftrag</a>
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="klein">Keine {{ saisons[saison] }}räder eingelagert.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

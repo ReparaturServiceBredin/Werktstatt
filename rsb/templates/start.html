@@ -7,6 +7,8 @@
   <div class="leiste">
     <a class="knopf" href="{{ url_for('main.kalender') }}">Aufträge</a>
     <a class="knopf zweit" href="{{ url_for('main.auftrag_neu') }}">+ Neuer Auftrag</a>
+    {% if hat('reifen') %}<a class="knopf zweit" href="{{ url_for('main.einlagerung') }}">+ Räder einlagern</a>
+    <a class="knopf zweit" href="{{ url_for('main.theke') }}">Thekenverkauf</a>{% endif %}
     <a class="knopf zweit" href="{{ url_for('main.eingangsrechnung_neu', neu=1) }}">+ Beleg</a>
     <a class="knopf zweit" href="{{ url_for('main.dokument_neu') }}">+ Neue Rechnung</a>
   </div>
@@ -35,6 +37,14 @@
   <a class="kachel kachel-link s-rand-{{ st }}" href="{{ url_for('main.auftraege') }}"><div class="label">{{ name }}</div><div class="wert">{{ zahlen.auftraege.get(st, 0) }}</div></a>
   {% endfor %}
 </div>
+{% if hat('reifen') %}
+<div class="raster">
+  <a class="kachel kachel-link" href="{{ url_for('main.einlagerungen') }}"><div class="label">Eingelagerte Sätze</div><div class="wert">{{ zahlen.einlagerung.saetze }}</div><div class="klein">{{ zahlen.einlagerung.raeder }} Räder/Reifen</div></a>
+  <a class="kachel kachel-link {{ 's-rand-in_arbeit' if zaehler.einlagerung_erinnern }}" href="{{ url_for('main.einlagerung_saison') }}"><div class="label">Saisonwechsel{{ (' ' ~ {'winter': 'Winter', 'sommer': 'Sommer'}[zahlen.saison_ziel]) if zahlen.saison_ziel }}</div><div class="wert">{{ zaehler.einlagerung_erinnern }}</div><div class="klein">Kunden noch zu erinnern</div></a>
+  <a class="kachel kachel-link" href="{{ url_for('main.theke') }}"><div class="label">Theke heute</div><div class="wert">{{ zahlen.theke_heute[1]|euro }}</div><div class="klein">{{ zahlen.theke_heute[0] }} Verkäufe</div></a>
+  <a class="kachel kachel-link {{ 's-rand-in_arbeit' if zaehler.lager_unter_min }}" href="{{ url_for('main.lager') }}"><div class="label">Lager unter Mindestbestand</div><div class="wert">{{ zaehler.lager_unter_min }}</div></a>
+</div>
+{% endif %}
 <div class="raster">
   <div class="kachel"><div class="label">Umsatz {{ jahr }}</div><div class="wert">{{ zahlen.umsatz_jahr|euro }}</div></div>
   <div class="kachel"><div class="label">Umsatz {{ jahr - 1 }}</div><div class="wert">{{ zahlen.umsatz_vorjahr|euro }}</div></div>

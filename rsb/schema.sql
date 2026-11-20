@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS artikel (
     ean               TEXT,
     herstellernr      TEXT,
     kompatibilitaet   TEXT,                         -- z. B. „iPhone 13, iPhone 13 Pro“ (durchsuchbar)
+    reifen_groesse    TEXT,                         -- Reifen & Teile: z. B. 205/55 R16 91V (Suche nach Größe)
+    reifen_saison     TEXT,                         -- sommer / winter / ganzjahr
     aktiv             INTEGER NOT NULL DEFAULT 1,
     erstellt_am       TEXT NOT NULL,
     geaendert_am      TEXT NOT NULL
@@ -1295,3 +1297,36 @@ CREATE TABLE IF NOT EXISTS auftrag_checkliste (
     erledigt_von TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_checkliste_auftrag ON auftrag_checkliste(auftrag_id, position);
+
+-- Reifen & Teile: Reifeneinlagerung („Reifenhotel“). Ein Datensatz = ein Satz Räder/Reifen eines Kunden.
+CREATE TABLE IF NOT EXISTS einlagerungen (
+    id              INTEGER PRIMARY KEY,
+    nummer          TEXT UNIQUE NOT NULL,             -- EL-2026-0001
+    kunde_id        INTEGER NOT NULL REFERENCES kunden(id),
+    auftrag_id      INTEGER REFERENCES auftraege(id) ON DELETE SET NULL,
+    vorgaenger_id   INTEGER REFERENCES einlagerungen(id) ON DELETE SET NULL,  -- beim Saisontausch
+    kennzeichen     TEXT,
+    fahrzeug        TEXT,
+    saison          TEXT NOT NULL DEFAULT 'winter' CHECK (saison IN ('sommer', 'winter', 'ganzjahr')),
+    art             TEXT NOT NULL DEFAULT 'raeder' CHECK (art IN ('raeder', 'reifen')),  -- Kompletträder / nur Reifen
+    felge           TEXT,                             -- Alu / Stahl
+    anzahl          INTEGER NOT NULL DEFAULT 4,
+    hersteller      TEXT,
+    groesse         TEXT,                             -- z. B. 205/55 R16 91H
+    profil_vl REAL, profil_vr REAL, profil_hl REAL, profil_hr REAL,   -- mm
+    dot_vl TEXT, dot_vr TEXT, dot_hl TEXT, dot_hr TEXT,               -- WWJJ, z. B. 2321
+    zubehoer        TEXT,                             -- Radschrauben, Radkappen, Felgenschloss …
+    lagerplatz      TEXT,
+    gebuehr         INTEGER,                          -- Cent brutto je Saison
+    bemerkung       TEXT,
+    eingelagert_am  TEXT NOT NULL,
+    ausgelagert_am  TEXT,
+    auslagerung_notiz TEXT,
+    erinnert_am     TEXT,                             -- Kunde zum Saisonwechsel erinnert (E-Mail/Telefon)
+    erinnert_wie    TEXT,
+    rechnung_id     INTEGER REFERENCES dokumente(id) ON DELETE SET NULL,
+    erstellt_am     TEXT NOT NULL,
+    geaendert_am    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_einlagerungen_kunde ON einlagerungen(kunde_id);
+CREATE INDEX IF NOT EXISTS ix_einlagerungen_platz ON einlagerungen(lagerplatz);

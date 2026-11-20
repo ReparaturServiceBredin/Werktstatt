@@ -52,7 +52,7 @@
   <div class="felder"><div class="s3"><label>Stichtag</label><input type="date" name="stichtag" value="{{ heute }}"></div>
     <div class="s6"><label>Bezeichnung</label><input type="text" name="bezeichnung" placeholder="z. B. Jahresinventur {{ heute[:4] }}"></div></div><br>
   <button>Inventur anlegen</button>
-  <p class="klein">Übernimmt alle lagerführenden Artikel mit dem aktuellen Bestand als Soll. Dann zählen (am PC, auf Papier oder per Handy), Differenzen buchen und abschließen.</p>
+  <p class="klein">Übernimmt alle lagerführenden Artikel mit dem aktuellen Bestand als Soll. Dann zählen (am PC{{ ', auf Papier oder per Handy' if hat('handy') else ' oder auf Papier' }}), Differenzen buchen und abschließen.</p>
 </form>
 <div class="karte"><h2>Inventuren</h2><table class="liste"><thead><tr><th>Stichtag</th><th>Bezeichnung</th><th>Status</th><th class="zahl">Differenzen</th><th class="zahl">Lagerwert</th><th></th></tr></thead><tbody>
   {% for i in inventuren %}<tr><td>{{ i.stichtag|datum }}</td><td><a href="{{ url_for('main.inventur', iid=i.id) }}">{{ i.bezeichnung }}</a></td><td>{{ i.status }}</td><td class="zahl">{{ i.differenzen if i.differenzen is not none else '' }}</td><td class="zahl">{{ i.lagerwert|euro if i.lagerwert is not none else '' }}</td>

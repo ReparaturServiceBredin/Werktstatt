@@ -17,6 +17,20 @@ Bankabgleich, Kassenbuch, Fixkosten, Finanzübersicht, DATEV-Export, Datenschutz
 
 ---
 
+## Zweites Programm aus demselben Code: Reifen & Teile
+
+Für eine **Reifenwerkstatt mit Autoteile-Verkauf** gibt es die Variante **Reifen & Teile** (`Reifen-Teile.exe`):
+Reifeneinlagerung mit Etiketten und Saison-Erinnerung, Thekenverkauf, Suche nach Reifengröße, Lager und Einkauf –
+ohne Handy-/QR-Code-Funktionen. Sie hat eigenen Namen, Datenordner (`%LOCALAPPDATA%\Reifen-Teile\Daten`), Port und
+Update-Kanal (Releases `reifen-v…`) und stört Werkstatt Sauter nicht. Versionen: [docs/AENDERUNGEN_REIFEN.md](docs/AENDERUNGEN_REIFEN.md).
+
+- **[Reifen-Teile.exe herunterladen](https://github.com/ReparaturServiceBredin/Werktstatt/releases/download/reifen-v1.0.0/Reifen-Teile.exe)**
+  (oder [als USB-Ordner mit Installieren.bat](https://github.com/ReparaturServiceBredin/Werktstatt/releases/download/reifen-v1.0.0/Reifen-Teile-USB.zip))
+- Technik: `rsb/variante.py` (Varianten), `rsb/reifen.py` + `rsb/reifen_views.py`, Bauplan `Reifen-Teile.spec`,
+  Workflow `.github/workflows/release-reifen.yml`.
+
+---
+
 ## Installation unter Windows 11 (2 Minuten)
 
 1. Ordner anlegen, z. B. **`C:\Werkstatt-Sauter`**. Bitte nicht unter „Programme“ und nicht in OneDrive,

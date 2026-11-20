@@ -53,7 +53,8 @@ def erstellen(snap, daten_dir, einst, unterschrift=None):
         return t
 
     firma = snap["firma"]
-    logo = STANDARD_LOGO
+    from . import variante
+    logo = STANDARD_LOGO.with_name(variante.bild(STANDARD_LOGO.name))
     if einst.get("logo_datei") and (Path(daten_dir) / einst["logo_datei"]).is_file():
         logo = Path(daten_dir) / einst["logo_datei"]
     nummer = snap.get("nummer") or f"{snap['auftragsnr']} (Entwurf, nicht unterschrieben)"

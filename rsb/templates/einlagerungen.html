@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_status.html" import csrf %}
+{% block titel %}Reifeneinlagerung{% endblock %}
+{% block inhalt %}
+<div class="kopf">
+  <h1>Reifeneinlagerung{{ ' – ausgelagert' if archiv }}</h1>
+  <div class="leiste">
+    <form class="leiste" method="get">
+      <input type="text" name="q" value="{{ q }}" placeholder="Kennzeichen, Name, Lagerplatz, Größe (205/55 R16) …" style="width:320px" autofocus>
+      {% if not archiv %}<select name="saison"><option value="">alle Saisons</option>{% for k, n in saisons.items() %}<option value="{{ k }}" {{ 'selected' if saison == k }}>{{ n }}</option>{% endfor %}</select>{% endif %}
+      <button class="zweit">Suchen</button>
+    </form>
+    <a class="knopf" href="{{ url_for('main.einlagerung') }}">+ Räder einlagern</a>
+  </div>
+</div>
+{% set reiter = "einlagerung" %}{% include "_bereichsreiter.html" %}
+{% if not archiv %}
+<div class="raster">
+  <div class="kachel"><div class="label">Eingelagerte Sätze</div><div class="wert">{{ zahlen.saetze }}</div></div>
+  <div class="kachel"><div class="label">Räder / Reifen</div><div class="wert">{{ zahlen.raeder }}</div></div>
+  <div class="kachel"><div class="label">Belegte Lagerplätze</div><div class="wert">{{ zahlen.plaetze }}</div></div>
+</div>
+{% endif %}
+<div class="karte">
+<table class="liste">
+  <tr><th>Lagerplatz</th><th>Kennzeichen / Fahrzeug</th><th>Kunde</th><th>Saison</th><th>Reifen</th><th>{{ 'Ausgelagert' if archiv else 'Eingelagert' }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr>
+    <td><b style="font-size:1.1em">{{ z.lagerplatz or '–' }}</b><div class="klein">{{ z.nummer }}</div></td>
+    <td><a href="{{ url_for('main.einlagerung', eid=z.id) }}"><b>{{ z.kennzeichen or '(ohne Kennzeichen)' }}</b></a><div class="klein">{{ z.fahrzeug or '' }}</div></td>
+    <td><a href="{{ url_for('main.kunde', kid=z.kunde_id) }}">{{ z|kname }}</a><div class="klein">{{ z.telefon or '' }}</div></td>
+    <td>{{ saisons[z.saison] }}<div class="klein">{{ z.anzahl }} × {{ 'Rad' if z.art == 'raeder' else 'Reifen' }}{{ (' · ' ~ z.felge) if z.felge }}</div></td>
+    <td>{{ z.groesse or '' }}<div class="klein">{{ z.hersteller or '' }}</div>
+      {% for w in warn.get(z.id, []) if not w.startswith('→') %}<div class="klein" style="color:#B42318">⚠ {{ w }}</div>{% endfor %}</td>
+    <td>{{ (z.ausgelagert_am if archiv else z.eingelagert_am)|datum }}</td>
+    <td style="white-space:nowrap"><a class="knopf klein zweit" href="{{ url_for('main.einlagerung_pdf', eid=z.id, etiketten=1) }}" target="_blank">Etiketten</a></td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="klein">{{ 'Keine Treffer.' if q else ('Noch nichts ausgelagert.' if archiv else 'Noch keine Räder eingelagert.') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

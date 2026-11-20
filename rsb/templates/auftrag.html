@@ -11,14 +11,14 @@
     <h1>Auftrag {{ a.auftragsnr }} <span class="marke-status s-{{ tafel_status }}">{{ status_namen[tafel_status] }}</span>{% if a.auftragsart == 'garantie' %} <span class="marke-status st-warnung">Garantiefall{% if garantie_bezug %} zu {{ garantie_bezug.auftragsnr }}{% endif %}</span>{% endif %}</h1>
     <div class="auftrag-kopf" style="margin-top:6px">
       <span>Eingang: <b>{{ a.eingang_am|zeit }}</b></span>
-      <span>Kunde: <a href="{{ url_for('main.kunde', kid=a.kunde_id) }}"><b>{{ a.kundennr }} · {{ a.firma if a.ktyp == 'firma' and a.firma else (a.vorname or '') ~ ' ' ~ (a.nachname or '') }}</b></a>{% if a.ktelefon %} · <a href="tel:{{ a.ktelefon }}">{{ a.ktelefon }}</a>{% endif %}</span>
+      <span>Kunde: <a href="{{ url_for('main.kunde', kid=a.kunde_id) }}"><b>{{ a.kundennr }} · {{ a.firma if a.ktyp == 'firma' and a.firma else (a.vorname or '') ~ ' ' ~ (a.nachname or '') }}</b></a>{% if a.ktelefon %} · {% if hat('handy') %}<a href="tel:{{ a.ktelefon }}">{{ a.ktelefon }}</a>{% else %}{{ a.ktelefon }}{% endif %}{% endif %}</span>
       {% if a.begonnen_am %}<span>begonnen {{ a.begonnen_am|zeit }}</span>{% endif %}
       {% if a.erledigt_am %}<span>erledigt {{ a.erledigt_am|zeit }}</span>{% endif %}
       {% if a.fertig_bis and not a.erledigt_am %}<span>fertig bis <b>{{ a.fertig_bis|datum }}</b></span>{% endif %}
       {% if a.abgeholt_am %}<span>abgeholt {{ a.abgeholt_am|zeit }}</span>{% endif %}
     </div>
   </div>
-  <div class="leiste"><a class="knopf zweit" href="{{ url_for('main.auftraege') }}">← Zur Tafel</a></div>
+  <div class="leiste">{% if hat('reifen') %}<a class="knopf zweit" href="{{ url_for('main.einlagerung', auftrag_id=a.id) }}">Räder einlagern</a>{% endif %}<a class="knopf zweit" href="{{ url_for('main.auftraege') }}">← Zur Tafel</a></div>
 </div>
 {% if kva_kunde %}<div class="meldung warnung">Achtung: Der verknüpfte Kostenvoranschlag gehört zu einem anderen Kunden ({{ kva_kunde.kundennr }} · {{ kva_kunde|kname }}) als der Auftrag.</div>{% endif %}
 
@@ -130,8 +130,8 @@
       <h2>{{ titel }}</h2>
       <p class="klein">{% if art == 'annahme' %}Bei der Fahrzeugabgabe: Fahrzeug, Auftrag, Zustand, abgegebene Gegenstände, Kosten-Obergrenze, KVA-Wunsch, Datenschutz- und Abholbedingungen.{% else %}Bei der Abholung: Der Kunde bestätigt, das Fahrzeug mit allen abgegebenen Gegenständen zurückerhalten zu haben.{% endif %}</p>
       <div class="leiste">
-        <a class="knopf" href="{{ url_for('main.auftrag_unterschreiben', aid=a.id, art=art) }}">✍ Hier unterschreiben (PC/Tablet)</a>
-        <form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck=art) }}">{{ csrf() }}<button class="zweit">📱 Am Handy (QR-Code)</button></form>
+        <a class="knopf" href="{{ url_for('main.auftrag_unterschreiben', aid=a.id, art=art) }}">✍ {{ 'Hier unterschreiben (PC/Tablet)' if hat('handy') else 'Hier am PC unterschreiben' }}</a>
+        {% if hat('handy') %}<form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck=art) }}">{{ csrf() }}<button class="zweit">📱 Am Handy (QR-Code)</button></form>{% endif %}
         <a class="knopf zweit" href="{{ url_for('main.auftrag_schein_vorschau', aid=a.id, art=art) }}" target="_blank">Vorschau / Papier zum Unterschreiben</a>
       </div>
     </div>
@@ -192,7 +192,7 @@
 <section data-bereich="fotos">
   <div class="karte">
     <div class="kopf" style="margin-bottom:6px"><h2 style="margin:0">Fotos hochladen</h2>
-      <div class="leiste"><form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck='fotos') }}">{{ csrf() }}<button class="zweit">📱 Fotos mit dem Handy (QR-Code)</button></form>
+      <div class="leiste">{% if hat('handy') %}<form method="post" action="{{ url_for('main.auftrag_handy', aid=a.id, zweck='fotos') }}">{{ csrf() }}<button class="zweit">📱 Fotos mit dem Handy (QR-Code)</button></form>{% endif %}
       {% if fotos %}<a class="knopf zweit" href="{{ url_for('main.auftrag_fotos_pdf', aid=a.id) }}" target="_blank">Fotodokumentation als PDF</a>{% endif %}</div></div>
     {{ hochladen(url_for('main.auftrag_fotos_hochladen', aid=a.id), kategorien) }}
   </div>

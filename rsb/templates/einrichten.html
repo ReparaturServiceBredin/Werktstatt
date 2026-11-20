@@ -3,7 +3,7 @@
 <title>Einrichtung</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
 <body>
 <div class="anmeldung">
-  <img src="{{ url_for('static', filename='bilder/logo_standard.png') }}" alt="Logo">
+  <img src="{{ url_for('static', filename='bilder/' ~ bild('logo_standard.png')) }}" alt="Logo">
   <div class="karte">
     <h1>Willkommen!</h1>
     <p>Legen Sie ein Passwort fest. Es schützt das Programm vor fremdem Zugriff. <b>Bitte gut merken</b> – ohne Passwort kommen Sie nicht mehr hinein.</p>

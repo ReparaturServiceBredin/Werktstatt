@@ -9,9 +9,12 @@ from . import db as dbm
 from . import navigation
 from .hilfen import EingabeFehler, datum_de, euro, kunde_name, menge_text, zeit_de
 from .sicherheit import csrf_pruefen, csrf_token, sitzungs_schluessel
+from . import variante as _variante
 
-PROGRAMM = "Werkstatt Sauter"
-VERSION_NUMMER = "1.2.1"
+VERSION_NUMMER = "1.2.1"  # Werkstatt Sauter; andere Varianten haben eigene Nummern (rsb/variante.py)
+_variante.VARIANTEN["sauter"]["version"] = VERSION_NUMMER
+VERSION_NUMMER = _variante.version()
+PROGRAMM = _variante.programm()
 VERSION = VERSION_NUMMER
 if getattr(sys, "frozen", False):
     # EXE-Version: Programmordner = Ordner der EXE (die Daten liegen am festen Ort, siehe datenort.py)
@@ -20,7 +23,9 @@ else:
     PROJEKT = Path(__file__).resolve().parent.parent
 
 
-def create_app(daten_dir=None, testing=False):
+def create_app(daten_dir=None, testing=False, variante=None):
+    import os
+    _variante.setzen(variante or os.environ.get("RSB_VARIANTE"))  # jede App legt ihre Variante neu fest
     from .datenort import ermitteln
     daten = Path(daten_dir).resolve() if daten_dir else ermitteln()  # fester Ort, unabhängig vom Startordner
     for unterordner in ("dokumente", "belege", "bilder", "backups", "geheim", "fotos"):
@@ -33,7 +38,7 @@ def create_app(daten_dir=None, testing=False):
         SECRET_KEY=sitzungs_schluessel(daten),
         PERMANENT_SESSION_LIFETIME=timedelta(hours=10),
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_NAME="werkstatt_sauter",  # eigenes Cookie: localhost teilt Cookies über alle Ports
+        SESSION_COOKIE_NAME=_variante.wert("cookie"),  # eigenes Cookie: localhost teilt Cookies über alle Ports
         SESSION_COOKIE_HTTPONLY=True,
         MAX_CONTENT_LENGTH=60 * 1024 * 1024,  # Fotos vom Handy können groß sein
         TESTING=testing,
@@ -82,22 +87,27 @@ def create_app(daten_dir=None, testing=False):
         return standard_monate(dbm.einstellungen())
 
     from .kalender import text as termin_text
-    app.jinja_env.globals.update(termin_text=termin_text, csrf_token=csrf_token, version=VERSION, zubehoer_teilen=zubehoer_teilen,
+    app.jinja_env.globals.update(termin_text=termin_text, csrf_token=csrf_token, version=_variante.version(),
+                                 programm=_variante.programm(), programm_kurz=_variante.kurz(), hat=_variante.hat, bild=_variante.bild, zubehoer_teilen=zubehoer_teilen,
                                  einst_garantie=einst_garantie, kva_gebuehren_liste=kva_gebuehren_liste,
                                  zugang_arten=ZUGANG_ARTEN)
 
     from .views import bp
+    from . import reifen_views  # noqa: F401  Seiten von Reifen & Teile (Einlagerung, Theke) am selben Blueprint
     app.register_blueprint(bp)
 
     offen = {"main.login", "main.einrichten", "main.version_info", "static"}
 
     mobil = {"main.mobil", "main.mobil_fotos", "main.mobil_foto_vorschau", "main.mobil_inventur"}  # Handy-Seiten (QR-Code mit Zugangs-Token)
+    handy_endpoints = mobil | {"main.auftrag_handy", "main.inventur_handy"}
     lokal = {"127.0.0.1", "::1", "::ffff:127.0.0.1"}
 
     @app.before_request
     def anmeldung_pruefen():
         if request.endpoint == "static":
             return None
+        if request.endpoint in handy_endpoints and not _variante.hat("handy"):
+            abort(404)  # Variante ohne Handy-Funktionen
         if request.endpoint in mobil:
             csrf_pruefen()  # Zugriff nur mit gültigem Token, das prüft die Seite selbst
             return None
@@ -170,11 +180,18 @@ def create_app(daten_dir=None, testing=False):
             print(f"Hinweis: Fixkosten-Hinweise nicht verfügbar ({e})")
             fix_hinweise = []
         glocke_ungelesen += len(fix_hinweise)
+        einlagerung_erinnern = 0
+        if _variante.hat("reifen"):
+            try:
+                from .reifen import noch_zu_erinnern
+                einlagerung_erinnern = noch_zu_erinnern(con, einst)
+            except Exception as e:
+                print(f"Hinweis: Zähler nicht verfügbar ({e})")
         ui = einst.get(f"oberflaeche:{session.get('benutzer') or 'inhaber'}") or {}
         if not isinstance(ui, dict):
             ui = {}
         from .update import ist_exe, ist_neuer
-        update_da = einst.get("update_verfuegbar") if ist_neuer(einst.get("update_verfuegbar"), VERSION_NUMMER) \
+        update_da = einst.get("update_verfuegbar") if ist_neuer(einst.get("update_verfuegbar"), _variante.version()) \
             else None
         return {"einst": einst, "offene_anfragen": offene_anfragen, "leihen_ueberfaellig": leihen_ueberfaellig,
                 "posten_ueberfaellig": posten_ueberfaellig, "benachrichtigungen_offen": benachrichtigungen_offen,
@@ -182,7 +199,7 @@ def create_app(daten_dir=None, testing=False):
                 "glocke_ungelesen": glocke_ungelesen, "ui": ui, "nav": navigation, "fix_hinweise": fix_hinweise,
                 "zaehler": {"offene_anfragen": offene_anfragen, "offene_auftraege": offene_auftraege,
                             "leihen_ueberfaellig": leihen_ueberfaellig, "posten_ueberfaellig": posten_ueberfaellig,
-                            "lager_unter_min": lager_unter_min},
+                            "lager_unter_min": lager_unter_min, "einlagerung_erinnern": einlagerung_erinnern},
                 "update_da": update_da, "ist_exe": ist_exe()}
 
     @app.errorhandler(EingabeFehler)

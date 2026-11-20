@@ -30,13 +30,19 @@
       <div class="hilfe">Leer = Standard aus den Einstellungen; 0 = ohne Garantie.</div></div>
     <div class="s12"><div class="meldung info" id="margeanzeige" style="margin:0">Marge: –</div></div>
     <div class="s12"><label class="check"><input type="checkbox" name="aktiv" {{ 'checked' if not a or a.aktiv }}> aktiv (in der Auswahl beim Rechnung schreiben anzeigen)</label></div>
+    {% if hat('reifen') %}
+    <div class="s12"><h2 style="margin:10px 0 0">Reifen</h2></div>
+    <div class="s4"><label>Reifengröße (bei Reifen/Kompletträdern)</label><input type="text" name="reifen_groesse" value="{{ (a.reifen_groesse or '') if a }}" placeholder="z. B. 205/55 R16 91V">
+      <div class="hilfe">Danach lässt sich überall nach der Größe suchen, z. B. „2055516“ oder „205/55 R16“.</div></div>
+    <div class="s4"><label>Saison</label><select name="reifen_saison"><option value="">–</option>{% for k, n in [('sommer', 'Sommer'), ('winter', 'Winter'), ('ganzjahr', 'Ganzjahr')] %}<option value="{{ k }}" {{ 'selected' if a and a.reifen_saison == k }}>{{ n }}</option>{% endfor %}</select></div>
+    {% endif %}
     <div class="s12"><h2 style="margin:10px 0 0">Lager</h2></div>
     <div class="s12"><label class="check"><input type="checkbox" name="lagerfuehrend" id="f_lager" {{ 'checked' if a and a.lagerfuehrend }}> lagerführend (Bestand führen, für Aufträge reservieren, Inventur)</label></div>
     <div class="s3 lagerfeld"><label>Mindestbestand</label><input type="text" name="mindestbestand" value="{{ (a.mindestbestand|menge) if a and a.mindestbestand is not none else '' }}" placeholder="z. B. 2"></div>
     <div class="s3 lagerfeld"><label>Lagerort</label><input type="text" name="lagerort" value="{{ (a.lagerort or '') if a }}" placeholder="z. B. Regal A2"></div>
     <div class="s3 lagerfeld"><label>EAN</label><input type="text" name="ean" value="{{ (a.ean or '') if a }}"></div>
-    <div class="s3 lagerfeld"><label>Herstellernummer</label><input type="text" name="herstellernr" value="{{ (a.herstellernr or '') if a }}"></div>
-    <div class="s12 lagerfeld"><label>Kompatibel mit (durchsuchbar)</label><input type="text" name="kompatibilitaet" value="{{ (a.kompatibilitaet or '') if a }}" placeholder="z. B. iPhone 13, iPhone 13 Pro, A2633"></div>
+    <div class="s3 lagerfeld"><label>{{ 'OE-/Herstellernummer' if hat('reifen') else 'Herstellernummer' }}</label><input type="text" name="herstellernr" value="{{ (a.herstellernr or '') if a }}"></div>
+    <div class="s12 lagerfeld"><label>{{ 'Passend für Fahrzeuge (durchsuchbar)' if hat('reifen') else 'Kompatibel mit (durchsuchbar)' }}</label><input type="text" name="kompatibilitaet" value="{{ (a.kompatibilitaet or '') if a }}" placeholder="{{ 'z. B. VW Golf VII 1.6 TDI, Audi A3 8V, HSN/TSN 0603/BGU' if hat('reifen') else 'z. B. iPhone 13, iPhone 13 Pro, A2633' }}"></div>
   </div>
   <br>
   <div class="leiste"><button>Speichern</button><a class="knopf zweit" href="{{ url_for('main.artikel_liste') }}">Abbrechen</a></div>

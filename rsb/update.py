@@ -22,10 +22,22 @@ import time
 import urllib.request
 from pathlib import Path
 
+from . import variante
+
 REPO = os.environ.get("RSB_UPDATE_REPO", "ReparaturServiceBredin/Werktstatt")
 API_URL = os.environ.get("RSB_UPDATE_API") or f"https://api.github.com/repos/{REPO}/releases/latest"
-EXE_NAME = "Werkstatt-Sauter.exe"
+# Varianten mit eigenem Kanal (z. B. Reifen & Teile: Tags „reifen-v…“) lesen die Liste aller Veröffentlichungen
+# und nehmen die neueste mit ihrem Präfix – ihre Releases sind nie „latest“, damit sich die Kanäle nicht stören.
+LISTE_URL = os.environ.get("RSB_UPDATE_LISTE") or f"https://api.github.com/repos/{REPO}/releases?per_page=50"
 TIMEOUT = 15
+
+
+def exe_name():
+    return variante.exe_name()
+
+
+def eigener_kanal():
+    return variante.wert("tag_praefix") != "v"
 
 
 class UpdateFehler(Exception):
@@ -52,7 +64,7 @@ def ist_neuer(kandidat, aktuell):
 
 
 def _abrufen(url, timeout=TIMEOUT):
-    anfrage = urllib.request.Request(url, headers={"User-Agent": "Werkstatt-Sauter-Updater",
+    anfrage = urllib.request.Request(url, headers={"User-Agent": f"{variante.kurz()}-Updater",
                                                    "Accept": "application/vnd.github+json"})
     try:
         with urllib.request.urlopen(anfrage, timeout=timeout) as antwort:
@@ -61,19 +73,32 @@ def _abrufen(url, timeout=TIMEOUT):
         raise UpdateFehler(f"Update-Server nicht erreichbar: {e}")
 
 
+def _neueste_im_kanal(liste):
+    praefix = variante.wert("tag_praefix")
+    passend = [r for r in liste if isinstance(r, dict) and not r.get("draft") and not r.get("prerelease")
+               and (r.get("tag_name") or "").startswith(praefix)]
+    if not passend:
+        raise UpdateFehler("Es gibt noch keine Veröffentlichung für dieses Programm.")
+    return max(passend, key=lambda r: versions_tupel(r["tag_name"][len(praefix):]))
+
+
 def neueste_version():
     """Liest die neueste Veröffentlichung. Gibt dict mit version, exe_url, sha_url, hinweise zurück."""
     try:
-        daten = json.loads(_abrufen(API_URL))
+        daten = json.loads(_abrufen(LISTE_URL if eigener_kanal() else API_URL))
     except ValueError:
         raise UpdateFehler("Antwort des Update-Servers ist ungültig.")
+    if eigener_kanal():
+        daten = _neueste_im_kanal(daten if isinstance(daten, list) else [])
+    exe = exe_name()
     assets = {a.get("name"): a.get("browser_download_url") for a in daten.get("assets", [])}
-    if EXE_NAME not in assets:
+    if exe not in assets:
         raise UpdateFehler("In der neuesten Version ist keine EXE-Datei enthalten.")
     return {
-        "version": (daten.get("tag_name") or "").lstrip("vV"),
-        "exe_url": assets[EXE_NAME],
-        "sha_url": assets.get(EXE_NAME + ".sha256"),
+        "version": (daten.get("tag_name") or "")[len(variante.wert("tag_praefix")):] if eigener_kanal()
+        else (daten.get("tag_name") or "").lstrip("vV"),
+        "exe_url": assets[exe],
+        "sha_url": assets.get(exe + ".sha256"),
         "hinweise": (daten.get("body") or "").strip(),
         "datum": daten.get("published_at") or "",
     }
@@ -85,7 +110,7 @@ def herunterladen(info, ziel: Path):
         raise UpdateFehler("Zur neuen Version fehlt die Prüfsumme – Update wird aus Sicherheitsgründen nicht installiert.")
     erwartet = _abrufen(info["sha_url"]).decode("ascii", "replace").split()[0].strip().lower()
     temp = ziel.with_suffix(ziel.suffix + ".download")
-    anfrage = urllib.request.Request(info["exe_url"], headers={"User-Agent": "Werkstatt-Sauter-Updater"})
+    anfrage = urllib.request.Request(info["exe_url"], headers={"User-Agent": f"{variante.kurz()}-Updater"})
     h = hashlib.sha256()
     try:
         with urllib.request.urlopen(anfrage, timeout=120) as antwort, open(temp, "wb") as datei:
@@ -167,7 +192,7 @@ def neu_starten(verzoegerung=1.0):
         try:
             subprocess.Popen([str(exe_pfad())], env=umgebung, cwd=str(exe_pfad().parent), close_fds=True)
         except OSError as e:
-            print(f"Neustart fehlgeschlagen ({e}). Bitte Werkstatt-Sauter.exe von Hand neu starten.")
+            print(f"Neustart fehlgeschlagen ({e}). Bitte {exe_name()} von Hand neu starten.")
         from .fenster import symbol_entfernen
         symbol_entfernen()  # altes Symbol neben der Uhr ausblenden
         os._exit(0)
