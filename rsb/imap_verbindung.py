@@ -44,7 +44,8 @@ def fehler_uebersetzen(e, host, port, sicherheit):
     if isinstance(e, socket.gaierror):
         return f"Der IMAP-Server „{host}“ wurde nicht gefunden. Bitte den Servernamen prüfen (z. B. imap.ionos.de)."
     if isinstance(e, ssl.SSLError) or "SSL" in text:
-        if "WRONG_VERSION_NUMBER" in text or "wrong version number" in text.lower() or "UNKNOWN_PROTOCOL" in text:
+        if ("WRONG_VERSION_NUMBER" in text or "wrong version number" in text.lower() or "UNKNOWN_PROTOCOL" in text
+                or "record layer failure" in text.lower()):  # neuere OpenSSL-Versionen
             return f"{HINWEIS_PORT} Aktuell: {ziel}."
         if "CERTIFICATE_VERIFY_FAILED" in text:
             return (f"Das Sicherheitszertifikat von {host} konnte nicht geprüft werden. Bitte den Servernamen genau so "
